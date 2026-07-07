@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { typeormConfig } from './database/type.config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
         ...configService.get<TypeOrmModuleOptions>('typeorm')!,
       }),
     }),
+    UserModule,
+    AuthModule
   ],
 })
 export class AppModule { }
