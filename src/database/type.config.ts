@@ -15,10 +15,9 @@ export const commonConfig: DataSourceOptions = {
 
 const typeOrmConfig: DataSourceOptions = {
   ...commonConfig,
-  entities: [path.join(__dirname, '../modules/**/*.entity{.ts,.js}')],
+  entities: [path.join(__dirname, '../**/*.entity{.ts,.js}')],
   migrations: [__dirname + '/migrations/[0-9]*{.ts,.js}'],
-  synchronize: false,
+  synchronize: true,  
 };
-
 export const typeormConfig = registerAs('typeorm', () => typeOrmConfig);
 export default new DataSource(typeOrmConfig);
