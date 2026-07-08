@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "strictPropertyInitialization": false,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
@@ -21,12 +20,6 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false,
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-    "types": [
-      "jest"
-    ]
+    "noFallthroughCasesInSwitch": false
   }
 }
