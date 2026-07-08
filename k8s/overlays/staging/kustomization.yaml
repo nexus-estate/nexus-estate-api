@@ -1,0 +1,31 @@
+# =============================================================================
+# Staging Overlay for Nexus Estate API Gateway
+# =============================================================================
+# Overlays the base configuration with staging-specific settings:
+#   - 1 replica for cost efficiency
+#   - Staging environment variables
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: nexus-estate
+
+resources:
+  - ../../base
+
+commonLabels:
+  environment: staging
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: api-gateway
+
+configMapGenerator:
+  - name: api-gateway-config
+    behavior: merge
+    literals:
+      - NODE_ENV=staging

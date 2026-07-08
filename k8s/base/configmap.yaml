@@ -1,0 +1,17 @@
+# =============================================================================
+# Kubernetes ConfigMap for Nexus Estate API Gateway
+# =============================================================================
+# Contains non-sensitive configuration values injected as environment variables.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  labels:
+    app: api-gateway
+    service: nexus-estate
+data:
+  NODE_ENV: "production"
+  PORT: "50001"
+  DB_POSTGRES_HOST: "postgres.nexus-estate.svc.cluster.local"
+  DB_POSTGRES_PORT: "5432"
+  DB_POSTGRES_NAME: "nexus_estate"
