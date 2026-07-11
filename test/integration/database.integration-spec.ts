@@ -1,8 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule, TypeOrmModuleOptions, getDataSourceToken } from '@nestjs/typeorm';
+import {
+  TypeOrmModule,
+  TypeOrmModuleOptions,
+  getDataSourceToken,
+} from '@nestjs/typeorm';
 import { typeormConfig } from '../../src/database/type.config';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
 
 /**
@@ -64,13 +71,16 @@ describe('Database Integration (PostgreSQL via Testcontainers)', () => {
   });
 
   it('should connect to PostgreSQL and run a basic query', async () => {
-    const result = await dataSource.query('SELECT 1 AS value');
+    const result: Record<string, unknown>[] =
+      await dataSource.query('SELECT 1 AS value');
     expect(result).toBeDefined();
     expect(result[0].value).toBe(1);
   });
 
   it('should return the PostgreSQL server version', async () => {
-    const result = await dataSource.query('SELECT version() AS version');
+    const result: Record<string, unknown>[] = await dataSource.query(
+      'SELECT version() AS version',
+    );
     expect(result).toBeDefined();
     expect(result[0].version).toContain('PostgreSQL');
   });
@@ -84,31 +94,36 @@ describe('Database Integration (PostgreSQL via Testcontainers)', () => {
       )
     `);
 
-    await dataSource.query(
-      `INSERT INTO test_items (name) VALUES ($1)`,
-      ['integration-test'],
-    );
+    await dataSource.query(`INSERT INTO test_items (name) VALUES ($1)`, [
+      'integration-test',
+    ]);
 
-    const rows = await dataSource.query('SELECT * FROM test_items');
+    const rows: Record<string, unknown>[] = await dataSource.query(
+      'SELECT * FROM test_items',
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].name).toBe('integration-test');
   });
 
   it('should verify the database server encoding is UTF8', async () => {
-    const result = await dataSource.query(
+    const result: Record<string, unknown>[] = await dataSource.query(
       "SELECT setting FROM pg_settings WHERE name = 'server_encoding'",
     );
     expect(result[0].setting).toBe('UTF8');
   });
 
   it('should handle multiple concurrent queries without errors', async () => {
-    const queries = Array.from({ length: 5 }, (_, i) =>
-      dataSource.query('SELECT $1 AS num', [i + 1]),
-    );
+    const results: Record<string, unknown>[][] = [];
+    for (let i = 0; i < 5; i++) {
+      const result: Record<string, unknown>[] = await dataSource.query(
+        'SELECT $1 AS num',
+        [i + 1],
+      );
+      results.push(result);
+    }
 
-    const results = await Promise.all(queries);
     results.forEach((result, index) => {
-      expect(result[0].num).toBe(index + 1);
+      expect(Number(result[0].num)).toBe(index + 1);
     });
   });
 });

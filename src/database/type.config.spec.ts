@@ -10,7 +10,6 @@ describe('Database Configuration (type.config)', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    // Reset environment variables before each test
     process.env = { ...originalEnv };
   });
 
@@ -25,7 +24,6 @@ describe('Database Configuration (type.config)', () => {
 
     it('should read host from DB_POSTGRES_HOST environment variable', () => {
       process.env.DB_POSTGRES_HOST = 'test-host';
-      // Access host via type assertion since DataSourceOptions is a union type
       const config = commonConfig as { host?: string };
       expect(config.host).toBeDefined();
     });
@@ -43,21 +41,38 @@ describe('Database Configuration (type.config)', () => {
 
   describe('typeormConfig', () => {
     it('should be registered as a NestJS config namespace', () => {
-      // typeormConfig is created via registerAs('typeorm', ...)
       expect(typeormConfig).toBeDefined();
       expect(typeof typeormConfig).toBe('function');
     });
 
-    it('should disable synchronize in production-like environments', () => {
-      // Synchronize should be false for safety
+    it('should default synchronize to false', () => {
+      delete process.env.DB_SYNCHRONIZE;
       const config = typeormConfig();
       expect(config.synchronize).toBe(false);
+    });
+
+    it('should enable synchronize when DB_SYNCHRONIZE is true', () => {
+      process.env.DB_SYNCHRONIZE = 'true';
+      const config = typeormConfig();
+      expect(config.synchronize).toBe(true);
     });
 
     it('should have entities pattern for modules', () => {
       const config = typeormConfig();
       expect(config.entities).toBeDefined();
       expect(Array.isArray(config.entities)).toBe(true);
+    });
+
+    it('should have migrations pattern', () => {
+      const config = typeormConfig();
+      expect(config.migrations).toBeDefined();
+      expect(Array.isArray(config.migrations)).toBe(true);
+    });
+
+    it('should not synchronize in production by default', () => {
+      process.env.NODE_ENV = 'production';
+      const config = typeormConfig();
+      expect(config.synchronize).toBe(false);
     });
   });
 });
