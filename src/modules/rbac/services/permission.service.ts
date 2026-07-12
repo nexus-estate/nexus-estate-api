@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { BaseService } from '../../services/abstraction-services/base.service';
-import { PermissionRepository } from './permission.repository';
-import { Permission } from './entities/permission.entity';
+import { BaseService } from '../../../services/abstraction-services/base.service';
+import { PermissionRepository } from '../repositories/permission.repository';
+import { Permission } from '../entities/permission.entity';
 
 export class CreatePermissionDto {
   name: string;

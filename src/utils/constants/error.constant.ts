@@ -22,7 +22,7 @@ export const ErrorCodes = {
 
   INVALID_CREDENTIALS: {
     code: 'AUTH_002',
-    message: 'Invalid email or password.',
+    message: 'Invalid credentials.',
     httpStatus: 401,
   },
 
@@ -35,6 +35,12 @@ export const ErrorCodes = {
   TOKEN_INVALID: {
     code: 'AUTH_004',
     message: 'Token is invalid or malformed.',
+    httpStatus: 401,
+  },
+
+  TOKEN_NOT_PROVIDED: {
+    code: 'AUTH_008',
+    message: 'Access token is missing. Please provide a valid Bearer token.',
     httpStatus: 401,
   },
 
@@ -66,6 +72,12 @@ export const ErrorCodes = {
   USER_EMAIL_EXISTS: {
     code: 'USR_002',
     message: 'A user with email %s already exists.',
+    httpStatus: 409,
+  },
+
+  USER_USERNAME_EXISTS: {
+    code: 'USR_006',
+    message: 'A user with username %s already exists.',
     httpStatus: 409,
   },
 

@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserService } from '../user/user.service';
-import { User } from '../user/entities/user.entity';
-import { RegisterUserDto } from '../user/dto/create-user-dto';
-import { TokenHelper } from '../../common/helpers/token.helper';
-import { HashHelper } from '../../common/helpers/hash.helper';
-import { BusinessException } from '../../common/exceptions/business.exception';
-import { ErrorCodes } from '../../utils/constants/error.constant';
+import { UserService } from '../../user/services/user.service';
+import { User } from '../../user/entities/user.entity';
+import { RegisterUserDto } from '../../user/dto/create-user-dto';
+import { TokenHelper } from '../../../common/helpers/token.helper';
+import { HashHelper } from '../../../common/helpers/hash.helper';
+import { BusinessException } from '../../../common/exceptions/business.exception';
+import { ErrorCodes } from '../../../utils/constants/error.constant';
 
 @Injectable()
 export class AuthService {
@@ -17,20 +17,23 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async handleValidateUser(email: string, password: string): Promise<User> {
-    const user = await this.userService.handleFindByEmail(email);
+  async handleValidateUser(
+    identifier: string,
+    password: string,
+  ): Promise<User> {
+    const user = await this.userService.handleFindByIdentifier(identifier);
     if (!user) throw new BusinessException(ErrorCodes.INVALID_CREDENTIALS);
     const isValid = await HashHelper.compare(password, user.password);
     if (!isValid) throw new BusinessException(ErrorCodes.INVALID_CREDENTIALS);
     return user;
   }
 
-  async handleSignup(dto: RegisterUserDto) {
+  async handleRegister(dto: RegisterUserDto) {
     const user = await this.userService.handleSignUp(dto);
-    return { user, message: 'Signup successful' };
+    return { user, message: 'Registration successful' };
   }
 
-  async handleSignin(user: User) {
+  async handleLogin(user: User) {
     await this.userService.handleUpdate(user.id, {
       lastLogin: new Date(),
     });

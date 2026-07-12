@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES_KEY } from '../../../services/abstraction-services/decorators/roles.decorator';
+import { ROLES_KEY } from '../decorators/roles.decorator';
 import { BusinessException } from '../../../common/exceptions/business.exception';
 import { ErrorCodes } from '../../../utils/constants/error.constant';
 

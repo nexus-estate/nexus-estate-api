@@ -7,15 +7,19 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { BaseEntity } from '../../../services/abstraction-services/base.entity';
-import { Role } from '../../rbac/entities/role.entity';
+import { BaseEntity } from '../../../services/abstraction-services';
+import { Role } from '../../rbac/entities';
 import { DataPool } from './data-pool.entity';
 
 @Entity('tbl_user')
 @Unique(['email'])
+@Unique(['username'])
 export class User extends BaseEntity {
   @Column({ unique: true })
   email: string;
+
+  @Column({ unique: true, nullable: true })
+  username: string | null;
 
   @Column()
   @Exclude()

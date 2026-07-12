@@ -7,9 +7,12 @@ import {
   ParseUUIDPipe,
   Logger,
 } from '@nestjs/common';
-import { RoleService } from './role.service';
-import { PermissionService, CreatePermissionDto } from './permission.service';
-import { CreateRoleDto } from './dto/create-role.dto';
+import { RoleService } from '../services/role.service';
+import {
+  PermissionService,
+  CreatePermissionDto,
+} from '../services/permission.service';
+import { CreateRoleDto } from '../dto';
 
 @Controller('rbac')
 export class RbacController {

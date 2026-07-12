@@ -1,28 +1,13 @@
-/**
- * JWT payload structure decoded from access token.
- */
-interface JwtPayload {
-  sub: string; // user ID
-  role: string; // user role name
-  iat?: number;
-  exp?: number;
-}
+import type { JwtUserPayload } from '../utils';
+import type { User as UserEntity } from '../modules/user/entities/user.entity';
 
-/**
- * Authenticated user attached to request by JwtAuthGuard.
- */
-interface AuthUser {
-  id: string;
-  email: string;
-  roleId: string;
-  role: string;
-}
+declare global {
+  namespace Express {
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+    interface User extends JwtUserPayload {}
 
-/**
- * Express request extended with authenticated user context.
- */
-declare namespace Express {
-  interface Request {
-    user?: AuthUser;
+    interface Request {
+      user?: User | UserEntity;
+    }
   }
 }
