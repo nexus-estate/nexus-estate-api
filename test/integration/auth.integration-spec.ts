@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { Injectable, Logger } from '@nestjs/common';
@@ -23,7 +23,9 @@ class TestAuthService {
     private readonly roleRepository: Repository<Role>,
   ) {}
 
-  async signup(dto: RegisterUserDto): Promise<User> {
+  async handleRegister(
+    dto: RegisterUserDto,
+  ): Promise<{ user: User; message: string }> {
     const existing = await this.userRepository.findOne({
       where: { email: dto.email },
     });
@@ -41,29 +43,35 @@ class TestAuthService {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = this.userRepository.create({
       email: dto.email,
+      username: dto.username ?? null,
       password: hashedPassword,
       roleId: buyerRole.id,
       isEmailVerified: true,
       createdBy: 'system',
     });
-    return this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+    return { user: savedUser, message: 'Registration successful' };
   }
 
-  async validateCredentials(
-    email: string,
+  async handleValidateUser(
+    identifier: string,
     password: string,
-  ): Promise<User | null> {
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) return null;
+  ): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: [{ email: identifier }, { username: identifier }],
+    });
+    if (!user) throw new Error('Invalid credentials');
 
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return null;
+    if (!isValid) throw new Error('Invalid credentials');
 
     return user;
   }
 
-  async findUserById(id: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { id } });
+  async handleGetProfile(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new Error('User not found');
+    return user;
   }
 }
 
@@ -95,9 +103,7 @@ describe('Auth Integration Tests', () => {
     service = module.get<TestAuthService>(TestAuthService);
 
     // Seed BUYER role
-    const roleRepo = module.get<Repository<Role>>(
-      'RoleRepository' as unknown as string,
-    );
+    const roleRepo = module.get<Repository<Role>>(getRepositoryToken(Role));
     if (roleRepo) {
       const existing = await roleRepo.findOne({ where: { name: 'BUYER' } });
       if (!existing) {
@@ -118,12 +124,13 @@ describe('Auth Integration Tests', () => {
         fullName: 'Signup Test User',
       };
 
-      const user = await service.signup(dto);
-      expect(user).toBeDefined();
-      expect(user.id).toBeDefined();
-      expect(user.email).toBe('signup-test@example.com');
-      expect(user.roleId).toBeDefined();
-      expect(user.isEmailVerified).toBe(true);
+      const result = await service.handleRegister(dto);
+      expect(result.message).toBe('Registration successful');
+      expect(result.user).toBeDefined();
+      expect(result.user.id).toBeDefined();
+      expect(result.user.email).toBe('signup-test@example.com');
+      expect(result.user.roleId).toBeDefined();
+      expect(result.user.isEmailVerified).toBe(true);
     });
 
     it('should reject duplicate email', async () => {
@@ -133,7 +140,9 @@ describe('Auth Integration Tests', () => {
         fullName: 'Duplicate User',
       };
 
-      await expect(service.signup(dto)).rejects.toThrow('Email already exists');
+      await expect(service.handleRegister(dto)).rejects.toThrow(
+        'Email already exists',
+      );
     });
 
     it('should create user with minimal fields', async () => {
@@ -143,9 +152,9 @@ describe('Auth Integration Tests', () => {
         fullName: 'Minimal',
       };
 
-      const user = await service.signup(dto);
-      expect(user.email).toBe('minimal@example.com');
-      expect(user.isEmailVerified).toBe(true);
+      const result = await service.handleRegister(dto);
+      expect(result.user.email).toBe('minimal@example.com');
+      expect(result.user.isEmailVerified).toBe(true);
     });
 
     it('should hash the password', async () => {
@@ -155,54 +164,47 @@ describe('Auth Integration Tests', () => {
         fullName: 'Password Test',
       };
 
-      const user = await service.signup(dto);
-      expect(user.password).not.toBe('MySecretPassword');
-      expect(user.password).toContain('$2b$'); // bcrypt hash prefix
+      const result = await service.handleRegister(dto);
+      expect(result.user.password).not.toBe('MySecretPassword');
+      expect(result.user.password).toContain('$2b$'); // bcrypt hash prefix
     });
   });
 
   describe('Credential Validation', () => {
     it('should validate correct credentials', async () => {
-      const user = await service.validateCredentials(
+      const user = await service.handleValidateUser(
         'signup-test@example.com',
         'Password123',
       );
-      expect(user).not.toBeNull();
-      expect(user!.email).toBe('signup-test@example.com');
+      expect(user.email).toBe('signup-test@example.com');
     });
 
     it('should reject wrong password', async () => {
-      const user = await service.validateCredentials(
-        'signup-test@example.com',
-        'WrongPassword',
-      );
-      expect(user).toBeNull();
+      await expect(
+        service.handleValidateUser('signup-test@example.com', 'WrongPassword'),
+      ).rejects.toThrow('Invalid credentials');
     });
 
     it('should reject non-existent email', async () => {
-      const user = await service.validateCredentials(
-        'nonexistent@example.com',
-        'Password123',
-      );
-      expect(user).toBeNull();
+      await expect(
+        service.handleValidateUser('nonexistent@example.com', 'Password123'),
+      ).rejects.toThrow('Invalid credentials');
     });
   });
 
   describe('User Lookup', () => {
     it('should find user by ID', async () => {
       const users = await module
-        .get<Repository<User>>('UserRepository' as unknown as string)
+        .get<Repository<User>>(getRepositoryToken(User))
         .find({ take: 1 });
-      const user = await service.findUserById(users[0].id);
-      expect(user).not.toBeNull();
-      expect(user!.id).toBe(users[0].id);
+      const user = await service.handleGetProfile(users[0].id);
+      expect(user.id).toBe(users[0].id);
     });
 
     it('should return null for non-existent ID', async () => {
-      const user = await service.findUserById(
-        '00000000-0000-0000-0000-000000000000',
-      );
-      expect(user).toBeNull();
+      await expect(
+        service.handleGetProfile('00000000-0000-0000-0000-000000000000'),
+      ).rejects.toThrow('User not found');
     });
   });
 });

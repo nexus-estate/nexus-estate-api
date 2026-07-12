@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BaseService } from '../../services/abstraction-services/base.service';
-import { UserRepository } from './user.repository';
-import { User } from './entities/user.entity';
-import { Role } from '../rbac/entities/role.entity';
-import { RegisterUserDto } from './dto/create-user-dto';
-import { UpdateUserDto } from './dto/update-user-dto';
-import { HashHelper } from '../../common/helpers/hash.helper';
-import { BusinessException } from '../../common/exceptions/business.exception';
-import { ErrorCodes } from '../../utils/constants/error.constant';
+import { BaseService } from '../../../services/abstraction-services';
+import { UserRepository } from '../repositories/user.repository';
+import { User } from '../entities/user.entity';
+import { Role } from '../../rbac/entities';
+import { RegisterUserDto } from '../dto/create-user-dto';
+import { UpdateUserDto } from '../dto/update-user-dto';
+import { HashHelper } from '../../../common/helpers';
+import { BusinessException } from '../../../common/exceptions/business.exception';
+import { ErrorCodes } from '../../../utils';
 
 @Injectable()
 export class UserService extends BaseService<
@@ -26,6 +26,17 @@ export class UserService extends BaseService<
     if (existing)
       throw new BusinessException(ErrorCodes.USER_EMAIL_EXISTS, dto.email);
 
+    if (dto.username) {
+      const existingUsername = await this.userRepository.findByEmailOrUsername(
+        dto.username,
+      );
+      if (existingUsername)
+        throw new BusinessException(
+          ErrorCodes.USER_USERNAME_EXISTS,
+          dto.username,
+        );
+    }
+
     return this.userRepository.transaction(async (manager) => {
       const hashedPassword = await HashHelper.hash(dto.password);
       const buyerRole = await manager.findOne(Role, {
@@ -36,6 +47,7 @@ export class UserService extends BaseService<
 
       const user = manager.create(User, {
         email: dto.email,
+        username: dto.username ?? null,
         password: hashedPassword,
         roleId: buyerRole.id,
         isEmailVerified: true,
@@ -49,6 +61,10 @@ export class UserService extends BaseService<
 
   async handleFindByEmail(email: string): Promise<User | null> {
     return this.userRepository.findByEmail(email);
+  }
+
+  async handleFindByIdentifier(identifier: string): Promise<User | null> {
+    return this.userRepository.findByEmailOrUsername(identifier);
   }
 
   async handleFindOne(id: string): Promise<User> {

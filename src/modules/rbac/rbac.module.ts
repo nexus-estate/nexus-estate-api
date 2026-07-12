@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { RbacController } from './rbac.controller';
-import { RoleService } from './role.service';
-import { PermissionService } from './permission.service';
-import { RoleRepository } from './role.repository';
-import { PermissionRepository } from './permission.repository';
+import { RbacController } from './controllers/rbac.controller';
+import { RoleService } from './services/role.service';
+import { PermissionService } from './services/permission.service';
+import { RoleRepository } from './repositories/role.repository';
+import { PermissionRepository } from './repositories/permission.repository';
 
 @Module({
   controllers: [RbacController],

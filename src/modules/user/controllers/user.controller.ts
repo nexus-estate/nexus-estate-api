@@ -8,13 +8,11 @@ import {
   Param,
   ParseUUIDPipe,
   Logger,
-  UseGuards,
 } from '@nestjs/common';
-import { UserService } from './user.service';
-import { RegisterUserDto } from './dto/create-user-dto';
-import { UpdateUserDto } from './dto/update-user-dto';
-import { User } from './entities/user.entity';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserService } from '../services/user.service';
+import { RegisterUserDto } from '../dto/create-user-dto';
+import { UpdateUserDto } from '../dto/update-user-dto';
+import { User } from '../entities/user.entity';
 
 @Controller('users')
 export class UserController {
@@ -28,24 +26,21 @@ export class UserController {
     return this.userService.handleSignUp(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
     this.logger.log(`Find user: ${id}`);
     return this.userService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ): Promise<User> {
     this.logger.log(`Update user: ${id}`);
-    return this.userService.update(id, dto);
+    return this.userService.handleUpdate(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(
     @Param('id', ParseUUIDPipe) id: string,

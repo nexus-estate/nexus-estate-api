@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BaseService } from '../../services/abstraction-services/base.service';
-import { RoleRepository } from './role.repository';
-import { PermissionRepository } from './permission.repository';
-import { Role } from './entities/role.entity';
-import { Permission } from './entities/permission.entity';
-import { CreateRoleDto } from './dto/create-role.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
-import { BusinessException } from '../../common/exceptions/business.exception';
-import { ErrorCodes } from '../../utils/constants/error.constant';
+import { BaseService } from '../../../services/abstraction-services/base.service';
+import { RoleRepository } from '../repositories/role.repository';
+import { PermissionRepository } from '../repositories/permission.repository';
+import { Role } from '../entities/role.entity';
+import { Permission } from '../entities/permission.entity';
+import { CreateRoleDto } from '../dto/create-role.dto';
+import { UpdateRoleDto } from '../dto/update-role.dto';
+import { BusinessException } from '../../../common/exceptions/business.exception';
+import { ErrorCodes } from '../../../utils/constants/error.constant';
 
 @Injectable()
 export class RoleService extends BaseService<

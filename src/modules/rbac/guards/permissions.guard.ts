@@ -5,8 +5,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from '../../../services/abstraction-services/decorators/permissions.decorator';
-import { PermissionRepository } from '../permission.repository';
+import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import { PermissionRepository } from '../repositories/permission.repository';
 import { BusinessException } from '../../../common/exceptions/business.exception';
 import { ErrorCodes } from '../../../utils/constants/error.constant';
 
