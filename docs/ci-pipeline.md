@@ -1,19 +1,27 @@
-# CI Pipeline — GitHub Actions
+# CI/CD Pipeline — GitHub Actions
 
-This project uses **GitHub Actions** for Continuous Integration. There is no Continuous Deployment (CD) configured in this repository — CD is managed in a separate infrastructure repository.
+This project uses **GitHub Actions** for Continuous Integration and **Continuous Deployment**.
 
-## Workflow
+## CI Workflow
 
 The CI workflow runs on every push to `main`/`develop` and on pull requests targeting those branches.
 
 ### Pipeline Steps
 
-| Step | Command | Description |
+| Step | Trigger | Description |
 |------|---------|-------------|
-| Build | `npm run build` | Compiles TypeScript via `nest build` |
-| Lint | `npm run lint` | Runs ESLint with auto-fix on `src/` and `test/` |
-| Unit Tests | `npm test` | Runs Jest unit tests in `src/` |
-| Integration Tests | `npm run test:e2e` | Runs integration tests in `test/` (includes PostgreSQL via Testcontainers) |
+| Build | All branches | Compiles TypeScript via `nest build` |
+| Lint | All branches | Runs ESLint with auto-fix on `src/` and `test/` |
+| Unit Tests | All branches | Runs Jest unit tests in `src/` |
+| Integration Tests | All branches | Runs integration tests in `test/` (includes PostgreSQL via Testcontainers) |
+| **Docker Build & Push** | Push to `develop`/`main` only | Builds Docker image and pushes to `ghcr.io/tiesn/nexus-estate-api-gateway` |
+
+### Image Tag Strategy
+
+| Branch | Image Tag | Example |
+|--------|-----------|---------|
+| `develop` | `develop-{short_sha}` | `develop-a1b2c3d` |
+| `main` | `{sha}`, `latest` | `a1b2c3d`, `latest` |
 
 ### Workflow File
 
@@ -26,6 +34,14 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   ci:
@@ -48,6 +64,17 @@ jobs:
       - npm run lint
       - npm test
       - npm run test:e2e
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    steps:
+      - Checkout
+      - Docker Buildx setup
+      - GHCR login (via GITHUB_TOKEN)
+      - Docker metadata extraction
+      - Build and push Docker image (with cache)
 ```
 
 ### Environment Variables
