@@ -1,7 +1,7 @@
 # ================================================================
 # Stage 0: Builder image – install dependencies and compile TypeScript
 # ================================================================
-FROM node:24-alpine AS builder
+FROM node:24-alpine AS base
 
 # Support GitHub Packages authentication for @nexus-estate/* packages
 ARG NODE_AUTH_TOKEN
