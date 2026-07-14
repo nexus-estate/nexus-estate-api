@@ -1,8 +1,15 @@
+import type {
+  LoginResponse,
+  RegisterResponse,
+  RefreshTokenResponse,
+} from '@nexus-estate/typescript-sdk';
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../../user/services/user.service';
+import { DataPoolService } from '../../user/services/data-pool.service';
 import { User } from '../../user/entities/user.entity';
 import { RegisterUserDto } from '../../user/dto/create-user-dto';
+import { AuthResponseMapper } from '../mappers/auth-response.mapper';
 import { TokenHelper } from '../../../common/helpers/token.helper';
 import { HashHelper } from '../../../common/helpers/hash.helper';
 import { BusinessException } from '../../../common/exceptions/business.exception';
@@ -14,6 +21,7 @@ export class AuthService {
 
   constructor(
     private readonly userService: UserService,
+    private readonly dataPoolService: DataPoolService,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -28,12 +36,16 @@ export class AuthService {
     return user;
   }
 
-  async handleRegister(dto: RegisterUserDto) {
+  async handleRegister(dto: RegisterUserDto): Promise<RegisterResponse> {
     const user = await this.userService.handleSignUp(dto);
-    return { user, message: 'Registration successful' };
+    const sdkUser = await AuthResponseMapper.toSdkUser(
+      user,
+      this.dataPoolService,
+    );
+    return { user: sdkUser, message: 'Registration successful' };
   }
 
-  async handleLogin(user: User) {
+  async handleLogin(user: User): Promise<LoginResponse> {
     await this.userService.handleUpdate(user.id, {
       lastLogin: new Date(),
     });
@@ -45,10 +57,16 @@ export class AuthService {
       this.jwtService,
       user.id,
     );
-    return { user, accessToken, refreshToken };
+    const sdkUser = await AuthResponseMapper.toSdkUser(
+      user,
+      this.dataPoolService,
+    );
+    return { user: sdkUser, accessToken, refreshToken };
   }
 
-  async handleRefreshToken(refreshToken: string) {
+  async handleRefreshToken(
+    refreshToken: string,
+  ): Promise<RefreshTokenResponse> {
     try {
       const payload = await TokenHelper.verifyToken(
         this.jwtService,
@@ -71,5 +89,12 @@ export class AuthService {
 
   async handleGetProfile(userId: string): Promise<User> {
     return this.userService.handleFindOne(userId);
+  }
+
+  async handleGetProfileSdk(
+    userId: string,
+  ): Promise<import('@nexus-estate/typescript-sdk').User> {
+    const user = await this.userService.handleFindOne(userId);
+    return AuthResponseMapper.toSdkUser(user, this.dataPoolService);
   }
 }

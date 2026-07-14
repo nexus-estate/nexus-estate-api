@@ -1,3 +1,4 @@
+import type { RegisterRequest } from '@nexus-estate/typescript-sdk';
 import {
   IsEmail,
   IsOptional,
@@ -6,7 +7,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class RegisterUserDto {
+export class RegisterUserDto implements RegisterRequest {
   @IsEmail()
   email: string;
 

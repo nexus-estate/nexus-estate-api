@@ -23,7 +23,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:all": "npm run build && npm run lint && npm run test && npm run test:e2e",
-    "prepare": "husky"
+    "prepare": "husky",
+    "generate:contracts": "openapi-generator-cli generate"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -35,6 +36,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.5",
     "@nestjs/typeorm": "^11.0.3",
+    "@nexus-estate/typescript-sdk": "latest",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
@@ -49,6 +51,7 @@
     "typeorm-naming-strategies": "^4.1.0"
   },
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.39.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",

@@ -1,3 +1,8 @@
+import type {
+  LoginResponse,
+  RegisterResponse,
+  RefreshTokenResponse,
+} from '@nexus-estate/typescript-sdk';
 import { Body, Controller, Post, Get, UseGuards, Logger } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
@@ -14,27 +19,29 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() dto: RegisterUserDto) {
+  async register(@Body() dto: RegisterUserDto): Promise<RegisterResponse> {
     this.logger.log(`Register attempt: ${dto.email}`);
     return this.authService.handleRegister(dto);
   }
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@CurrentUser() user: User) {
+  async login(@CurrentUser() user: User): Promise<LoginResponse> {
     this.logger.log(`Login attempt: ${user.email}`);
     return this.authService.handleLogin(user);
   }
 
   @Post('refresh')
-  async refresh(@Body() dto: RefreshTokenDto) {
+  async refresh(@Body() dto: RefreshTokenDto): Promise<RefreshTokenResponse> {
     this.logger.log('Refresh token attempt');
     return this.authService.handleRefreshToken(dto.refreshToken);
   }
 
   @Get('profile')
-  async profile(@CurrentUser() user: JwtUserPayload) {
+  async profile(
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<import('@nexus-estate/typescript-sdk').User> {
     this.logger.log(`Profile request: ${user.email}`);
-    return this.authService.handleGetProfile(user.id);
+    return this.authService.handleGetProfileSdk(user.id);
   }
 }

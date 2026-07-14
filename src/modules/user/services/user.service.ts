@@ -3,6 +3,7 @@ import { BaseService } from '../../../services/abstraction-services';
 import { UserRepository } from '../repositories/user.repository';
 import { User } from '../entities/user.entity';
 import { Role } from '../../rbac/entities';
+import { DataPoolService } from './data-pool.service';
 import { RegisterUserDto } from '../dto/create-user-dto';
 import { UpdateUserDto } from '../dto/update-user-dto';
 import { HashHelper } from '../../../common/helpers';
@@ -17,7 +18,10 @@ export class UserService extends BaseService<
 > {
   protected override readonly logger = new Logger(UserService.name);
 
-  constructor(private readonly userRepository: UserRepository) {
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly dataPoolService: DataPoolService,
+  ) {
     super(userRepository, 'User');
   }
 
@@ -54,6 +58,10 @@ export class UserService extends BaseService<
         createdBy: 'system',
       });
       const savedUser = await manager.save(User, user);
+
+      // Store full name in data pool
+      await this.dataPoolService.setFullName(savedUser.id, dto.fullName);
+
       this.logger.log(`User created: ${savedUser.email}`);
       return savedUser;
     });
@@ -74,7 +82,13 @@ export class UserService extends BaseService<
   }
 
   async handleUpdate(id: string, data: UpdateUserDto): Promise<User> {
-    return super.update(id, data);
+    // Extract fullName to persist via data pool (separate from auth-only tbl_user)
+    const { fullName, ...entityData } = data;
+    const user = await super.update(id, entityData);
+    if (fullName) {
+      await this.dataPoolService.setFullName(id, fullName);
+    }
+    return user;
   }
 
   async handleChangePassword(

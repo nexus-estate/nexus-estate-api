@@ -31,8 +31,8 @@ export class User extends BaseEntity {
   @Column({ name: 'is_email_verified', default: false })
   isEmailVerified: boolean;
 
-  @Column({ name: 'last_login', nullable: true })
-  lastLogin: Date;
+  @Column({ name: 'last_login', type: 'datetime', nullable: true })
+  lastLogin: Date | null;
 
   @ManyToOne(() => Role)
   @JoinColumn({ name: 'role_id' })
