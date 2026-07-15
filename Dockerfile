@@ -1,60 +1,66 @@
 # ================================================================
-# Stage 1: base — dependencies chung cho tất cả các stage
+# Stage 0: Builder image – base configuration
 # ================================================================
 FROM node:24-alpine AS base
 
+RUN addgroup --gid 1001 -S nodejs && \
+    adduser --uid 1001 -S nextjs -G nodejs
+
 WORKDIR /app
 
-# Copy package files riêng để tận dụng Docker layer caching
+# Chỉ copy file package*.json (Bỏ việc COPY .npmrc thủ công)
 COPY package*.json ./
 
 # ================================================================
-# Stage 2: development — hot-reload cho local dev
+# Stage 1: Development
 # ================================================================
 FROM base AS development
 
-# Cài đặt cả dependencies và devDependencies
-RUN npm ci
+ENV NODE_ENV=development
 
-# Copy toàn bộ source code (hoặc dùng volume mount ở compose)
+# Mount .npmrc tạm thời khi chạy npm install ở môi trường local
+RUN --mount=type=secret,id=npmrc,target=.npmrc npm install
+
 COPY . .
 
-# Expose port đã khai báo trong .env [5]
-EXPOSE 3001
+EXPOSE 50001
 
-# Dùng script start:dev (nest start --watch) để auto-reload khi code thay đổi [4]
 CMD ["npm", "run", "start:dev"]
 
 # ================================================================
-# Stage 3: build — biên dịch TypeScript sang JavaScript
+# Stage 2: Builder
 # ================================================================
-FROM base AS build
+FROM base AS builder
 
-RUN npm ci
+# Mount file .npmrc từ Action truyền xuống thông qua Buildx để chạy npm ci
+RUN --mount=type=secret,id=npmrc,target=.npmrc npm ci
 
 COPY . .
 
-# nest build -> output vào thư mục dist [4]
 RUN npm run build
 
 # ================================================================
-# Stage 4: production — image tối giản, chỉ chạy dist
+# Stage 3: Production image – minimal runtime image
 # ================================================================
 FROM node:24-alpine AS production
 
+RUN addgroup --gid 1001 -S nodejs && \
+    adduser --uid 1001 -S nextjs -G nodejs
+
 WORKDIR /app
 
-# Copy artifact từ stage build
-COPY --from=build /app/dist ./dist
-
-# Chỉ copy production dependencies (tiết kiệm dung lượng)
-COPY --from=build /app/node_modules ./node_modules
-
-COPY --from=build /app/package.json ./
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
 
-EXPOSE 3001
+RUN apk add --no-cache --virtual .build-deps && \
+    rm -rf /var/cache/apk/* && \
+    apk del .build-deps && \
+    rm -rf /tmp/* /var/tmp/*
 
-# Chạy compiled JS [3][4]
+EXPOSE 50001
+
+USER nextjs
 CMD ["node", "dist/main"]
