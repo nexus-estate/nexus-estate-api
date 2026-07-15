@@ -31,7 +31,7 @@ export class User extends BaseEntity {
   @Column({ name: 'is_email_verified', default: false })
   isEmailVerified: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ nullable: true })
   lastLogin: Date;
 
   @ManyToOne(() => Role)
