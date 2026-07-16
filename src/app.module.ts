@@ -3,6 +3,8 @@ import {
   Module,
   NestModule,
   RequestMethod,
+  Controller,
+  Get,
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -15,18 +17,18 @@ import { AuthModule } from './modules/auth/auth.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { AuthMiddleware } from './middlewares/auth.middleware';
 
-/**
- * Root application module for the Nexus Estate API Gateway.
- *
- * Registers:
- * - **ConfigModule**: Loads `.env` file and makes configuration available globally.
- * - **TypeOrmModule**: Connects to PostgreSQL using TypeORM.
- * - **JwtModule**: Global JWT service for middleware and token operations.
- * - **CommonModule**: Global exception filter, transform interceptor, logging interceptor.
- * - **UserModule**: User entity, service (CRUD, password management).
- * - **AuthModule**: JWT authentication (register, login, refresh token).
- * - **RbacModule**: Role-Based Access Control (roles, permissions, guards).
- */
+@Controller()
+export class HealthController {
+  @Get('healthz')
+  check() {
+    return {
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'staging',
+    };
+  }
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -54,6 +56,7 @@ import { AuthMiddleware } from './middlewares/auth.middleware';
     AuthModule,
     RbacModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
