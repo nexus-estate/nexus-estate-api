@@ -26,7 +26,7 @@ async function bootstrap(): Promise<void> {
 
   // Global prefix for all API routes
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
+    exclude: ['healthz'],
   });
 
   // Enable URI versioning (optional, for future API versions)
