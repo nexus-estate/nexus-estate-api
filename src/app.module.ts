@@ -5,6 +5,7 @@ import {
   RequestMethod,
   Controller,
   Get,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -17,9 +18,12 @@ import { AuthModule } from './modules/auth/auth.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { AuthMiddleware } from './middlewares/auth.middleware';
 
-@Controller()
+@Controller({
+  path: 'healthz',
+  version: VERSION_NEUTRAL,
+})
 export class HealthController {
-  @Get('healthz')
+  @Get()
   check() {
     return {
       status: 'OK',
