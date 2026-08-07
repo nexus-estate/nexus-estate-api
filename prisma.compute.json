@@ -1,0 +1,12 @@
+{
+  "region": "ap-southeast-1",
+  "app": {
+    "name": "nexus-estate-api-gateway",
+    "framework": "nestjs",
+    "httpPort": 50001,
+    "build": {
+      "command": "npm run build",
+      "outputDirectory": "dist"
+    }
+  }
+}
