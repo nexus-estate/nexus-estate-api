@@ -8,7 +8,7 @@ import { RegisterUserDto } from '../dto/create-user-dto';
 import { UpdateUserDto } from '../dto/update-user-dto';
 import { HashHelper } from '../../../common/helpers';
 import { BusinessException } from '../../../common/exceptions/business.exception';
-import { ErrorCodes } from '../../../utils';
+import { ErrorCodes, ROLES } from '../../../utils';
 
 @Injectable()
 export class UserService extends BaseService<
@@ -44,10 +44,10 @@ export class UserService extends BaseService<
     return this.userRepository.transaction(async (manager) => {
       const hashedPassword = await HashHelper.hash(dto.password);
       const buyerRole = await manager.findOne(Role, {
-        where: { name: 'BUYER' },
+        where: { name: ROLES.BUYER },
       });
       if (!buyerRole)
-        throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND, 'BUYER');
+        throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND, ROLES.BUYER);
 
       const user = manager.create(User, {
         email: dto.email,
