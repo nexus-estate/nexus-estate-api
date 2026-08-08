@@ -1,0 +1,215 @@
+{
+  "version": 3,
+  "updatedAt": "2026",
+  "provinces": [
+    {
+      "code": "79",
+      "name": "Thành phố Hồ Chí Minh",
+      "type": "municipality"
+    },
+    {
+      "code": "01",
+      "name": "Thành phố Hà Nội",
+      "type": "municipality"
+    },
+    {
+      "code": "48",
+      "name": "Thành phố Đà Nẵng",
+      "type": "municipality"
+    }
+  ],
+  "wards": [
+    {
+      "code": "26737",
+      "name": "Phường Tân Định",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26740",
+      "name": "Phường Sài Gòn",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26743",
+      "name": "Phường Bến Thành",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26758",
+      "name": "Phường Cầu Ông Lãnh",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26800",
+      "name": "Phường Linh Xuân",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26803",
+      "name": "Phường Tam Bình",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26809",
+      "name": "Phường Hiệp Bình",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26824",
+      "name": "Phường Thủ Đức",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26884",
+      "name": "Phường Gò Vấp",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26890",
+      "name": "Phường Hạnh Thông",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26929",
+      "name": "Phường Bình Thạnh",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26944",
+      "name": "Phường Gia Định",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "26968",
+      "name": "Phường Tân Sơn Nhất",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27004",
+      "name": "Phường Tân Bình",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27031",
+      "name": "Phường Tân Phú",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27139",
+      "name": "Phường Xuân Hòa",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27142",
+      "name": "Phường Nhiêu Lộc",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27154",
+      "name": "Phường Bàn Cờ",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27163",
+      "name": "Phường Hòa Hưng",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27169",
+      "name": "Phường Diên Hồng",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27259",
+      "name": "Phường Xóm Chiếu",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27265",
+      "name": "Phường Khánh Hội",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27301",
+      "name": "Phường Chợ Quán",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27316",
+      "name": "Phường An Đông",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27343",
+      "name": "Phường Chợ Lớn",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27364",
+      "name": "Phường Bình Phú",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27367",
+      "name": "Phường Bình Tây",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27439",
+      "name": "Phường Bình Hưng Hòa",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27442",
+      "name": "Phường Bình Tân",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27457",
+      "name": "Phường Tân Tạo",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27460",
+      "name": "Phường An Lạc",
+      "type": "ward",
+      "provinceCode": "79"
+    },
+    {
+      "code": "27478",
+      "name": "Phường Tân Thuận",
+      "type": "ward",
+      "provinceCode": "79"
+    }
+  ]
+}

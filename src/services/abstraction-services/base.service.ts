@@ -70,7 +70,7 @@ export abstract class BaseService<
 
   async remove(id: string): Promise<{ message: string }> {
     await this.findOne(id);
-    await this.repository.hardDelete(id);
+    await this.repository.softDelete(id); //Shared contract for soft delete
     this.logger.log(`Deleted ${this.getEntityName()}: ${id}`);
     return { message: `${this.getEntityName()} deleted successfully` };
   }
