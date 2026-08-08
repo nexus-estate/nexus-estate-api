@@ -21,8 +21,6 @@ services:
     build:
       context: .
       target: development
-      secrets:
-        - npmrc
     container_name: nexus-estate-api-gateway
     restart: unless-stopped
     ports:
@@ -48,7 +46,3 @@ volumes:
 networks:
   nexus-network:
     driver: bridge
-
-secrets:
-  npmrc:
-    file: ./.npmrc 

@@ -31,7 +31,7 @@
   "include": [
     "src/**/*.ts",
     "test/**/*.ts"
-, "src/database/migrations/1741614900000-CreateMediaTable.ts"  ],
+  ],
   "exclude": [
     "node_modules",
     "dist",
