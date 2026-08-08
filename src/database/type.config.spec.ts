@@ -51,10 +51,10 @@ describe('Database Configuration (type.config)', () => {
       expect(config.synchronize).toBe(false);
     });
 
-    it('should enable synchronize when DB_SYNCHRONIZE is true', () => {
+    it('should keep synchronize disabled when DB_SYNCHRONIZE is true', () => {
       process.env.DB_SYNCHRONIZE = 'true';
       const config = typeormConfig();
-      expect(config.synchronize).toBe(true);
+      expect(config.synchronize).toBe(false);
     });
 
     it('should have entities pattern for modules', () => {
