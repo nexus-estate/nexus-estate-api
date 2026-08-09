@@ -1,0 +1,128 @@
+Table tbl_role {
+  id uuid [pk]
+  name varchar [unique, not null]
+  description text
+  is_system boolean [not null, default: false]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+  created_by varchar
+  updated_by varchar
+}
+
+Table tbl_permission {
+  id uuid [pk]
+  name varchar [unique, not null]
+  description text
+  role_id uuid [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+  created_by varchar
+  updated_by varchar
+}
+
+Table tbl_user {
+  id uuid [pk]
+  email varchar [unique, not null]
+  username varchar [unique]
+  password varchar [not null]
+  role_id uuid [not null]
+  is_email_verified boolean [not null, default: false]
+  last_login timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+  created_by varchar
+  updated_by varchar
+}
+
+Table tbl_data_pool {
+  id uuid [pk]
+  user_id uuid [not null]
+  key varchar [not null]
+  value jsonb
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+  created_by varchar
+  updated_by varchar
+}
+
+Table tbl_province {
+  id uuid [pk]
+  name varchar [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+  created_by varchar
+  updated_by varchar
+}
+
+Table tbl_ward {
+  id uuid [pk]
+  name varchar [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+  created_by varchar
+  updated_by varchar
+}
+
+Table tbl_estate {
+  id uuid [pk]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+  created_by uuid
+  updated_by uuid
+  status estate_status_enum [not null, default: 'pending']
+  approved_by uuid
+  approved_date timestamptz
+  rejected_by uuid
+  rejected_date timestamptz
+  rejection_reason text
+  fk_user_id uuid [not null]
+  address varchar [not null]
+  fk_province_id uuid
+  fk_ward_id uuid
+  title varchar [not null]
+  price bigint
+  type estate_type_enum [not null]
+  purpose estate_purpose_enum [not null]
+  description text
+  area decimal
+  bedrooms int
+  bathrooms int
+  floors int
+  latitude decimal
+  longitude decimal
+  features json
+  start_date timestamptz
+  end_date timestamptz
+  is_featured boolean [not null, default: false]
+}
+
+Table tbl_media {
+  id uuid [pk]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+  created_by uuid
+  updated_by uuid
+  fk_estate_id uuid [not null]
+  media_url varchar [not null]
+  type media_type_enum [not null]
+  caption varchar
+  sort_order int [not null, default: 0]
+}
+
+// ─── Relations ───────────────────────────────────────────────
+
+Ref: tbl_permission.role_id > tbl_role.id    // Many permissions → one role
+Ref: tbl_user.role_id > tbl_role.id          // Many users → one role
+Ref: tbl_data_pool.user_id > tbl_user.id     // Many data_pool rows → one user
+Ref: tbl_estate.fk_user_id > tbl_user.id     // Many estates → one user (broker)
+Ref: tbl_estate.fk_province_id > tbl_province.id  // Many estates → one province
+Ref: tbl_estate.fk_ward_id > tbl_ward.id          // Many estates → one ward
+Ref: tbl_media.fk_estate_id > tbl_estate.id  // Many media → one estate
