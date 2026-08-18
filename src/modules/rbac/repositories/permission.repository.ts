@@ -1,19 +1,40 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { BaseRepository } from '../../../services/abstraction-services/base.repository';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
 import { Permission } from '../entities/permission.entity';
 
 @Injectable()
-export class PermissionRepository extends BaseRepository<Permission> {
-  constructor(dataSource: DataSource) {
-    super(dataSource, Permission, 'Permission');
+export class PermissionRepository {
+  constructor(
+    @InjectRepository(Permission)
+    private readonly repository: Repository<Permission>,
+  ) {}
+
+  async findById(id: string): Promise<Permission | null> {
+    return this.repository.findOne({
+      where: { id },
+    });
   }
 
   async findByName(name: string): Promise<Permission | null> {
-    return this.repository.findOne({ where: { name } });
+    return this.repository.findOne({
+      where: { name },
+    });
   }
 
-  async findByRoleId(roleId: string): Promise<Permission[]> {
-    return this.repository.find({ where: { roleId } });
+  async findByIds(ids: string[]): Promise<Permission[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.repository.find({
+      where: {
+        id: In(ids),
+      },
+    });
+  }
+  async create(name: string, description: string | null): Promise<Permission> {
+    const permission = { name, description };
+    return this.repository.save(permission);
   }
 }

@@ -1,0 +1,5 @@
+export interface CreateUserInput {
+  email: string;
+  passwordHash: string;
+  roleId: string;
+}

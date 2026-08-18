@@ -123,11 +123,6 @@ src/
 │   ├── filters/
 │   │   ├── business-exception.filter.ts  # Catches BusinessException
 │   │   └── http-exception.filter.ts      # Catches HttpException
-│   ├── helpers/
-│   │   ├── index.ts                 # Barrel export
-│   │   ├── hash.helper.ts           # bcrypt hash/compare (static)
-│   │   ├── token.helper.ts          # JWT token generation helper (static)
-│   │   └── pagination.helper.ts     # Pagination query parsing (static)
 │   └── interceptors/
 │       ├── logging.interceptor.ts   # Request/response logging with timing
 │       └── transform.interceptor.ts # Wraps response in { data, timestamp }
@@ -208,9 +203,6 @@ src/
 │           ├── service.interface.ts
 │           └── index.ts
 │
-├── types/
-│   └── type.d.ts                    # Global type declarations (AuthUser, Express augmentation)
-│
 └── utils/
     ├── index.ts                     # Barrel export
     ├── constants/
@@ -219,14 +211,24 @@ src/
     │   ├── role.constant.ts         # RoleName enum
     │   └── index.ts
     └── helpers/
-        ├── date.helper.ts
-        ├── validation.helper.ts
         ├── index.ts
+        ├── date.helper.ts
+        ├── hash.helper.ts
+        ├── pagination.helper.ts
+        ├── token.helper.ts
+        ├── validation.helper.ts
         └── __tests__/
             ├── date.helper.spec.ts
             ├── hash.helper.spec.ts
-            └── pagination.helper.spec.ts
+            ├── pagination.helper.spec.ts
+            ├── token.helper.spec.ts
+            └── validation.helper.spec.ts
 ```
+
+**Ownership rules:**
+- `src/common` contains NestJS-aware cross-cutting components only.
+- Reusable helpers belong in `src/utils/helpers` and must be exported from its `index.ts`.
+- Do not create a second helper implementation or re-export helpers through `src/common`.
 
 ---
 
@@ -1143,14 +1145,16 @@ src/                              # Unit tests (colocated)
 └── utils/helpers/__tests__/
     ├── date.helper.spec.ts
     ├── hash.helper.spec.ts
-    └── pagination.helper.spec.ts
+    ├── pagination.helper.spec.ts
+    ├── token.helper.spec.ts
+    └── validation.helper.spec.ts
 
 test/                             # Integration & E2E tests
 ├── app.e2e-spec.ts
 └── integration/
-    ├── auth.integration-spec.ts
     ├── database.integration-spec.ts
-    └── rbac.integration-spec.ts
+    ├── rbac.integration-spec.ts
+    └── user.integration-spec.ts
 ```
 
 ### 14.2 Test Commands
@@ -1185,7 +1189,7 @@ Use barrel exports (`index.ts`) to simplify imports:
 // ✅ Import from barrel
 import { BaseEntity, BaseRepository, BaseService } from '../../services/abstraction-services';
 import { ErrorCodes } from '../../utils/constants';
-import { HashHelper, TokenHelper } from '../../common/helpers';
+import { HashHelper, TokenHelper } from '../../utils/helpers';
 
 // ❌ Do not import from individual files
 import { BaseEntity } from '../../services/abstraction-services/base.entity';

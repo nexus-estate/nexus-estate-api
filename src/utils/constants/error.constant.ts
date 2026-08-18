@@ -120,7 +120,7 @@ export const ErrorCodes = {
 
   PERMISSION_EXISTS: {
     code: 'PER_002',
-    message: 'Permission %s already exists for this role.',
+    message: 'Permission %s already exists.',
     httpStatus: 409,
   },
 
