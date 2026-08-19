@@ -1,5 +1,5 @@
 import { ExceptionFilter, Catch, ArgumentsHost, Logger } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { BusinessException } from '../exceptions/business.exception';
 
 @Catch(BusinessException)
@@ -24,7 +24,7 @@ export class BusinessExceptionFilter implements ExceptionFilter {
       message: body.message,
       error: exception.name,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: request.originalUrl || request.url,
     });
   }
 }

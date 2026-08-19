@@ -1,43 +1,34 @@
-import {
-  Entity,
-  Column,
-  Unique,
-  ManyToOne,
-  JoinColumn,
-  OneToMany,
-} from 'typeorm';
-import { Exclude } from 'class-transformer';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from '../../../services/abstraction-services';
-import { Role } from '../../rbac/entities';
-import { DataPool } from './data-pool.entity';
+import { Role } from '../../rbac/entities/role.entity';
+import type { Relation } from 'typeorm';
 
 @Entity('tbl_user')
-@Unique(['email'])
-@Unique(['username'])
 export class User extends BaseEntity {
-  @Column({ unique: true })
+  @Column({ type: 'varchar', nullable: false, unique: true })
   email: string;
 
-  @Column({ type: 'varchar', unique: true, nullable: true })
-  username: string | null;
-
-  @Column()
-  @Exclude()
+  @Column({ type: 'varchar', nullable: false, select: false })
   password: string;
 
-  @Column({ name: 'role_id' })
+  @Index()
+  @Column({ name: 'role_id', type: 'uuid', nullable: false })
   roleId: string;
 
-  @Column({ name: 'is_email_verified', default: false })
+  @Column({
+    name: 'is_email_verified',
+    type: 'boolean',
+    default: false,
+  })
   isEmailVerified: boolean;
 
-  @Column({ nullable: true })
-  lastLogin: Date;
+  @Column({ type: 'timestamp', nullable: true })
+  lastLogin: Date | null;
 
-  @ManyToOne(() => Role)
-  @JoinColumn({ name: 'role_id' })
-  role: Role;
-
-  @OneToMany(() => DataPool, (dp) => dp.user)
-  dataPools: DataPool[];
+  @ManyToOne(() => Role, {
+    nullable: false,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'role_id', foreignKeyConstraintName: 'fk_user_role' })
+  role: Relation<Role>;
 }

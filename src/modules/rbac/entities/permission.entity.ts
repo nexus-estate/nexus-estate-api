@@ -1,20 +1,19 @@
-import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
-import { BaseEntity } from '../../../services/abstraction-services/base.entity';
-import { Role } from './role.entity';
+import { Column, Entity, OneToMany } from 'typeorm';
+import { BaseEntity } from '../../../services/abstraction-services';
+import { RolePermission } from './role-permission.entity';
+import type { Relation } from 'typeorm';
 
 @Entity('tbl_permission')
-@Unique(['name'])
 export class Permission extends BaseEntity {
-  @Column({ unique: true })
+  @Column({ type: 'varchar', nullable: false, unique: true })
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description: string | null;
 
-  @Column({ name: 'role_id' })
-  roleId: string;
-
-  @ManyToOne(() => Role, (role) => role.permissions)
-  @JoinColumn({ name: 'role_id' })
-  role: Role;
+  @OneToMany(
+    () => RolePermission,
+    (rolePermission) => rolePermission.permission,
+  )
+  rolePermissions: Relation<RolePermission[]>;
 }

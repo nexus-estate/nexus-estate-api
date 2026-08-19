@@ -1,4 +1,4 @@
-import { PaginationHelper } from '../../../common/helpers/pagination.helper';
+import { PaginationHelper } from '../pagination.helper';
 
 describe('PaginationHelper', () => {
   describe('normalize', () => {
@@ -15,6 +15,11 @@ describe('PaginationHelper', () => {
     it('should ensure page >= 1', () => {
       const result = PaginationHelper.normalize({ page: 0, limit: 10 });
       expect(result.page).toBe(1);
+    });
+
+    it('should ensure limit >= 1', () => {
+      const result = PaginationHelper.normalize({ page: 1, limit: 0 });
+      expect(result.limit).toBe(1);
     });
   });
 
