@@ -95,10 +95,13 @@ export class AuthService {
     };
   }
 
-  async handleRefreshtoken(refreshToken: string): Promise<TokenPair> {
+  async handleRefreshToken(refreshToken: string): Promise<TokenPair> {
     let payload: JwtPayload;
     try {
       payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken);
+      if (payload.type !== 'refresh') {
+        throw new BusinessException(ErrorCodes.TOKEN_INVALID);
+      }
     } catch {
       throw new BusinessException(ErrorCodes.TOKEN_INVALID);
     }
