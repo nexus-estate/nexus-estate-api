@@ -1,6 +1,5 @@
 import { Module, Controller, Get, VERSION_NEUTRAL } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 import { typeormConfig } from './database/type.config';
@@ -9,7 +8,7 @@ import { CommonModule } from './common/common.module';
 import { Public } from './common/decorators/public.decorator';
 import { LocationModule } from './database/seed/locations/location.module';
 import { UserModule } from './modules/user/user.module';
-
+import { AuthModule } from './modules/auth/auth.module';
 @Controller({
   path: 'healthz',
   version: VERSION_NEUTRAL,
@@ -40,17 +39,10 @@ export class HealthController {
         autoLoadEntities: true,
       }),
     }),
-    JwtModule.registerAsync({
-      global: true,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'fallback-secret'),
-        signOptions: { expiresIn: '15m' },
-      }),
-    }),
     CommonModule,
     LocationModule,
     UserModule,
+    AuthModule,
   ],
   controllers: [HealthController],
 })

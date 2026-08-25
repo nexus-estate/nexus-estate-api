@@ -21,7 +21,7 @@ describe('AppModule', () => {
     expect(moduleNames).toContain('CommonModule');
     expect(moduleNames).toContain('LocationModule');
     expect(moduleNames).toContain('UserModule');
-    expect(moduleNames).not.toContain('AuthModule');
+    expect(moduleNames).toContain('AuthModule');
   });
 
   it('should provide RBAC through UserModule', () => {
