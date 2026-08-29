@@ -1,21 +1,49 @@
 export const PERMISSIONS = {
+  // User
   USER_CREATE: 'user:create',
   USER_READ: 'user:read',
   USER_UPDATE: 'user:update',
   USER_DELETE: 'user:delete',
-  LISTING_CREATE: 'listing:create',
-  LISTING_READ: 'listing:read',
-  LISTING_UPDATE: 'listing:update',
-  LISTING_DELETE: 'listing:delete',
+  USER_ASSIGN_ROLE: 'user:assign-role',
+
+  // Estate
+  ESTATE_CREATE: 'estate:create',
+  ESTATE_READ: 'estate:read',
+  ESTATE_UPDATE: 'estate:update',
+  ESTATE_DELETE: 'estate:delete',
+  ESTATE_APPROVE: 'estate:approve',
+  ESTATE_REJECT: 'estate:reject',
+  ESTATE_FEATURE: 'estate:feature',
+
+  // Media
   MEDIA_UPLOAD: 'media:upload',
   MEDIA_READ: 'media:read',
+  MEDIA_UPDATE: 'media:update',
   MEDIA_DELETE: 'media:delete',
-  PAYMENT_MANAGE: 'payment:manage',
-  PAYMENT_READ: 'payment:read',
+
+  // Lead
+  LEAD_CREATE: 'lead:create',
   LEAD_READ: 'lead:read',
-  LEAD_MANAGE: 'lead:manage',
-  ROLE_MANAGE: 'role:manage',
-  PERMISSION_MANAGE: 'permission:manage',
+  LEAD_UPDATE: 'lead:update',
+  LEAD_DELETE: 'lead:delete',
+
+  // Role
+  ROLE_CREATE: 'role:create',
+  ROLE_READ: 'role:read',
+  ROLE_UPDATE: 'role:update',
+  ROLE_DELETE: 'role:delete',
+  ROLE_ASSIGN_PERMISSION: 'role:assign-permission',
+
+  // Permission
+  PERMISSION_CREATE: 'permission:create',
+  PERMISSION_READ: 'permission:read',
+  PERMISSION_UPDATE: 'permission:update',
+  PERMISSION_DELETE: 'permission:delete',
+
+  // Location
+  LOCATION_MANAGE: 'location:manage',
+
+  // System
   SYSTEM_CONFIG: 'system:config',
   SYSTEM_AUDIT: 'system:audit',
 } as const;
