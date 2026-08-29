@@ -8,6 +8,8 @@ import { PermissionRepository } from './repositories/permission.repository';
 import { RolePermissionRepository } from './repositories/role-permission.repository';
 import { RoleService } from './services/role.service';
 import { PermissionService } from './services/permission.service';
+import { RoleGurad } from './guard/role.guard';
+import { PermissionsGuard } from './guard/permission.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Role, Permission, RolePermission])],
@@ -17,7 +19,9 @@ import { PermissionService } from './services/permission.service';
     RolePermissionRepository,
     RoleService,
     PermissionService,
+    RoleGurad,
+    PermissionsGuard,
   ],
-  exports: [RoleService, PermissionService],
+  exports: [RoleService, PermissionService, RoleGurad, PermissionsGuard],
 })
 export class RbacModule {}

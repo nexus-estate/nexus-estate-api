@@ -13,6 +13,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 
 import { RbacModule } from '../rbac/rbac.module';
+import { RoleGurad } from '../rbac/guard/role.guard';
+import { PermissionsGuard } from '../rbac/guard/permission.guard';
 
 @Module({
   imports: [
@@ -31,8 +33,9 @@ import { RbacModule } from '../rbac/rbac.module';
     LocalAuthGuard,
     LocalStrategy,
     JwtStrategy,
-
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RoleGurad },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
   controllers: [AuthController],
 })
