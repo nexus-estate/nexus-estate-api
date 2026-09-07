@@ -21,6 +21,8 @@ services:
     build:
       context: .
       target: development
+      secrets:
+        - npmrc
     container_name: nexus-api
     restart: unless-stopped
     ports:
@@ -46,3 +48,7 @@ volumes:
 networks:
   nexus-network:
     driver: bridge
+
+secrets:
+  npmrc:
+    file: ./.npmrc

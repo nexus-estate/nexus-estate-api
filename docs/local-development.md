@@ -1,6 +1,7 @@
 # Local Development Guide
 
-This guide covers setting up a local development environment for the Nexus Estate API Gateway.
+This guide covers setting up the local development environment for the
+`nexus-estate-api` repository.
 
 ## Prerequisites
 
@@ -25,15 +26,37 @@ node --version   # Should be v24.x
 npm --version    # Should be 10.x
 ```
 
-### Step 2: Clone and Install
+### Step 2: Clone
 
 ```bash
-git clone https://github.com/tiesn/nexus-estate.git
-cd nexus-estate/api
+git clone https://github.com/nexus-estate/nexus-estate-api.git
+cd nexus-estate-api
+```
+
+### Step 3: Configure private package authentication
+
+The API uses the private `@nexus-estate/typescript-sdk` package. Create a
+local `.npmrc` from the committed example and provide a GitHub Packages token
+with read access to the package:
+
+```bash
+cp .npmrc.example .npmrc
 npm install
 ```
 
-### Step 3: Configure Environment
+For a Docker Compose build, Docker BuildKit mounts `.npmrc` only for the
+dependency install step. If the local BuildKit setup does not interpolate
+`${NODE_AUTH_TOKEN}` from the mounted file, replace that placeholder in the
+local `.npmrc` with the developer token before building:
+
+```bash
+docker compose build nexus-api
+```
+
+Never commit `.npmrc` or put a token in an image build argument. The file is
+gitignored and must remain local.
+
+### Step 4: Configure Environment
 
 ```bash
 cp .env.example .env
@@ -51,7 +74,7 @@ DB_POSTGRES_PASS=nexus
 DB_POSTGRES_NAME=nexus_estate
 ```
 
-### Step 4: Start PostgreSQL
+### Step 5: Start PostgreSQL
 
 #### Option A: Using Docker Compose (Recommended)
 
@@ -68,7 +91,7 @@ sudo -u postgres createdb nexus_estate
 sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'nexus';"
 ```
 
-### Step 5: Start the Development Server
+### Step 6: Start the Development Server
 
 ```bash
 npm run start:dev
@@ -83,7 +106,7 @@ npm run start:dev
 | `npm run start` | Start the production server |
 | `npm run start:dev` | Start in development mode (watch mode) |
 | `npm run start:debug` | Start with debugger enabled |
-| `npm run start:prod` | Start the compiled production server |
+| `npm run start:prod` | Start the compiled server |
 | `npm run lint` | Run ESLint with auto-fix |
 | `npm run format` | Format code with Prettier |
 | `npm test` | Run unit tests |
@@ -91,6 +114,9 @@ npm run start:dev
 | `npm run test:e2e` | Run integration/e2e tests |
 
 ## Development Workflow
+
+Husky runs `lint-staged` and `npm run test:all` before each commit. This
+covers formatting, linting, build, unit tests, and integration tests.
 
 ### 1. Code Quality
 
@@ -105,7 +131,7 @@ npm run test:e2e
 
 1. Create a new branch: `git checkout -b feat/my-feature`
 2. Make your changes
-3. Write tests for the new functionality
+3. Write tests for the functionality
 4. Run the full test suite
 5. Commit using conventional commits
 6. Push and create a PR
@@ -131,4 +157,4 @@ npx typeorm migration:revert
 | Can't connect to PostgreSQL | Ensure PostgreSQL is running. Check credentials in `.env` |
 | Port 50001 in use | Change the `PORT` in `.env` |
 | TypeScript errors | Run `npm run build` to check compilation |
-| Tests fail with Docker | Ensure Docker is running: `sudo usermod -aG docker $USER` |
+| Tests fail with Docker | Ensure Docker is running: `sudo usermod -aG docker \$USER` |
