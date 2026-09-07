@@ -1,100 +1,117 @@
+import { Injectable } from '@nestjs/common';
+import { UserService } from '../../user/service/user.service';
 import type {
-  LoginResponse,
-  RegisterResponse,
-  RefreshTokenResponse,
-} from '@nexus-estate/typescript-sdk';
-import { Injectable, Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { UserService } from '../../user/services/user.service';
-import { DataPoolService } from '../../user/services/data-pool.service';
-import { User } from '../../user/entities/user.entity';
-import { RegisterUserDto } from '../../user/dto/create-user-dto';
-import { AuthResponseMapper } from '../mappers/auth-response.mapper';
-import { TokenHelper } from '../../../common/helpers/token.helper';
-import { HashHelper } from '../../../common/helpers/hash.helper';
+  AuthenticatedPrincipal,
+  JwtPayload,
+  TokenPair,
+} from '../types/auth.type';
 import { BusinessException } from '../../../common/exceptions/business.exception';
-import { ErrorCodes } from '../../../utils/constants/error.constant';
-
+import { ErrorCodes, HashHelper } from '../../../utils';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { SafeUser } from '../../user/types/user.type';
+import { RoleService } from '../../rbac/services/role.service';
+import { RegisterDto } from '../dto/register.dto';
+import { CreateUserInput } from '../../user/dto/user.dto';
+type JwtExpiresIn = JwtSignOptions['expiresIn'];
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly userService: UserService,
-    private readonly dataPoolService: DataPoolService,
     private readonly jwtService: JwtService,
+    private readonly roleService: RoleService,
   ) {}
-
-  async handleValidateUser(
-    identifier: string,
+  //LOGIN
+  async validateCredential(
+    email: string,
     password: string,
-  ): Promise<User> {
-    const user = await this.userService.handleFindByIdentifier(identifier);
-    if (!user) throw new BusinessException(ErrorCodes.INVALID_CREDENTIALS);
-    const isValid = await HashHelper.compare(password, user.password);
-    if (!isValid) throw new BusinessException(ErrorCodes.INVALID_CREDENTIALS);
-    return user;
+  ): Promise<AuthenticatedPrincipal> {
+    const user = await this.userService.findByEmailForAuthentication(email);
+    if (!user) {
+      throw new BusinessException(ErrorCodes.INVALID_CREDENTIALS);
+    }
+    const isPasswordValid = await HashHelper.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new BusinessException(ErrorCodes.INVALID_CREDENTIALS);
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      roleId: user.roleId,
+      role: user.role.name,
+    };
+  }
+  async handleLogin(user: AuthenticatedPrincipal): Promise<TokenPair> {
+    const TokenPair = await this.generateTokenPair(user);
+    await this.userService.updateLastLogin(user.id, new Date());
+    return TokenPair;
+  }
+  async handleRegister(dto: RegisterDto): Promise<SafeUser> {
+    const role = await this.roleService.findByName('BUYER');
+    if (!role) {
+      throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND);
+    }
+    const passwordHash = await HashHelper.hash(dto.password);
+
+    const createUserInput: CreateUserInput = {
+      email: dto.email,
+      passwordHash,
+      roleId: role.id,
+    };
+
+    return this.userService.handleCreate(createUserInput);
   }
 
-  async handleRegister(dto: RegisterUserDto): Promise<RegisterResponse> {
-    const user = await this.userService.handleSignUp(dto);
-    const sdkUser = await AuthResponseMapper.toSdkUser(
-      user,
-      this.dataPoolService,
-    );
-    return { user: sdkUser, message: 'Registration successful' };
-  }
+  // REFRESHTOKEN
+  private async generateTokenPair(
+    user: AuthenticatedPrincipal,
+  ): Promise<TokenPair> {
+    const accessPayload: JwtPayload = {
+      sub: user.id,
+      type: 'access',
+    };
 
-  async handleLogin(user: User): Promise<LoginResponse> {
-    await this.userService.handleUpdate(user.id, {
-      lastLogin: new Date(),
+    const refreshPayload: JwtPayload = {
+      sub: user.id,
+      type: 'refresh',
+    };
+
+    const accessExpiresIn = (process.env.JWT_ACCESS_EXPIRES_IN ??
+      '15m') as JwtExpiresIn;
+
+    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ??
+      '7d') as JwtExpiresIn;
+
+    const accessToken = await this.jwtService.signAsync(accessPayload, {
+      expiresIn: accessExpiresIn,
     });
-    const accessToken = await TokenHelper.generateAccessToken(
-      this.jwtService,
-      user.id,
-    );
-    const refreshToken = await TokenHelper.generateRefreshToken(
-      this.jwtService,
-      user.id,
-    );
-    const sdkUser = await AuthResponseMapper.toSdkUser(
-      user,
-      this.dataPoolService,
-    );
-    return { user: sdkUser, accessToken, refreshToken };
+
+    const refreshToken = await this.jwtService.signAsync(refreshPayload, {
+      expiresIn: refreshExpiresIn,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 
-  async handleRefreshToken(
-    refreshToken: string,
-  ): Promise<RefreshTokenResponse> {
+  async handleRefreshToken(refreshToken: string): Promise<TokenPair> {
+    let payload: JwtPayload;
     try {
-      const payload = await TokenHelper.verifyToken(
-        this.jwtService,
-        refreshToken,
-      );
-      await this.userService.handleFindOne(payload.sub);
-      const newAccessToken = await TokenHelper.generateAccessToken(
-        this.jwtService,
-        payload.sub,
-      );
-      const newRefreshToken = await TokenHelper.generateRefreshToken(
-        this.jwtService,
-        payload.sub,
-      );
-      return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken);
+      if (payload.type !== 'refresh') {
+        throw new BusinessException(ErrorCodes.TOKEN_INVALID);
+      }
     } catch {
       throw new BusinessException(ErrorCodes.TOKEN_INVALID);
     }
-  }
-
-  async handleGetProfile(userId: string): Promise<User> {
-    return this.userService.handleFindOne(userId);
-  }
-
-  async handleGetProfileSdk(
-    userId: string,
-  ): Promise<import('@nexus-estate/typescript-sdk').User> {
-    const user = await this.userService.handleFindOne(userId);
-    return AuthResponseMapper.toSdkUser(user, this.dataPoolService);
+    const user = await this.userService.findById(payload.sub);
+    const principal: AuthenticatedPrincipal = {
+      id: user.id,
+      email: user.email,
+      roleId: user.roleId,
+      role: user.role.name,
+    };
+    return this.generateTokenPair(principal);
   }
 }

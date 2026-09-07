@@ -1,10 +1,12 @@
 # CI/CD Pipeline — GitHub Actions
 
-This project uses **GitHub Actions** for Continuous Integration and **Continuous Deployment**.
+This project uses **GitHub Actions** for source verification and immutable
+image publication. Kubernetes deployment remains owned by infra Git and ArgoCD.
 
 ## CI Workflow
 
-The CI workflow runs on every push to `main`/`develop` and on pull requests targeting those branches.
+The CI workflow runs on every push to `main`/`develop` and on pull requests
+targeting those branches.
 
 ### Pipeline Steps
 
@@ -14,70 +16,32 @@ The CI workflow runs on every push to `main`/`develop` and on pull requests targ
 | Lint | All branches | Runs ESLint with auto-fix on `src/` and `test/` |
 | Unit Tests | All branches | Runs Jest unit tests in `src/` |
 | Integration Tests | All branches | Runs integration tests in `test/` (includes PostgreSQL via Testcontainers) |
-| **Docker Build & Push** | Push to `develop`/`main` only | Builds Docker image and pushes to `ghcr.io/tiesn/nexus-estate-api-gateway` |
+| **Docker Build** | Same-repository pull requests after CI | Builds the production image without publishing it |
+| **Docker Build & Push** | Branch/tag pushes after CI | Builds and publishes `ghcr.io/nexus-estate/nexus-api:<full-sha>` with `packages: write` |
+
+The Docker build mounts a temporary `.npmrc` containing the CI dependency
+token only for the `npm ci` step. The token is not a Docker build argument and
+is not copied into the final image. Fork pull requests do not receive private
+package secrets, so the production Docker build job is skipped for them.
 
 ### Image Tag Strategy
 
 | Branch | Image Tag | Example |
 |--------|-----------|---------|
-| `develop` | `develop-{short_sha}` | `develop-a1b2c3d` |
-| `main` | `{sha}`, `latest` | `a1b2c3d`, `latest` |
+| `develop` | full 40-character SHA, optional `develop-latest` | `<full-sha>` |
+| `main` | full 40-character SHA, optional `latest` | `<full-sha>` |
 
 ### Workflow File
 
 Located at `.github/workflows/ci.yml`.
 
-```yaml
-name: CI
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+The workflow uses the dynamic repository owner in image metadata, producing:
 
-permissions:
-  contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-jobs:
-  ci:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: nexus_estate_test
-        ports:
-          - 5432:5432
-
-    steps:
-      - Checkout
-      - Setup Node.js (from .nvmrc)
-      - npm ci
-      - npm run build
-      - npm run lint
-      - npm test
-      - npm run test:e2e
-
-  build-and-push:
-    runs-on: ubuntu-latest
-    needs: ci
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
-    steps:
-      - Checkout
-      - Docker Buildx setup
-      - GHCR login (via GITHUB_TOKEN)
-      - Docker metadata extraction
-      - Build and push Docker image (with cache)
+```text
+ghcr.io/nexus-estate/nexus-api:<sha>
 ```
 
-### Environment Variables
+## Environment Variables
 
 The CI workflow sets these environment variables for the test database:
 
@@ -92,12 +56,12 @@ The CI workflow sets these environment variables for the test database:
 
 ## Pre-commit Hook
 
-A pre-commit hook (via [Husky](https://typicode.github.io/husky/)) runs before each commit:
+A pre-commit hook (via Husky) runs before each commit:
 
-1. **lint-staged** — ESLint fix + Prettier format on staged `.ts` files
-2. **test:all** — Full pipeline: `build → lint → test → test:e2e`
+1. `lint-staged` — ESLint fix + Prettier format on staged `.ts` files
+2. `test:all` — Full pipeline: `build → lint → test → test:e2e`
 
-This ensures code quality before any commit reaches the repository.
+This ensures code quality before any code reaches the repository.
 
 ## Local Full Check
 

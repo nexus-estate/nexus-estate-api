@@ -1,28 +1,27 @@
 import { Module } from '@nestjs/common';
-import { RbacController } from './controllers/rbac.controller';
-import { RoleService } from './services/role.service';
-import { PermissionService } from './services/permission.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Role } from './entities/role.entity';
+import { Permission } from './entities/permission.entity';
+import { RolePermission } from './entities/role-permission.entity';
 import { RoleRepository } from './repositories/role.repository';
 import { PermissionRepository } from './repositories/permission.repository';
-import { APP_GUARD } from '@nestjs/core';
-import { RolesGuard } from './guards/roles.guard';
-import { PermissionsGuard } from './guards/permissions.guard';
+import { RolePermissionRepository } from './repositories/role-permission.repository';
+import { RoleService } from './services/role.service';
+import { PermissionService } from './services/permission.service';
+import { RoleGurad } from './guard/role.guard';
+import { PermissionsGuard } from './guard/permission.guard';
+
 @Module({
-  controllers: [RbacController],
+  imports: [TypeOrmModule.forFeature([Role, Permission, RolePermission])],
   providers: [
-    RoleService,
-    PermissionService,
     RoleRepository,
     PermissionRepository,
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: PermissionsGuard,
-    },
+    RolePermissionRepository,
+    RoleService,
+    PermissionService,
+    RoleGurad,
+    PermissionsGuard,
   ],
-  exports: [RoleService, PermissionService, PermissionRepository],
+  exports: [RoleService, PermissionService, RoleGurad, PermissionsGuard],
 })
 export class RbacModule {}

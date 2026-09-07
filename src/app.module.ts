@@ -1,27 +1,19 @@
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  RequestMethod,
-  Controller,
-  Get,
-  VERSION_NEUTRAL,
-} from '@nestjs/common';
+import { Module, Controller, Get, VERSION_NEUTRAL } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 import { typeormConfig } from './database/type.config';
 import { CommonModule } from './common/common.module';
+
+import { Public } from './common/decorators/public.decorator';
+import { LocationModule } from './database/seed/locations/location.module';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { RbacModule } from './modules/rbac/rbac.module';
-import { AuthMiddleware } from './middlewares/auth.middleware';
-
 @Controller({
   path: 'healthz',
   version: VERSION_NEUTRAL,
 })
+@Public()
 export class HealthController {
   @Get()
   check() {
@@ -47,31 +39,11 @@ export class HealthController {
         autoLoadEntities: true,
       }),
     }),
-    JwtModule.registerAsync({
-      global: true,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'fallback-secret'),
-        signOptions: { expiresIn: '15m' },
-      }),
-    }),
     CommonModule,
+    LocationModule,
     UserModule,
     AuthModule,
-    RbacModule,
   ],
   controllers: [HealthController],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AuthMiddleware)
-      .exclude(
-        { path: 'auth/register', method: RequestMethod.ALL },
-        { path: 'auth/login', method: RequestMethod.ALL },
-        { path: 'auth/refresh', method: RequestMethod.ALL },
-        { path: 'healthz', method: RequestMethod.ALL },
-      )
-      .forRoutes('*');
-  }
-}
+export class AppModule {}

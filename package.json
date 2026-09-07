@@ -1,5 +1,5 @@
 {
-  "name": "nexus-estate-api-gateway",
+  "name": "nexus-estate-api",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -105,6 +105,9 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "\\.integration\\.spec\\.ts$"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

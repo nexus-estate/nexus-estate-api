@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 
 const logger = new Logger('Bootstrap');
 
@@ -27,12 +27,6 @@ async function bootstrap(): Promise<void> {
   // Global prefix for all API routes
   app.setGlobalPrefix('api/v1', {
     exclude: ['healthz'],
-  });
-
-  // Enable URI versioning (optional, for future API versions)
-  app.enableVersioning({
-    type: VersioningType.URI,
-    defaultVersion: '1',
   });
 
   // Global validation pipe for DTO validation

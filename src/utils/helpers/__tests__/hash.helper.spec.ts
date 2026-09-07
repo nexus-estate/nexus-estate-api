@@ -1,4 +1,4 @@
-import { HashHelper } from '../../../common/helpers/hash.helper';
+import { HashHelper } from '../hash.helper';
 
 describe('HashHelper', () => {
   describe('hash', () => {
