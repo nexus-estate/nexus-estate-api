@@ -29,7 +29,7 @@ npm --version    # Should be 10.x
 
 ```bash
 git clone https://github.com/tiesn/nexus-estate.git
-cd nexus-estate/api-gateway
+cd nexus-estate/api
 npm install
 ```
 

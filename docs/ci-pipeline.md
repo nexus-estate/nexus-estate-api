@@ -1,6 +1,7 @@
 # CI/CD Pipeline — GitHub Actions
 
-This project uses **GitHub Actions** for Continuous Integration and **Continuous Deployment**.
+This project uses **GitHub Actions** for Continuous Integration and immutable
+image publication. Kubernetes deployment remains owned by infra Git and ArgoCD.
 
 ## CI Workflow
 
@@ -14,14 +15,14 @@ The CI workflow runs on every push to `main`/`develop` and on pull requests targ
 | Lint | All branches | Runs ESLint with auto-fix on `src/` and `test/` |
 | Unit Tests | All branches | Runs Jest unit tests in `src/` |
 | Integration Tests | All branches | Runs integration tests in `test/` (includes PostgreSQL via Testcontainers) |
-| **Docker Build & Push** | Push to `develop`/`main` only | Builds Docker image and pushes to `ghcr.io/tiesn/nexus-estate-api-gateway` |
+| **Docker Build & Push** | Branch/tag pushes after CI | Builds and publishes `ghcr.io/nexus-estate/nexus-api:<full-sha>` |
 
 ### Image Tag Strategy
 
 | Branch | Image Tag | Example |
 |--------|-----------|---------|
-| `develop` | `develop-{short_sha}` | `develop-a1b2c3d` |
-| `main` | `{sha}`, `latest` | `a1b2c3d`, `latest` |
+| `develop` | full 40-character SHA, optional `develop-latest` | `<full-sha>` |
+| `main` | full 40-character SHA, optional `latest` | `<full-sha>` |
 
 ### Workflow File
 
@@ -39,9 +40,13 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: nexus-api
 
 jobs:
   ci:

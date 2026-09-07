@@ -1121,7 +1121,7 @@ The mock server provides sample data for all API endpoints, useful for frontend 
 3. Update error codes if new error scenarios exist
 4. Regenerate TypeScript SDK: npm run generate:sdk
 5. Validate no breaking changes: npm run validate:breaking
-6. Implement the API in api-gateway following the contract
+6. Implement the API in nexus-estate-api following the contract
 7. Frontend team consumes the updated SDK
 ```
 
