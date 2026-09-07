@@ -1,14 +1,14 @@
-# api-gateway → shared-contracts Integration
+# nexus-estate-api → shared-contracts Integration
 
 ## Status: ✅ Sprint 1 — In Progress
 
 ## Why
 
-Currently, `api-gateway` defines DTOs manually in each module (`dto/*.ts`). These values are **not validated** against the OpenAPI specs in `shared-contracts`. This creates a drift risk: if the contract changes, the API may silently break or behave differently than documented.
+Currently, `nexus-estate-api` defines DTOs manually in each module (`dto/*.ts`). These values are **not validated** against the OpenAPI specs in `shared-contracts`. This creates a drift risk: if the contract changes, the API may silently break or behave differently than documented.
 
 ## Goal
 
-Make `api-gateway` **contract-compliant** — every request/response matches the `shared-contracts/openapi/` specs exactly.
+Make `nexus-estate-api` **contract-compliant** — every request/response matches the `shared-contracts/openapi/` specs exactly.
 
 ---
 
@@ -90,7 +90,7 @@ Make `api-gateway` **contract-compliant** — every request/response matches the
 
 | Task | File | Status |
 |------|------|--------|
-| Add `.npmrc` | `api-gateway/.npmrc` | ✅ Done |
+| Add `.npmrc` | `nexus-estate-api/.npmrc` | ✅ Done |
 | Install SDK | Add `@nexus-estate/typescript-sdk` to `package.json` dependencies | ✅ Done |
 | LoginDto → LoginRequest | `src/modules/auth/dto/login.dto.ts` | ✅ Done |
 | RefreshTokenDto → RefreshTokenRequest | `src/modules/auth/dto/refresh-token.dto.ts` | ✅ Done |
@@ -127,7 +127,7 @@ shared-contracts/openapi/public.yaml
     ├──> @nexus-estate/typescript-sdk (GitHub Packages)
     │     └── Types & interfaces for all API DTOs
     │
-    ├──> api-gateway/src/generated/ (OpenAPI Generator)
+    ├──> nexus-estate-api/src/generated/ (OpenAPI Generator)
     │     └── DTOs, controllers, services (auto-generated)
     │
     └──> Manual DTOs (to be removed over time)
@@ -135,7 +135,7 @@ shared-contracts/openapi/public.yaml
 
 ## Dockerfile
 
-The api-gateway Dockerfile needs `NODE_AUTH_TOKEN` build arg for `npm ci`:
+The nexus-estate-api Dockerfile needs `NODE_AUTH_TOKEN` build arg for `npm ci`:
 
 ```dockerfile
 ARG NODE_AUTH_TOKEN
@@ -147,7 +147,7 @@ RUN rm -f .npmrc
 
 ## CI Updates
 
-Add to `api-gateway/.github/workflows/ci.yml`:
+Add to `nexus-estate-api/.github/workflows/ci.yml`:
 
 ```yaml
 permissions:

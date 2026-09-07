@@ -17,13 +17,13 @@ services:
     networks:
       - nexus-network
 
-  api-gateway:
+  nexus-api:
     build:
       context: .
       target: development
       secrets:
         - npmrc
-    container_name: nexus-estate-api-gateway
+    container_name: nexus-api
     restart: unless-stopped
     ports:
       - "${PORT:-50001}:${PORT:-50001}"
@@ -51,4 +51,4 @@ networks:
 
 secrets:
   npmrc:
-    file: ./.npmrc 
+    file: ./.npmrc
