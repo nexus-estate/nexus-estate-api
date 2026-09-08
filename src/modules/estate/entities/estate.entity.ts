@@ -1,116 +1,71 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { ApprovalBaseEntity } from '../../../services/abstraction-services';
-import { User } from '../../user/entities/user.entity';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import type { Relation } from 'typeorm';
+import { BaseEntity } from '../../../services/abstraction-services';
 import { Province, Ward } from '../../location/entities/location.entity';
-
-export enum PropertyType {
-  APARTMENT = 'APARTMENT',
-  HOUSE = 'HOUSE',
-  VILLA = 'VILLA',
-  TOWNHOUSE = 'TOWNHOUSE',
-  LAND = 'LAND',
-  OFFICE = 'OFFICE',
-  SHOPHOUSE = 'SHOPHOUSE',
-  WAREHOUSE = 'WAREHOUSE',
-  COMMERCIAL = 'COMMERCIAL',
-  HOTEL = 'HOTEL',
-  RESORT = 'RESORT',
-  FARM = 'FARM',
-  OTHER = 'OTHER',
-}
-
-export enum PropertyPurpose {
-  SALE = 'SALE',
-  RENT = 'RENT',
-  SALE_OR_RENT = 'SALE_OR_RENT',
-}
-
-export interface PropertyFeatures {
-  hasBalcony?: boolean;
-  hasGarage?: boolean;
-  hasGarden?: boolean;
-  hasPool?: boolean;
-  hasElevator?: boolean;
-  hasAirConditioner?: boolean;
-  hasFurniture?: boolean;
-  hasSecurity?: boolean;
-  hasGym?: boolean;
-  hasWifi?: boolean;
-}
+import { User } from '../../user/entities/user.entity';
+import { EstatePurpose, EstateType } from '../type/estate.type';
 
 @Entity('tbl_estate')
-export class Estate extends ApprovalBaseEntity {
-  // --- FK: User (broker / chủ đăng) ---
-  @Column({ name: 'fk_user_id', type: 'uuid' })
+export class Estate extends BaseEntity {
+  @Column({ name: 'fk_user_id', type: 'uuid', nullable: false })
   userId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'fk_user_id' })
-  user: User;
+  user: Relation<User>;
 
-  // --- Location ---
-  @Column({ type: 'varchar', length: 500 })
-  address: string;
-
-  @Column({ name: 'fk_province_id', type: 'uuid', nullable: true })
-  provinceId?: string;
-
-  @ManyToOne(() => Province, (province) => province.estates, { nullable: true })
-  @JoinColumn({ name: 'fk_province_id' })
-  province?: Province;
-
-  @Column({ name: 'fk_ward_id', type: 'uuid', nullable: true })
-  wardId?: string;
-
-  @ManyToOne(() => Ward, (ward) => ward.estates, { nullable: true })
-  @JoinColumn({ name: 'fk_ward_id' })
-  ward?: Ward;
-
-  // --- LIST fields (hiển thị trên card/list) ---
-  @Column({ type: 'varchar', length: 500 })
+  @Column({ type: 'varchar', length: 500, nullable: false })
   title: string;
 
-  @Column({ type: 'bigint', nullable: true })
-  price?: number;
-
-  @Column({ type: 'enum', enum: PropertyType })
-  type: PropertyType;
-
-  @Column({ type: 'enum', enum: PropertyPurpose })
-  purpose: PropertyPurpose;
-
-  // --- DETAIL fields (chỉ load khi xem chi tiết) ---
   @Column({ type: 'text', nullable: true })
-  description?: string;
+  description: string | null;
+
+  @Column({ type: 'enum', enum: EstateType, nullable: false })
+  type: EstateType;
+
+  @Column({ type: 'enum', enum: EstatePurpose, nullable: false })
+  purpose: EstatePurpose;
+
+  @Column({ type: 'bigint', nullable: false })
+  price: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  area?: number;
+  area: number | null;
 
   @Column({ type: 'int', nullable: true })
-  bedrooms?: number;
+  bedrooms: number | null;
 
   @Column({ type: 'int', nullable: true })
-  bathrooms?: number;
+  bathrooms: number | null;
 
   @Column({ type: 'int', nullable: true })
-  floors?: number;
+  floors: number | null;
+
+  @Column({
+    name: 'address_line',
+    type: 'varchar',
+    length: 500,
+    nullable: false,
+  })
+  addressLine: string;
+
+  @Column({ name: 'fk_province_id', type: 'uuid', nullable: false })
+  provinceId: string;
+
+  @ManyToOne(() => Province, { nullable: false, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'fk_province_id' })
+  province: Relation<Province>;
+
+  @Column({ name: 'fk_ward_id', type: 'uuid', nullable: false })
+  wardId: string;
+
+  @ManyToOne(() => Ward, { nullable: false, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'fk_ward_id' })
+  ward: Relation<Ward>;
 
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
-  latitude?: number;
+  latitude: number | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
-  longitude?: number;
-
-  @Column({ type: 'json', nullable: true })
-  features?: PropertyFeatures;
-
-  // --- Thông tin đăng tin ---
-  @Column({ name: 'start_date', type: 'timestamptz', nullable: true })
-  startDate?: Date;
-
-  @Column({ name: 'end_date', type: 'timestamptz', nullable: true })
-  endDate?: Date;
-
-  @Column({ name: 'is_featured', type: 'boolean', default: false })
-  isFeatured: boolean;
+  longitude: number | null;
 }

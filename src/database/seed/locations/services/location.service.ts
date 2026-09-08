@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ProvinceRepo } from '../repositories/province.repo';
-import { wardRepository } from '../repositories/ward.repo';
+import { WardRepository } from '../repositories/ward.repo';
 import {
   Province,
   Ward,
@@ -10,7 +10,7 @@ import {
 export class locationService {
   constructor(
     private readonly provinceRepository: ProvinceRepo,
-    private readonly wardRepository: wardRepository,
+    private readonly wardRepository: WardRepository,
   ) {}
 
   async getAllProvinces(): Promise<Province[]> {
