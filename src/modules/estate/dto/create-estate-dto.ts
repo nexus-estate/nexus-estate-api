@@ -1,99 +1,161 @@
+/*
+PHASE: CreateEstateDto
+
+Target fields client được phép gửi:
+
+title
+- string
+- required
+
+description
+- string
+- optional
+
+type
+- EstateType enum
+- required
+
+purpose
+- EstatePurpose enum
+- required
+
+price
+- number
+- required
+- >= 0
+
+area
+- number
+- optional
+- > 0
+
+bedrooms
+- integer
+- optional
+- >= 0
+
+bathrooms
+- integer
+- optional
+- >= 0
+
+floors
+- integer
+- optional
+- >= 0
+
+addressLine
+- string
+- required
+
+provinceId
+- UUID
+- required
+
+wardId
+- UUID
+- required
+
+latitude
+- number
+- optional
+- min -90
+- max 90
+
+longitude
+- number
+- optional
+- min -180
+- max 180
+
+KHÔNG được có:
+- id
+- userId
+- createdAt
+- updatedAt
+- deletedAt
+- createdBy
+- updatedBy
+
+userId sau này lấy từ JWT/current user.
+*/
+
 import {
-  IsString,
-  IsNumber,
   IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
   IsOptional,
-  IsBoolean,
-  IsDateString,
+  IsPositive,
+  IsString,
   IsUUID,
-  MaxLength,
+  Max,
   Min,
-  IsObject,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { PropertyType, PropertyPurpose } from '../entities/estate.entity';
-import type { PropertyFeatures } from '../entities/estate.entity';
+
+import { EstatePurpose, EstateType } from '../type/estate.type';
 
 export class CreateEstateDto {
   @IsString()
-  @MaxLength(500)
+  @IsNotEmpty()
   title: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Type(() => Number)
-  price?: number;
-
-  @IsEnum(PropertyType)
-  type: PropertyType;
-
-  @IsEnum(PropertyPurpose)
-  purpose: PropertyPurpose;
-
-  @IsString()
-  @MaxLength(500)
-  address: string;
-
-  @IsOptional()
-  @IsUUID()
-  provinceId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  wardId?: string;
 
   @IsOptional()
   @IsString()
   description?: string;
 
-  @IsOptional()
+  @IsEnum(EstateType)
+  type: EstateType;
+
+  @IsEnum(EstatePurpose)
+  purpose: EstatePurpose;
+
   @IsNumber()
   @Min(0)
-  @Type(() => Number)
+  price: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
   area?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
-  @Type(() => Number)
+  @Max(100)
   bedrooms?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
-  @Type(() => Number)
+  @Max(100)
   bathrooms?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
-  @Type(() => Number)
+  @Max(100)
   floors?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  addressLine: string;
+
+  @IsUUID()
+  provinceId: string;
+
+  @IsUUID()
+  wardId: string;
 
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
+  @Min(-90)
+  @Max(90)
   latitude?: number;
 
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
+  @Min(-180)
+  @Max(180)
   longitude?: number;
-
-  @IsOptional()
-  @IsObject()
-  features?: PropertyFeatures;
-
-  @IsOptional()
-  @IsDateString()
-  startDate?: Date;
-
-  @IsOptional()
-  @IsDateString()
-  endDate?: Date;
-
-  @IsOptional()
-  @IsBoolean()
-  isFeatured?: boolean;
 }

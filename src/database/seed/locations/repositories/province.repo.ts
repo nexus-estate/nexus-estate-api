@@ -10,17 +10,20 @@ export class ProvinceRepo {
     private readonly repository: Repository<Province>, // private is access modifier , bien chi duoc dung duy nhat ben trong Province repo
   ) {}
 
+  async findById(id: string): Promise<Province | null> {
+    return this.repository
+      .createQueryBuilder('province')
+      .where('province.id = :id', { id })
+      .getOne();
+  }
   async findAll(): Promise<Province[]> {
-    return this.repository.find({
-      order: {
-        name: 'ASC',
-      },
-    });
+    return this.repository.createQueryBuilder('province').getMany();
   }
 
   async findByCode(code: string): Promise<Province | null> {
-    return this.repository.findOne({
-      where: { code },
-    });
+    return this.repository
+      .createQueryBuilder('province')
+      .where('province.code = :code', { code })
+      .getOne();
   }
 }
