@@ -9,6 +9,7 @@ import { Public } from './common/decorators/public.decorator';
 import { LocationModule } from './database/seed/locations/location.module';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { EstateModule } from './modules/estate/estate.module';
 @Controller({
   path: 'healthz',
   version: VERSION_NEUTRAL,
@@ -43,6 +44,7 @@ export class HealthController {
     LocationModule,
     UserModule,
     AuthModule,
+    EstateModule,
   ],
   controllers: [HealthController],
 })
