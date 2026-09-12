@@ -9,9 +9,9 @@ import {
 
 import { SellerType } from '../../seller-platform/account/enums/account.enums';
 
-/** Administrator payload for promoting an existing buyer to seller. */
-export class CreateSellerFromBuyerDto {
-  /** Existing buyer user identifier to promote. */
+/** Authenticated buyer payload for submitting a seller-registration request. */
+export class RegisterSellerFromBuyerDto {
+  /** Existing buyer user identifier submitting the request. */
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   buyerId: string;

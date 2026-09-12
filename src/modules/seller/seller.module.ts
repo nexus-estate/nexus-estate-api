@@ -3,14 +3,25 @@ import { Module } from '@nestjs/common';
 import { RbacModule } from '../rbac/rbac.module';
 import { SellerPlatformModule } from '../seller-platform/seller-platform.module';
 import { UserModule } from '../user/user.module';
+import { SellerApprovalController } from './controllers/seller-approval.controller';
 import { SellerController } from './controllers/seller.controller';
-import { SellerService } from './services/seller.service';
+import { SellerApprovalService } from './services/seller-approval.service';
+import { SellerProfileService } from './services/seller-profile.service';
+import { SellerRegistrationService } from './services/seller-registration.service';
 
 /** Owns seller registration and seller-facing API access. */
 @Module({
   imports: [RbacModule, SellerPlatformModule, UserModule],
-  controllers: [SellerController],
-  providers: [SellerService],
-  exports: [SellerService],
+  controllers: [SellerController, SellerApprovalController],
+  providers: [
+    SellerApprovalService,
+    SellerProfileService,
+    SellerRegistrationService,
+  ],
+  exports: [
+    SellerApprovalService,
+    SellerProfileService,
+    SellerRegistrationService,
+  ],
 })
 export class SellerModule {}

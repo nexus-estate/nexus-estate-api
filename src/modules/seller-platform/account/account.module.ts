@@ -21,6 +21,11 @@ import { SellerAccountService } from './services/account.service';
     SellerAccountPolicy,
     CurrentSellerContext,
   ],
-  exports: [SellerAccountService, SellerAccountPolicy, CurrentSellerContext],
+  exports: [
+    SellerAccountRepository,
+    SellerAccountService,
+    SellerAccountPolicy,
+    CurrentSellerContext,
+  ],
 })
 export class SellerAccountModule {}

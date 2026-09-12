@@ -136,6 +136,12 @@ export const ErrorCodes = {
     httpStatus: 403,
   },
 
+  SELLER_ACCOUNT_NOT_PENDING: {
+    code: 'SELLER_ACCOUNT_NOT_PENDING',
+    message: 'Seller account is not waiting for approval.',
+    httpStatus: 409,
+  },
+
   // ─── Role & Permission ───────────────────────────────────────────
   ROLE_NOT_FOUND: {
     code: 'RLE_001',

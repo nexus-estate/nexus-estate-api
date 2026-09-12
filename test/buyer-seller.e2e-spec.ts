@@ -36,6 +36,18 @@ type SellerRegistration = {
     verificationStatus: string;
   };
 };
+type SellerRegistrationReview = SellerRegistration & {
+  id: string;
+  owner: {
+    id: string;
+    email: string;
+    isEmailVerified: boolean;
+    role: string;
+    lastLogin: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
 
 jest.setTimeout(120_000);
 
@@ -107,6 +119,7 @@ describe('Buyer and Seller APIs (e2e)', () => {
       .save(
         [
           PERMISSIONS.BUYER_PROFILE_READ,
+          PERMISSIONS.SELLER_ACCOUNT_REGISTER,
           PERMISSIONS.SELLER_ACCOUNT_READ,
           PERMISSIONS.SELLER_ACCOUNT_UPDATE,
           PERMISSIONS.SELLER_ACCOUNT_APPROVE,
@@ -120,6 +133,11 @@ describe('Buyer and Seller APIs (e2e)', () => {
       {
         roleId: roleByName.get(ROLES.BUYER)!.id,
         permissionId: permissionByName.get(PERMISSIONS.BUYER_PROFILE_READ)!.id,
+      },
+      {
+        roleId: roleByName.get(ROLES.BUYER)!.id,
+        permissionId: permissionByName.get(PERMISSIONS.SELLER_ACCOUNT_REGISTER)!
+          .id,
       },
       {
         roleId: roleByName.get(ROLES.SELLER)!.id,
@@ -211,36 +229,91 @@ describe('Buyer and Seller APIs (e2e)', () => {
       .expect(200);
   });
 
-  it('allows an administrator to promote an existing buyer with buyerId', async () => {
+  it('keeps buyerId registration pending until administrator approval', async () => {
     const buyerId = await registerBuyer('promoted-buyer@nexus.test');
-    const adminRole = await dataSource.getRepository(Role).findOneByOrFail({
-      name: ROLES.ADMINISTRATOR,
-    });
-    const admin = await dataSource.getRepository(User).save({
-      email: 'admin@nexus.test',
-      password: await HashHelper.hash('admin-password'),
-      roleId: adminRole.id,
-    });
-    const adminToken = await login('admin@nexus.test', 'admin-password');
+    const buyerToken = await login(
+      'promoted-buyer@nexus.test',
+      'buyer-password',
+    );
 
-    const response = await request(app.getHttpServer())
-      .post('/api/v1/sellers/from-buyer')
-      .set('Authorization', `Bearer ${adminToken}`)
+    const requestResponse = await request(app.getHttpServer())
+      .post('/api/v1/sellers/register/from-buyer')
+      .set('Authorization', `Bearer ${buyerToken}`)
       .send({
         buyerId,
         type: 'AGENCY',
         displayName: 'Promoted Agency',
       })
       .expect(201);
+    expect(
+      (requestResponse.body as ApiSuccess<SellerRegistration>).data,
+    ).toMatchObject({
+      userId: buyerId,
+      role: ROLES.BUYER,
+      sellerAccount: {
+        displayName: 'Promoted Agency',
+        verificationStatus: 'PENDING',
+      },
+    });
 
+    await request(app.getHttpServer())
+      .get('/api/v1/sellers/me')
+      .set('Authorization', `Bearer ${buyerToken}`)
+      .expect(403);
+
+    const adminRole = await dataSource.getRepository(Role).findOneByOrFail({
+      name: ROLES.ADMINISTRATOR,
+    });
+    await dataSource.getRepository(User).save({
+      email: 'admin@nexus.test',
+      password: await HashHelper.hash('admin-password'),
+      roleId: adminRole.id,
+    });
+    const adminToken = await login('admin@nexus.test', 'admin-password');
+
+    const listResponse = await request(app.getHttpServer())
+      .get('/api/v1/admin/seller-registrations')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    const pending = (
+      listResponse.body as ApiSuccess<SellerRegistrationReview[]>
+    ).data;
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({
+      owner: {
+        id: buyerId,
+        email: 'promoted-buyer@nexus.test',
+        role: ROLES.BUYER,
+      },
+      sellerAccount: {
+        displayName: 'Promoted Agency',
+        verificationStatus: 'PENDING',
+      },
+    });
+
+    const detailResponse = await request(app.getHttpServer())
+      .get(`/api/v1/admin/seller-registrations/${pending[0].id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(
+      (detailResponse.body as ApiSuccess<SellerRegistrationReview>).data.owner
+        .id,
+    ).toBe(buyerId);
+
+    const response = await request(app.getHttpServer())
+      .post(`/api/v1/admin/seller-registrations/${pending[0].id}/approve`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(201);
     expect(
       (response.body as ApiSuccess<SellerRegistration>).data,
     ).toMatchObject({
       userId: buyerId,
       role: ROLES.SELLER,
-      sellerAccount: { displayName: 'Promoted Agency' },
+      sellerAccount: {
+        displayName: 'Promoted Agency',
+        verificationStatus: 'VERIFIED',
+      },
     });
-    expect(admin.id).not.toBe(buyerId);
 
     const sellerToken = await login(
       'promoted-buyer@nexus.test',

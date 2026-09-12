@@ -50,6 +50,31 @@ export class SellerAccountService extends BaseService<
     userId: string,
     dto: CreateSellerAccountDto,
   ): Promise<SellerAccountResponse> {
+    return this.createForUserWithVerification(
+      userId,
+      dto,
+      SellerVerificationStatus.UNVERIFIED,
+    );
+  }
+
+  /** Creates a seller account that is waiting for administrator approval. */
+  async createPendingForUser(
+    userId: string,
+    dto: CreateSellerAccountDto,
+  ): Promise<SellerAccountResponse> {
+    return this.createForUserWithVerification(
+      userId,
+      dto,
+      SellerVerificationStatus.PENDING,
+    );
+  }
+
+  /** Persists a seller account with the requested onboarding state. */
+  private async createForUserWithVerification(
+    userId: string,
+    dto: CreateSellerAccountDto,
+    verificationStatus: SellerVerificationStatus,
+  ): Promise<SellerAccountResponse> {
     this.validateType(dto.type);
     const displayName = this.validateDisplayName(dto.displayName);
 
@@ -71,7 +96,7 @@ export class SellerAccountService extends BaseService<
         type: dto.type,
         displayName,
         status: SellerStatus.ACTIVE,
-        verificationStatus: SellerVerificationStatus.UNVERIFIED,
+        verificationStatus,
       });
 
       this.logger.log(
