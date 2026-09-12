@@ -1,19 +1,24 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLE_KEY } from '../decorator/roles.decorator';
-import { RoleName } from '../../../utils';
-import { AuthenticatedPrincipal } from '../../auth/types/auth.type';
+import type { RoleName } from '../../../utils';
+import type { AuthenticatedPrincipal } from '../../auth/types/auth.type';
 
+type RoleMetadata = RoleName[];
+
+/** Enforces role metadata declared on controllers and route handlers. */
 @Injectable()
-export class RoleGurad implements CanActivate {
+export class RoleGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
-  canActivate(context: ExecutionContext): boolean {
-    const requireRole = this.reflector.getAllAndOverride<RoleName[]>(ROLE_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
 
-    if (!requireRole || requireRole.length == 0) {
+  /** Returns true when the authenticated principal has one required role. */
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<RoleMetadata>(
+      ROLE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
     const request = context
@@ -24,6 +29,6 @@ export class RoleGurad implements CanActivate {
     if (!user) {
       return false;
     }
-    return requireRole.some((role) => role === user.role);
+    return requiredRoles.some((role) => role === user.role);
   }
 }

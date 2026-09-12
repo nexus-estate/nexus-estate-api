@@ -8,7 +8,7 @@ import { PermissionRepository } from './repositories/permission.repository';
 import { RolePermissionRepository } from './repositories/role-permission.repository';
 import { RoleService } from './services/role.service';
 import { PermissionService } from './services/permission.service';
-import { RoleGurad } from './guard/role.guard';
+import { RoleGuard } from './guard/role.guard';
 import { PermissionsGuard } from './guard/permission.guard';
 
 @Module({
@@ -19,9 +19,9 @@ import { PermissionsGuard } from './guard/permission.guard';
     RolePermissionRepository,
     RoleService,
     PermissionService,
-    RoleGurad,
+    RoleGuard,
     PermissionsGuard,
   ],
-  exports: [RoleService, PermissionService, RoleGurad, PermissionsGuard],
+  exports: [RoleService, PermissionService, RoleGuard, PermissionsGuard],
 })
 export class RbacModule {}

@@ -20,6 +20,7 @@ import { SellerAccount } from '../src/modules/seller-platform/account/models/acc
 import { SellerPlatformModule } from '../src/modules/seller-platform/seller-platform.module';
 import { User } from '../src/modules/user/entities/user.entity';
 import { ErrorCodes } from '../src/utils/constants/error.constant';
+import { PERMISSIONS } from '../src/utils/constants/permission.constant';
 
 type ApiSuccess<T> = { status: true; data: T };
 type ApiError = { status: false; code?: string; message: string };
@@ -89,12 +90,27 @@ describe('SellerAccount API (e2e)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_seller_account, tbl_user, tbl_role CASCADE',
+      'TRUNCATE TABLE tbl_seller_account, tbl_user, tbl_role, tbl_permission CASCADE',
     );
-    await dataSource.getRepository(Role).save({
-      name: 'BUYER',
+    const buyerRole = await dataSource.getRepository(Role).save({
+      name: 'buyer',
       isSystem: true,
     });
+    const permissions = await dataSource
+      .getRepository(Permission)
+      .save(
+        [
+          PERMISSIONS.SELLER_ACCOUNT_REGISTER,
+          PERMISSIONS.SELLER_ACCOUNT_READ,
+          PERMISSIONS.SELLER_ACCOUNT_UPDATE,
+        ].map((name) => ({ name })),
+      );
+    await dataSource.getRepository(RolePermission).save(
+      permissions.map((permission) => ({
+        roleId: buyerRole.id,
+        permissionId: permission.id,
+      })),
+    );
   });
 
   afterAll(async () => {

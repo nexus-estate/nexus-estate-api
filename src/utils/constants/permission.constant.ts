@@ -1,4 +1,11 @@
 export const PERMISSIONS = {
+  // Seller account
+  SELLER_ACCOUNT_REGISTER: 'seller-account:register',
+  SELLER_ACCOUNT_READ: 'seller-account:read',
+  SELLER_ACCOUNT_UPDATE: 'seller-account:update',
+  SELLER_ACCOUNT_APPROVE: 'seller-account:approve',
+  SELLER_ACCOUNT_SUSPEND: 'seller-account:suspend',
+
   // User
   USER_CREATE: 'user:create',
   USER_READ: 'user:read',
@@ -44,6 +51,8 @@ export const PERMISSIONS = {
   LOCATION_MANAGE: 'location:manage',
 
   // System
+  METRICS_READ: 'metrics:read',
+  ADMIN_PORTAL_ACCESS: 'admin-portal:access',
   SYSTEM_CONFIG: 'system:config',
   SYSTEM_AUDIT: 'system:audit',
 } as const;

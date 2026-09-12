@@ -26,7 +26,7 @@ export class RoleService {
   }
 
   async findByName(name: string): Promise<Role | null> {
-    return this.roleRepository.findByName(name);
+    return this.roleRepository.findByName(name.trim().toLowerCase());
   }
 
   async findByIdWithPermissions(id: string): Promise<Role> {

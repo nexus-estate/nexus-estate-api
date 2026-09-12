@@ -12,6 +12,7 @@ import { SafeUser } from '../../user/types/user.type';
 import { RoleService } from '../../rbac/services/role.service';
 import { RegisterDto } from '../dto/register.dto';
 import { CreateUserInput } from '../../user/dto/user.dto';
+import { ROLES } from '../../../utils/constants/role.constant';
 type JwtExpiresIn = JwtSignOptions['expiresIn'];
 @Injectable()
 export class AuthService {
@@ -46,7 +47,9 @@ export class AuthService {
     return TokenPair;
   }
   async handleRegister(dto: RegisterDto): Promise<SafeUser> {
-    const role = await this.roleService.findByName('BUYER');
+    // Public registration always creates a buyer; seller elevation is an
+    // explicit onboarding/approval workflow and must never be client-selected.
+    const role = await this.roleService.findByName(ROLES.BUYER);
     if (!role) {
       throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND);
     }

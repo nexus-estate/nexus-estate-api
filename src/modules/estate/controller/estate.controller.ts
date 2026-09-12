@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 
 import { AuthenticatedPrincipal } from '../../auth/types/auth.type';
+import { Public } from '../../../common/decorators/public.decorator';
 import { CreateEstateDto } from '../dto/create-estate-dto';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
 import { Estate } from '../entities';
@@ -37,6 +38,7 @@ export class EstateController {
   }
 
   @Get(':id')
+  @Public()
   async findEstateById(@Param('id') estateId: string): Promise<Estate> {
     return this.estateService.findById(estateId);
   }

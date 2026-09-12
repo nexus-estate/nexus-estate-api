@@ -489,7 +489,7 @@ export class FeatureModule {}
 | **Method** | `camelCase` with `handle` prefix for service public methods | `handleSignUp`, `handleFindByEmail` |
 | **Entity table** | `tbl_` prefix + `snake_case` | `tbl_user`, `tbl_role`, `tbl_permission` |
 | **Entity class** | `PascalCase` singular | `User`, `Role`, `Permission` |
-| **Constant** | `UPPER_SNAKE_CASE` | `ErrorCodes.USER_NOT_FOUND`, `RoleName.ADMIN` |
+| **Constant** | `UPPER_SNAKE_CASE` | `ErrorCodes.USER_NOT_FOUND`, `ROLES.ADMINISTRATOR` |
 | **Enum** | `PascalCase` enum, `UPPER_SNAKE_CASE` values | `RoleName.BUYER`, `ApprovalStatus.PENDING` |
 | **DTO** | `<Action><Entity>Dto` | `RegisterUserDto`, `CreateRoleDto`, `UpdateUserDto` |
 | **Guard** | `<Name>Guard` | `JwtAuthGuard`, `RolesGuard`, `PermissionsGuard` |
@@ -760,8 +760,8 @@ export class FeatureController {
 |-------|-------|---------|
 | `JwtAuthGuard` | Per-route | Validates JWT token, populates `req.user` |
 | `LocalAuthGuard` | Per-route | Validates email/password via Passport local strategy |
-| `RolesGuard` | **Global** (APP_GUARD) | Checks `@ROLES_REQUIRED()` metadata |
-| `PermissionsGuard` | **Global** (APP_GUARD) | Checks `@PERMISSIONS_REQUIRED()` metadata |
+| `RoleGuard` | **Global** (APP_GUARD) | Checks `@RoleRequire()`/`@AnyRolesRequire()` metadata |
+| `PermissionsGuard` | **Global** (APP_GUARD) | Checks `@PermissionRequire()`/`@AnyPermissionsRequire()` metadata |
 
 ### 11.4 Decorators
 
@@ -772,14 +772,19 @@ export class FeatureController {
 async publicEndpoint() { ... }
 
 // Require specific roles
-@ROLES_REQUIRED(RoleName.ADMIN, RoleName.BROKER)
+@AnyRolesRequire(ROLES.ADMINISTRATOR, ROLES.SELLER)
 @Get('admin-only')
 async adminOnly() { ... }
 
 // Require specific permissions
-@PERMISSIONS_REQUIRED(PermissionName.USER_READ, PermissionName.USER_WRITE)
+@PermissionRequire(PERMISSIONS.USER_READ)
 @Get('requires-permission')
 async requiresPermission() { ... }
+
+// Require any one of several permissions
+@AnyPermissionsRequire(PERMISSIONS.USER_READ, PERMISSIONS.USER_UPDATE)
+@Get('requires-any-permission')
+async requiresAnyPermission() { ... }
 ```
 
 ### 11.5 Roles & Permissions
@@ -788,9 +793,12 @@ async requiresPermission() { ... }
 
 | Role | Description |
 |------|-------------|
-| `ADMIN` | System administrator |
-| `BROKER` | Real estate broker |
+| `ADMINISTRATOR` | Internal administrator for admin portal and system management |
+| `SELLER` | Seller operating on Seller Platform |
 | `BUYER` | Property buyer (default for new users) |
+
+Anonymous is an unauthenticated access state, not a persisted role. Public
+routes use `@Public()` and must not rely on `req.user`.
 
 **Permissions** (`PermissionName` enum):
 - Defined in `src/utils/constants/permission.constant.ts`

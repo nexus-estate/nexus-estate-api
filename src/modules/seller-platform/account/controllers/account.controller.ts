@@ -13,6 +13,8 @@ import {
 
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../../../../modules/auth/types/auth.type';
+import { PermissionRequire } from '../../../../modules/rbac/decorator/permission.decorator';
+import { PERMISSIONS } from '../../../../utils/constants/permission.constant';
 import {
   CreateSellerAccountDto,
   SellerAccountResponse,
@@ -36,6 +38,7 @@ export class SellerAccountController {
   })
   @ApiConflictResponse({ description: 'SELLER_ACCOUNT_ALREADY_EXISTS' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @PermissionRequire(PERMISSIONS.SELLER_ACCOUNT_REGISTER)
   /** Creates the seller account for the authenticated user. */
   create(
     @CurrentUser() user: AuthenticatedPrincipal,
@@ -49,6 +52,7 @@ export class SellerAccountController {
   @ApiOkResponse({ type: SellerAccountResponse })
   @ApiNotFoundResponse({ description: 'SELLER_ACCOUNT_NOT_FOUND' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @PermissionRequire(PERMISSIONS.SELLER_ACCOUNT_READ)
   /** Returns the seller account owned by the authenticated user. */
   getCurrent(
     @CurrentUser() user: AuthenticatedPrincipal,
@@ -62,6 +66,7 @@ export class SellerAccountController {
   @ApiBadRequestResponse({ description: 'SELLER_ACCOUNT_INVALID_DISPLAY_NAME' })
   @ApiNotFoundResponse({ description: 'SELLER_ACCOUNT_NOT_FOUND' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  @PermissionRequire(PERMISSIONS.SELLER_ACCOUNT_UPDATE)
   /** Updates the editable profile fields of the authenticated user's account. */
   updateCurrent(
     @CurrentUser() user: AuthenticatedPrincipal,
