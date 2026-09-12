@@ -75,3 +75,11 @@ architecture document; these are the non-negotiable agent gates.
 - For schema changes, run migration verification against the configured Nexus
   Estate PostgreSQL environment. If unavailable, report the limitation rather
   than using another project's database.
+
+## Error localization contract
+
+- Every business error definition in every module MUST expose both localized
+  messages explicitly as `messages: { en: ..., vi: ... }`.
+- Message values must come from that feature's message catalogue, normally
+  `messages.json`; do not duplicate one language into the other or create a
+  module-specific error-message shape.

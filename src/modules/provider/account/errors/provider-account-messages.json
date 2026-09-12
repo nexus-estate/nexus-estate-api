@@ -1,22 +1,22 @@
 {
   "en": {
-    "PROVIDER_ACCOUNT_ALREADY_EXISTS": "Your account already exists.",
-    "PROVIDER_ACCOUNT_NOT_FOUND": "We couldn't find your account.",
-    "PROVIDER_ACCOUNT_SUSPENDED": "Your account is temporarily suspended.",
-    "PROVIDER_ACCOUNT_NOT_VERIFIED": "Your provider account must be approved before you can manage supply.",
-    "PROVIDER_ACCOUNT_INVALID_TYPE": "Please choose a valid account type.",
-    "PROVIDER_ACCOUNT_INVALID_DISPLAY_NAME": "Please provide a display name.",
-    "PROVIDER_ACCOUNT_FORBIDDEN": "You cannot access this account.",
-    "PROVIDER_ACCOUNT_NOT_PENDING": "This account is not waiting for approval."
+    "PROVIDER_ACCOUNT_ALREADY_EXISTS": "Your provider account already exists. Please open your existing account instead of creating another one.",
+    "PROVIDER_ACCOUNT_NOT_FOUND": "We couldn't find your provider account. Please verify your account ID or complete provider registration before trying again.",
+    "PROVIDER_ACCOUNT_SUSPENDED": "Your provider account is suspended, so supply changes are unavailable. Please contact support or an administrator to resolve the suspension.",
+    "PROVIDER_ACCOUNT_NOT_VERIFIED": "Your provider account is not approved for supply changes yet. Please wait for verification or contact an administrator for the review status.",
+    "PROVIDER_ACCOUNT_INVALID_TYPE": "The provider account type is not valid. Please choose one of the account types supported by the application.",
+    "PROVIDER_ACCOUNT_INVALID_DISPLAY_NAME": "A provider display name is required. Please enter a name between the allowed length limits and try again.",
+    "PROVIDER_ACCOUNT_FORBIDDEN": "You cannot access this provider account. Please use the account linked to your signed-in customer or contact support.",
+    "PROVIDER_ACCOUNT_NOT_PENDING": "This provider account is not waiting for approval. Please refresh its status before submitting another approval decision."
   },
   "vi": {
-    "PROVIDER_ACCOUNT_ALREADY_EXISTS": "Tài khoản của bạn đã tồn tại.",
-    "PROVIDER_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản của bạn.",
-    "PROVIDER_ACCOUNT_SUSPENDED": "Tài khoản của bạn đang tạm thời bị khóa.",
-    "PROVIDER_ACCOUNT_NOT_VERIFIED": "Tài khoản nhà cung cấp phải được phê duyệt trước khi quản lý nguồn cung.",
-    "PROVIDER_ACCOUNT_INVALID_TYPE": "Vui lòng chọn loại tài khoản hợp lệ.",
-    "PROVIDER_ACCOUNT_INVALID_DISPLAY_NAME": "Vui lòng nhập tên hiển thị.",
-    "PROVIDER_ACCOUNT_FORBIDDEN": "Bạn không thể truy cập tài khoản này.",
-    "PROVIDER_ACCOUNT_NOT_PENDING": "Tài khoản này không ở trạng thái chờ duyệt."
+    "PROVIDER_ACCOUNT_ALREADY_EXISTS": "Tài khoản nhà cung cấp của bạn đã tồn tại. Vui lòng mở tài khoản hiện có thay vì tạo tài khoản mới.",
+    "PROVIDER_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản nhà cung cấp. Vui lòng kiểm tra mã tài khoản hoặc hoàn tất đăng ký nhà cung cấp rồi thử lại.",
+    "PROVIDER_ACCOUNT_SUSPENDED": "Tài khoản nhà cung cấp đang bị tạm ngưng nên chưa thể thay đổi nguồn cung. Vui lòng liên hệ hỗ trợ hoặc quản trị viên để xử lý trạng thái này.",
+    "PROVIDER_ACCOUNT_NOT_VERIFIED": "Tài khoản nhà cung cấp chưa được phê duyệt để thay đổi nguồn cung. Vui lòng chờ xác minh hoặc liên hệ quản trị viên để biết trạng thái xét duyệt.",
+    "PROVIDER_ACCOUNT_INVALID_TYPE": "Loại tài khoản nhà cung cấp không hợp lệ. Vui lòng chọn một loại tài khoản được hệ thống hỗ trợ.",
+    "PROVIDER_ACCOUNT_INVALID_DISPLAY_NAME": "Bạn cần nhập tên hiển thị cho nhà cung cấp. Vui lòng nhập tên trong giới hạn cho phép rồi thử lại.",
+    "PROVIDER_ACCOUNT_FORBIDDEN": "Bạn không thể truy cập tài khoản nhà cung cấp này. Vui lòng sử dụng tài khoản đã liên kết với khách hàng đang đăng nhập hoặc liên hệ hỗ trợ.",
+    "PROVIDER_ACCOUNT_NOT_PENDING": "Tài khoản nhà cung cấp không ở trạng thái chờ duyệt. Vui lòng làm mới trạng thái trước khi gửi quyết định duyệt mới."
   }
 }

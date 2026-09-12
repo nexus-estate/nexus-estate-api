@@ -19,7 +19,8 @@ describe('BusinessException', () => {
       statusCode:
         CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS.httpStatus,
       code: CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS.code,
-      message: 'The email customer@nexus.test is already used by another user.',
+      message:
+        'The email customer@nexus.test is already used by another customer. Please use a different email or sign in to the existing account.',
     });
   });
 });

@@ -3,80 +3,122 @@ import {
   type BusinessErrorCode,
 } from '../../../../common/errors/business-error-code';
 import { HttpCodes } from '../../../../common/errors/http-codes';
+import messages from './authorization-messages.json';
 
-const error = (code: string, message: string, httpStatus: number) =>
-  defineBusinessErrorCode(code, { en: message, vi: message }, httpStatus);
+const authorizationMessages = messages;
 
 /** Stable errors for the authorization management plane. */
 export const AuthorizationErrorCodes = {
-  PLATFORM_NOT_FOUND: error(
+  PLATFORM_NOT_FOUND: defineBusinessErrorCode(
     'AUTHORIZATION_PLATFORM_NOT_FOUND',
-    'Authorization platform not found',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_PLATFORM_NOT_FOUND,
+      vi: authorizationMessages.vi.AUTHORIZATION_PLATFORM_NOT_FOUND,
+    },
     HttpCodes.NOT_FOUND,
   ),
-  ROLE_NOT_FOUND: error(
+  ROLE_NOT_FOUND: defineBusinessErrorCode(
     'AUTHORIZATION_ROLE_NOT_FOUND',
-    'Authorization role not found',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_ROLE_NOT_FOUND,
+      vi: authorizationMessages.vi.AUTHORIZATION_ROLE_NOT_FOUND,
+    },
     HttpCodes.NOT_FOUND,
   ),
-  ROLE_CODE_EXISTS: error(
+  ROLE_CODE_EXISTS: defineBusinessErrorCode(
     'AUTHORIZATION_ROLE_CODE_EXISTS',
-    'Authorization role code already exists',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_ROLE_CODE_EXISTS,
+      vi: authorizationMessages.vi.AUTHORIZATION_ROLE_CODE_EXISTS,
+    },
     HttpCodes.CONFLICT,
   ),
-  ROLE_IN_USE: error(
+  ROLE_IN_USE: defineBusinessErrorCode(
     'AUTHORIZATION_ROLE_IN_USE',
-    'Authorization role is still assigned',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_ROLE_IN_USE,
+      vi: authorizationMessages.vi.AUTHORIZATION_ROLE_IN_USE,
+    },
     HttpCodes.CONFLICT,
   ),
-  SYSTEM_ROLE_IMMUTABLE: error(
+  SYSTEM_ROLE_IMMUTABLE: defineBusinessErrorCode(
     'AUTHORIZATION_SYSTEM_ROLE_IMMUTABLE',
-    'System authorization role cannot be deleted or changed in this way',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_SYSTEM_ROLE_IMMUTABLE,
+      vi: authorizationMessages.vi.AUTHORIZATION_SYSTEM_ROLE_IMMUTABLE,
+    },
     HttpCodes.CONFLICT,
   ),
-  ROLE_VERSION_CONFLICT: error(
+  ROLE_VERSION_CONFLICT: defineBusinessErrorCode(
     'AUTHORIZATION_ROLE_VERSION_CONFLICT',
-    'Authorization role was changed by another administrator',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_ROLE_VERSION_CONFLICT,
+      vi: authorizationMessages.vi.AUTHORIZATION_ROLE_VERSION_CONFLICT,
+    },
     HttpCodes.CONFLICT,
   ),
-  PERMISSION_NOT_FOUND: error(
+  PERMISSION_NOT_FOUND: defineBusinessErrorCode(
     'AUTHORIZATION_PERMISSION_NOT_FOUND',
-    'Authorization permission not found',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_PERMISSION_NOT_FOUND,
+      vi: authorizationMessages.vi.AUTHORIZATION_PERMISSION_NOT_FOUND,
+    },
     HttpCodes.NOT_FOUND,
   ),
-  PERMISSION_NOT_ASSIGNABLE: error(
+  PERMISSION_NOT_ASSIGNABLE: defineBusinessErrorCode(
     'AUTHORIZATION_PERMISSION_NOT_ASSIGNABLE',
-    'Authorization permission cannot be assigned',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_PERMISSION_NOT_ASSIGNABLE,
+      vi: authorizationMessages.vi.AUTHORIZATION_PERMISSION_NOT_ASSIGNABLE,
+    },
     HttpCodes.CONFLICT,
   ),
-  PERMISSION_PLATFORM_MISMATCH: error(
+  PERMISSION_PLATFORM_MISMATCH: defineBusinessErrorCode(
     'AUTHORIZATION_PERMISSION_PLATFORM_MISMATCH',
-    'Authorization permission belongs to another platform',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_PERMISSION_PLATFORM_MISMATCH,
+      vi: authorizationMessages.vi.AUTHORIZATION_PERMISSION_PLATFORM_MISMATCH,
+    },
     HttpCodes.CONFLICT,
   ),
-  SUBJECT_NOT_FOUND: error(
+  SUBJECT_NOT_FOUND: defineBusinessErrorCode(
     'AUTHORIZATION_SUBJECT_NOT_FOUND',
-    'Authorization subject not found',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_SUBJECT_NOT_FOUND,
+      vi: authorizationMessages.vi.AUTHORIZATION_SUBJECT_NOT_FOUND,
+    },
     HttpCodes.NOT_FOUND,
   ),
-  ROLE_PLATFORM_MISMATCH: error(
+  ROLE_PLATFORM_MISMATCH: defineBusinessErrorCode(
     'AUTHORIZATION_ROLE_PLATFORM_MISMATCH',
-    'Authorization role belongs to another platform',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_ROLE_PLATFORM_MISMATCH,
+      vi: authorizationMessages.vi.AUTHORIZATION_ROLE_PLATFORM_MISMATCH,
+    },
     HttpCodes.CONFLICT,
   ),
-  LAST_ADMIN_PROTECTION: error(
+  LAST_ADMIN_PROTECTION: defineBusinessErrorCode(
     'AUTHORIZATION_LAST_ADMIN_PROTECTION',
-    'The last authorization administrator cannot be removed',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_LAST_ADMIN_PROTECTION,
+      vi: authorizationMessages.vi.AUTHORIZATION_LAST_ADMIN_PROTECTION,
+    },
     HttpCodes.CONFLICT,
   ),
-  ASSIGNMENT_CONFLICT: error(
+  ASSIGNMENT_CONFLICT: defineBusinessErrorCode(
     'AUTHORIZATION_ASSIGNMENT_CONFLICT',
-    'Authorization assignment conflicts with current state',
+    {
+      en: authorizationMessages.en.AUTHORIZATION_ASSIGNMENT_CONFLICT,
+      vi: authorizationMessages.vi.AUTHORIZATION_ASSIGNMENT_CONFLICT,
+    },
     HttpCodes.CONFLICT,
   ),
-  PROVIDER_LAST_OWNER_PROTECTION: error(
+  PROVIDER_LAST_OWNER_PROTECTION: defineBusinessErrorCode(
     'PROVIDER_LAST_OWNER_PROTECTION',
-    'The final provider owner cannot be removed',
+    {
+      en: authorizationMessages.en.PROVIDER_LAST_OWNER_PROTECTION,
+      vi: authorizationMessages.vi.PROVIDER_LAST_OWNER_PROTECTION,
+    },
     HttpCodes.CONFLICT,
   ),
 } as const satisfies Record<string, BusinessErrorCode>;

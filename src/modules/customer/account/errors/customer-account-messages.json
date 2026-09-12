@@ -1,18 +1,18 @@
 {
   "en": {
-    "CUSTOMER_ACCOUNT_NOT_FOUND": "We couldn't find the user account with id %s.",
-    "CUSTOMER_ACCOUNT_EMAIL_EXISTS": "The email %s is already used by another user.",
-    "CUSTOMER_ACCOUNT_USERNAME_EXISTS": "The username %s is already used by another user.",
-    "CUSTOMER_ACCOUNT_NOT_FOUND_BY_EMAIL": "We couldn't find a user account with email %s.",
-    "PASSWORD_INCORRECT": "The current password is incorrect.",
-    "PASSWORD_WEAK": "Your password must be at least 8 characters long."
+    "CUSTOMER_ACCOUNT_NOT_FOUND": "We couldn't find the customer account with ID %s. Please check the ID or sign in with the account you want to use.",
+    "CUSTOMER_ACCOUNT_EMAIL_EXISTS": "The email %s is already used by another customer. Please use a different email or sign in to the existing account.",
+    "CUSTOMER_ACCOUNT_USERNAME_EXISTS": "The username %s is already used by another customer. Please choose a different username.",
+    "CUSTOMER_ACCOUNT_NOT_FOUND_BY_EMAIL": "We couldn't find a customer account with email %s. Please check the email or register a new account before trying again.",
+    "PASSWORD_INCORRECT": "The current password is incorrect. Please check it and try again, or reset your password if you no longer remember it.",
+    "PASSWORD_WEAK": "Your password is too weak. Please use at least 8 characters and include a stronger combination of letters, numbers, or symbols."
   },
   "vi": {
-    "CUSTOMER_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản người dùng với mã %s.",
-    "CUSTOMER_ACCOUNT_EMAIL_EXISTS": "Email %s đã được sử dụng bởi người dùng khác.",
-    "CUSTOMER_ACCOUNT_USERNAME_EXISTS": "Username %s đã được sử dụng bởi người dùng khác.",
-    "CUSTOMER_ACCOUNT_NOT_FOUND_BY_EMAIL": "Không tìm thấy tài khoản người dùng với email %s.",
-    "PASSWORD_INCORRECT": "Mật khẩu hiện tại không chính xác.",
-    "PASSWORD_WEAK": "Mật khẩu phải có ít nhất 8 ký tự."
+    "CUSTOMER_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản khách hàng với mã %s. Vui lòng kiểm tra mã hoặc đăng nhập bằng tài khoản bạn muốn sử dụng.",
+    "CUSTOMER_ACCOUNT_EMAIL_EXISTS": "Email %s đã được khách hàng khác sử dụng. Vui lòng dùng email khác hoặc đăng nhập vào tài khoản hiện có.",
+    "CUSTOMER_ACCOUNT_USERNAME_EXISTS": "Username %s đã được khách hàng khác sử dụng. Vui lòng chọn username khác.",
+    "CUSTOMER_ACCOUNT_NOT_FOUND_BY_EMAIL": "Không tìm thấy tài khoản khách hàng với email %s. Vui lòng kiểm tra email hoặc đăng ký tài khoản mới rồi thử lại.",
+    "PASSWORD_INCORRECT": "Mật khẩu hiện tại không chính xác. Vui lòng kiểm tra và thử lại; nếu quên mật khẩu, hãy đặt lại mật khẩu.",
+    "PASSWORD_WEAK": "Mật khẩu quá yếu. Vui lòng dùng ít nhất 8 ký tự và kết hợp thêm chữ cái, số hoặc ký hiệu để tăng độ an toàn."
   }
 }

@@ -24,4 +24,13 @@ describe('AuthorizationErrorCodes', () => {
       ]),
     );
   });
+
+  it('provides an explicit English and Vietnamese message for every error', () => {
+    for (const errorCode of Object.values(AuthorizationErrorCodes)) {
+      expect(errorCode.messages.en).toEqual(expect.any(String));
+      expect(errorCode.messages.vi).toEqual(expect.any(String));
+      expect(errorCode.messages.en.length).toBeGreaterThan(0);
+      expect(errorCode.messages.vi.length).toBeGreaterThan(0);
+    }
+  });
 });

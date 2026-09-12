@@ -258,6 +258,11 @@ application startup.
 - Business failures use the repository's `BusinessException` and a stable,
   feature-owned error code. Include the request ID through the existing error
   response convention.
+- Every business error definition in every module MUST provide explicit
+  localized messages in the shape `messages: { en: ..., vi: ... }`. Values must
+  be read from the owning feature's message catalogue, normally a colocated
+  `messages.json`; never use one language as a silent fallback for the other or
+  invent a different error-message shape.
 - Do not expose passwords, tokens, or unnecessary PII in DTOs, logs, or audit
   JSON.
 

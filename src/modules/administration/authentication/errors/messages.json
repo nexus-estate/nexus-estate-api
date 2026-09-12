@@ -1,14 +1,14 @@
 {
   "en": {
-    "ADMIN_INVALID_CREDENTIALS": "The administration email or password is incorrect.",
-    "ADMIN_ACCOUNT_NOT_FOUND": "We couldn't find the administration account.",
-    "ADMIN_ACCOUNT_INACTIVE": "This administration account is inactive. Please contact an administrator.",
-    "ADMIN_TOKEN_INVALID": "Your administration session is invalid. Please sign in again."
+    "ADMIN_INVALID_CREDENTIALS": "The administration email or password is incorrect. Please check both values and try again, or contact your internal administrator if you need access restored.",
+    "ADMIN_ACCOUNT_NOT_FOUND": "We couldn't find the administration account. Please check your work email or contact an internal administrator to confirm your account.",
+    "ADMIN_ACCOUNT_INACTIVE": "This administration account is inactive. Please contact an internal administrator to reactivate it before signing in again.",
+    "ADMIN_TOKEN_INVALID": "Your administration session is invalid or expired. Please sign in again to obtain a new session."
   },
   "vi": {
-    "ADMIN_INVALID_CREDENTIALS": "Email hoặc mật khẩu quản trị không chính xác.",
-    "ADMIN_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản quản trị.",
-    "ADMIN_ACCOUNT_INACTIVE": "Tài khoản quản trị đang bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
-    "ADMIN_TOKEN_INVALID": "Phiên quản trị không hợp lệ. Vui lòng đăng nhập lại."
+    "ADMIN_INVALID_CREDENTIALS": "Email hoặc mật khẩu quản trị không chính xác. Vui lòng kiểm tra cả hai thông tin rồi thử lại; nếu cần khôi phục quyền truy cập, hãy liên hệ quản trị viên nội bộ.",
+    "ADMIN_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản quản trị. Vui lòng kiểm tra email công việc hoặc liên hệ quản trị viên nội bộ để xác nhận tài khoản.",
+    "ADMIN_ACCOUNT_INACTIVE": "Tài khoản quản trị đang bị vô hiệu hóa. Vui lòng liên hệ quản trị viên nội bộ để kích hoạt lại trước khi đăng nhập.",
+    "ADMIN_TOKEN_INVALID": "Phiên quản trị không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại để nhận phiên mới."
   }
 }

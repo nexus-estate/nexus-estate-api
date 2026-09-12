@@ -40,7 +40,8 @@ describe('BusinessExceptionFilter', () => {
           CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND.httpStatus,
         code: CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND.code,
         path: request.originalUrl,
-        message: 'Không tìm thấy tài khoản người dùng với mã missing-id.',
+        message:
+          'Không tìm thấy tài khoản khách hàng với mã missing-id. Vui lòng kiểm tra mã hoặc đăng nhập bằng tài khoản bạn muốn sử dụng.',
       }),
     );
   });

@@ -214,7 +214,7 @@ describe('ProviderAccount API (e2e)', () => {
       ProviderAccountErrorCodes.PROVIDER_ACCOUNT_ALREADY_EXISTS.code,
     );
     expect((duplicate.body as ApiError).message).toBe(
-      'Tài khoản của bạn đã tồn tại.',
+      'Tài khoản nhà cung cấp của bạn đã tồn tại. Vui lòng mở tài khoản hiện có thay vì tạo tài khoản mới.',
     );
     expect(duplicate.headers['content-language']).toBe('vi');
 

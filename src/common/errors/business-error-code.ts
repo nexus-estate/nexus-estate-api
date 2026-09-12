@@ -1,7 +1,8 @@
-import type { ApiLanguage } from '../i18n/language';
-
 /** Localized messages owned by the module that defines a business error. */
-export type BusinessErrorMessages = Record<ApiLanguage, string>;
+export interface BusinessErrorMessages {
+  en: string;
+  vi: string;
+}
 
 /** Stable HTTP error contract shared by all module-owned error definitions. */
 export interface BusinessErrorCode {

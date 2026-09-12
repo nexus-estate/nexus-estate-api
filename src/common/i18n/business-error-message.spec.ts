@@ -11,7 +11,9 @@ describe('business error localization', () => {
         ['customer-id'],
         'vi',
       ),
-    ).toBe('Không tìm thấy tài khoản người dùng với mã customer-id.');
+    ).toBe(
+      'Không tìm thấy tài khoản khách hàng với mã customer-id. Vui lòng kiểm tra mã hoặc đăng nhập bằng tài khoản bạn muốn sử dụng.',
+    );
   });
 
   it('accepts regional language values and falls back to English', () => {
@@ -23,7 +25,9 @@ describe('business error localization', () => {
         ['customer@nexus.test'],
         'en',
       ),
-    ).toBe('The email customer@nexus.test is already used by another user.');
+    ).toBe(
+      'The email customer@nexus.test is already used by another customer. Please use a different email or sign in to the existing account.',
+    );
   });
 
   it('keeps every common business error definition bilingual', () => {
