@@ -77,7 +77,7 @@ AppModule
 │   ├── PassportModule
 │   └── imports UserModule
 ├── UserModule
-│   ├── TypeOrmModule.forFeature([User, DataPool])
+│   ├── TypeOrmModule.forFeature([User])
 │   └── imports RbacModule (for default role assignment)
 └── RbacModule
     └── TypeOrmModule.forFeature([Role, Permission])
@@ -155,8 +155,7 @@ src/
 │   │   │   ├── create-user-dto.ts   # RegisterUserDto
 │   │   │   └── update-user-dto.ts   # UpdateUserDto, ChangePasswordDto
 │   │   └── entities/
-│   │       ├── user.entity.ts       # User entity (tbl_user)
-│   │       └── data-pool.entity.ts  # DataPool entity (tbl_data_pool)
+│   │       └── user.entity.ts       # User entity (tbl_user)
 │   │
 │   └── rbac/
 │       ├── rbac.module.ts
@@ -563,7 +562,6 @@ export class Example extends BaseEntity {
 | Entity | Table | Extends | Key Fields |
 |--------|-------|---------|------------|
 | `User` | `tbl_user` | `BaseEntity` | email, password (@Exclude), roleId, isEmailVerified, lastLogin |
-| `DataPool` | `tbl_data_pool` | `BaseEntity` | userId, key, value (JSON), unique: [userId, key] |
 | `Role` | `tbl_role` | `BaseEntity` | name (unique), description, permissions (ManyToMany) |
 | `Permission` | `tbl_permission` | `BaseEntity` | name (unique, PermissionName enum), description |
 
@@ -571,7 +569,6 @@ export class Example extends BaseEntity {
 
 ```
 User ──ManyToOne──▶ Role
-User ──OneToMany──▶ DataPool
 Role ──ManyToMany──▶ Permission (join table: tbl_role_permissions)
 ```
 
@@ -1007,7 +1004,6 @@ export class CreateExampleTable1741614700000 implements MigrationInterface {
 | Timestamp | File | Description |
 |-----------|------|-------------|
 | 1741614400000 | `CreateUserTable` | Creates `tbl_user` table |
-| 1741614500000 | `CreateDataPoolTable` | Creates `tbl_data_pool` table |
 | 1741614600000 | `CreateRbacTables` | Creates `tbl_role`, `tbl_permission`, `tbl_role_permissions` |
 
 ---

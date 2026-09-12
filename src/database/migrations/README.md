@@ -17,13 +17,17 @@ The current ownership layout is:
 
 | Owner | Migration directory |
 | --- | --- |
-| Platform/shared | `src/database/migrations/platform/` |
 | User | `src/modules/user/migrations/` |
 | RBAC | `src/modules/rbac/migrations/` |
 | Estate | `src/modules/estate/migrations/` |
 | Location | `src/modules/location/migrations/` |
 | Media | `src/modules/media/migrations/` |
 | SellerAccount | `src/modules/seller-platform/seller-account/migrations/` |
+
+The platform directory is reserved for future shared or cross-module
+migrations; it currently contains only its README. The historical DataPool
+creation and its removal are User-owned because the table was part of the User
+data model and has no active runtime consumer.
 
 Historical files were physically reorganized without changing their migration
 class names, timestamps, or SQL behavior. TypeORM therefore retains the same

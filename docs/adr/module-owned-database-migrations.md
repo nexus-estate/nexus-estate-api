@@ -11,7 +11,9 @@ contract they change. They live in that module's `migrations/` directory. A
 change that spans modules or belongs to shared database infrastructure lives in
 `src/database/migrations/platform/`. The current module-owned directories are
 User, RBAC, Estate, Location, Media, and SellerAccount. DataPool and the
-cross-module index cleanup remain under the platform directory.
+former DataPool lifecycle are now represented by User-owned migrations. The
+cross-module index cleanup is owned by RBAC because it cleans up User/RBAC
+unique indexes together with the RBAC schema history.
 
 Historical files were physically reorganized without changing their class
 names, timestamps, or SQL behavior, so the recorded TypeORM migration

@@ -37,22 +37,6 @@ Table "migrations" {
   "name" "character varying" [not null]
 }
 
-Table "tbl_data_pool" {
-  "id" uuid [pk, not null, default: `gen_random_uuid()`]
-  "user_id" uuid [not null]
-  "key" "character varying" [not null]
-  "value" jsonb
-  "created_at" timestamp [not null, default: `now()`]
-  "updated_at" timestamp [not null, default: `now()`]
-  "deleted_at" timestamp
-  "created_by" "character varying"
-  "updated_by" "character varying"
-
-  Indexes {
-    (user_id, key) [type: btree, unique, name: "IDX_40e7c6e227ee85c79eb44babc4"]
-  }
-}
-
 Table "tbl_estate" {
   "id" uuid [pk, not null, default: `gen_random_uuid()`]
   "created_at" timestamp [not null, default: `now()`]
@@ -192,8 +176,6 @@ Table "tbl_ward" {
 }
 
 Ref "FK_3044342ef6f666bcba1fa1b958a":"tbl_estate"."id" <? "tbl_media"."fk_estate_id" [delete: cascade]
-
-Ref "FK_c415cb1104342a1c23fa7415dcf":"tbl_user"."id" <? "tbl_data_pool"."user_id" [delete: cascade]
 
 Ref "fk_estate_province_id":"tbl_province"."id" ?<? "tbl_estate"."fk_province_id" [delete: set null]
 
