@@ -1,0 +1,85 @@
+# Nexus Estate API agent rules
+
+Read `docs/developer.rules.md` before changing code. It is the canonical
+architecture document; these are the non-negotiable agent gates.
+
+## Feature-based module architecture
+
+- All work is scoped to `nexus-estate-api`.
+- `src/modules/<module>/` is a bounded context. Its direct children must be
+  named business features such as `account`, `authentication`, `registration`,
+  `authorization`, `property`, `provider-review`, `asset`, or
+  `legacy-global`.
+- The module root may contain only its composition files (`<module>.module.ts`
+  and its sidecar). Business code belongs in a feature directory.
+- Do not create module-root technical layers: `controllers`, `services`,
+  `repositories`, `models`, `entities`, `dto`, `guards`, `strategies`,
+  `helpers`, `enums`, `type`, `errors`, `decorators`, `constants`, or
+  `permissions`.
+- Inside every feature, keep the normal layer-based folders: `controllers/`,
+  `services/`, `repositories/`, `entities/`, `dto/`, `guards/`, `strategies/`,
+  `helpers/`, `errors/`, `constants/`, and `types/`. The files in those layers
+  must belong to that feature. Do not flatten production files directly into a
+  feature root except its composition file. Only feature-owned `migrations/`
+  and explicit `data-migrations/` lifecycle folders are allowed as additional
+  nested technical folders.
+- If a feature grows across independent lifecycles, split it into named
+  business features. Do not solve that growth with `services/` or `utils/`.
+- `src/common`, `src/services/abstraction-services`, `src/utils`, and
+  `src/database` are cross-cutting/infrastructure boundaries; do not move
+  domain behavior there merely to avoid choosing a feature owner.
+- Customer, Provider, Administration, Estate, and legacy RBAC boundaries must
+  follow the ownership and realm rules in `docs/developer.rules.md`. New
+  runtime code must not use global RBAC semantics.
+
+## Mandatory TypeScript sidecar tests
+
+- Every production TypeScript file under `src/` (`*.ts`) MUST have exactly one
+  colocated test sidecar beside it: either `<name>.spec.ts` or `<name>.test.ts`,
+  never both.
+- The sidecar must import the file under test and protect its public behavior,
+  exported contract, metadata, or invariants. Indirect coverage is insufficient.
+- `*.spec.ts`, `*.test.ts`, E2E tests, and integration tests are test artifacts
+  and are exempt from recursively requiring another sidecar.
+- New or modified source is incomplete until its sidecar covers normal behavior,
+  invalid input/error behavior, boundary conditions, and applicable security or
+  domain invariants. Empty existence-only tests are not accepted.
+- This applies to entities, constants, enums, registries, DTOs, decorators,
+  modules, controllers, guards, repositories, services, migrations, scripts,
+  barrels, and types.
+- `src/source-sidecar-coverage.spec.ts` is a hard gate. Run it before handoff.
+
+## Mandatory full-flow feature tests
+
+- Every business capability, feature, or user-visible API workflow needs a
+  full-flow spec under the existing `test/` directory:
+  `test/<module>/<feature>.spec.ts`.
+- Do not create a parallel top-level `tests/` directory. Existing
+  `test/integration/` remains valid for infrastructure/migration suites.
+- Exercise the real application and persistence boundary appropriate to the
+  feature (`HTTP/module -> guards -> controller -> service -> repository/
+  database`). Unit mocks do not replace full-flow coverage.
+- Cover happy path, invalid input, unauthenticated/forbidden access, ownership
+  or scope violations, state-transition failures, duplicate/idempotency,
+  rollback/atomicity, and relevant concurrency/revocation cases.
+- Add a regression case for every discovered or fixed bug, including boundary
+  values and alternative states.
+
+## Delivery gates
+
+- Preserve user changes and do not perform destructive broad resets.
+- Use feature paths in imports; stale imports such as `../services/...`,
+  `../models/...`, or `../controllers/...` are architecture violations.
+- Before declaring completion, run the sidecar inventory, `npm run typecheck`,
+  lint, relevant unit tests, and relevant `test/` full-flow/integration suites.
+- For schema changes, run migration verification against the configured Nexus
+  Estate PostgreSQL environment. If unavailable, report the limitation rather
+  than using another project's database.
+
+## Error localization contract
+
+- Every business error definition in every module MUST expose both localized
+  messages explicitly as `messages: { en: ..., vi: ... }`.
+- Message values must come from that feature's message catalogue, normally
+  `messages.json`; do not duplicate one language into the other or create a
+  module-specific error-message shape.

@@ -4,7 +4,7 @@ export const IS_PUBLIC_KEY = 'isPublic';
 
 /**
  * Mark a route handler or controller as publicly accessible,
- * bypassing the global JwtAuthGuard authentication check.
+ * bypassing the global customer authentication check.
  *
  * @example
  * ```typescript

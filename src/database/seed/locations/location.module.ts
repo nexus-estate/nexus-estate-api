@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   Province,
   Ward,
-} from '../../../modules/location/entities/location.entity';
+} from '../../../modules/location/administrative-division/entities/location.entity';
 import { ProvinceRepo } from './repositories/province.repo';
 import { WardRepository } from './repositories/ward.repo';
 import { locationService } from './services/location.service';

@@ -1,10 +1,21 @@
+/** @deprecated Legacy global permission catalogue retained for migrations only. */
 export const PERMISSIONS = {
-  // User
-  USER_CREATE: 'user:create',
-  USER_READ: 'user:read',
-  USER_UPDATE: 'user:update',
-  USER_DELETE: 'user:delete',
-  USER_ASSIGN_ROLE: 'user:assign-role',
+  // Customer profile
+  CUSTOMER_PROFILE_READ: 'customer:profile:read',
+
+  // Provider account
+  PROVIDER_ACCOUNT_REGISTER: 'provider-account:register',
+  PROVIDER_ACCOUNT_READ: 'provider-account:read',
+  PROVIDER_ACCOUNT_UPDATE: 'provider-account:update',
+  PROVIDER_ACCOUNT_APPROVE: 'provider-account:approve',
+  PROVIDER_ACCOUNT_SUSPEND: 'provider-account:suspend',
+
+  // Customer account administration
+  CUSTOMER_ACCOUNT_CREATE: 'customer-account:create',
+  CUSTOMER_ACCOUNT_READ: 'customer-account:read',
+  CUSTOMER_ACCOUNT_UPDATE: 'customer-account:update',
+  CUSTOMER_ACCOUNT_DELETE: 'customer-account:delete',
+  CUSTOMER_ACCOUNT_ASSIGN_ROLE: 'customer-account:assign-role',
 
   // Estate
   ESTATE_CREATE: 'estate:create',
@@ -44,6 +55,8 @@ export const PERMISSIONS = {
   LOCATION_MANAGE: 'location:manage',
 
   // System
+  METRICS_READ: 'metrics:read',
+  ADMIN_PORTAL_ACCESS: 'admin-portal:access',
   SYSTEM_CONFIG: 'system:config',
   SYSTEM_AUDIT: 'system:audit',
 } as const;

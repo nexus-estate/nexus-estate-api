@@ -16,13 +16,25 @@ export const commonConfig: DataSourceOptions = {
   namingStrategy: new SnakeNamingStrategy(),
 };
 
-const typeOrmConfig: DataSourceOptions = {
+export const typeOrmConfig: DataSourceOptions = {
   ...commonConfig,
   entities: [path.join(__dirname, '../modules/**/*.entity{.ts,.js}')],
-  migrations: [__dirname + '/migrations/!(*.spec){.ts,.js}'],
+  migrations: [
+    path.join(__dirname, 'migrations/**/!(*.spec|*.d).{ts,js}'),
+    path.join(__dirname, '../modules/**/migrations/!(*.spec|*.d).{ts,js}'),
+  ],
   synchronize: false,
   migrationsTransactionMode: 'each',
 };
 
+export function createTypeOrmDataSource(database?: string): DataSource {
+  const dataSourceOptions = { ...typeOrmConfig };
+  if (database) {
+    dataSourceOptions.database = database;
+  }
+
+  return new DataSource(dataSourceOptions);
+}
+
 export const typeormConfig = registerAs('typeorm', () => typeOrmConfig);
-export default new DataSource(typeOrmConfig);
+export default createTypeOrmDataSource();

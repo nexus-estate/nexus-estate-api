@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Province } from '../../../../modules/location/entities/location.entity';
+import { Province } from '../../../../modules/location/administrative-division/entities/location.entity';
 import { Repository } from 'typeorm';
 
 @Injectable() // Khai bao 1 class duoc quan li voi nestJs , dung de inject vao cac class khasc

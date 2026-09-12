@@ -44,6 +44,7 @@ jobs:
       DB_POSTGRES_USER: test
       DB_POSTGRES_PASS: test
       DB_POSTGRES_NAME: nexus_estate_test
+      DB_POSTGRES_ADMIN_NAME: postgres
       JWT_SECRET: ci-test-secret
 
     steps:
@@ -74,8 +75,8 @@ jobs:
       - name: Integration tests
         run: npm run test:e2e -- --no-coverage
 
-      - name: Migration check
-        run: npm run migration:check
+      - name: Run and verify migrations
+        run: npm run migration:verify:prod
 
   docker-build:
     name: Validate production Docker image

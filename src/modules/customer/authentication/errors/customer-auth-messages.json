@@ -1,0 +1,14 @@
+{
+  "en": {
+    "INVALID_CREDENTIALS": "The email or password is incorrect. Please check both values and try again, or reset your password if you no longer remember it.",
+    "TOKEN_EXPIRED": "Your session has expired. Please sign in again to continue.",
+    "TOKEN_INVALID": "Your session token is invalid or no longer recognized. Please sign in again to obtain a new session.",
+    "TOKEN_NOT_PROVIDED": "Please sign in and send your access token before continuing."
+  },
+  "vi": {
+    "INVALID_CREDENTIALS": "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra cả hai thông tin rồi thử lại; nếu quên mật khẩu, hãy đặt lại mật khẩu.",
+    "TOKEN_EXPIRED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.",
+    "TOKEN_INVALID": "Token phiên đăng nhập không hợp lệ hoặc không còn được chấp nhận. Vui lòng đăng nhập lại để nhận phiên mới.",
+    "TOKEN_NOT_PROVIDED": "Vui lòng đăng nhập và gửi access token trước khi tiếp tục."
+  }
+}

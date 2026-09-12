@@ -1,0 +1,34 @@
+{
+  "en": {
+    "AUTHORIZATION_PLATFORM_NOT_FOUND": "We couldn't find that authorization platform. Please choose a platform from the available platform list and try again.",
+    "AUTHORIZATION_ROLE_NOT_FOUND": "We couldn't find that role. Please refresh the role list and select an existing role before trying again.",
+    "AUTHORIZATION_ROLE_CODE_EXISTS": "That role code is already in use on this platform. Please choose a unique UPPER_SNAKE_CASE code.",
+    "AUTHORIZATION_ROLE_IN_USE": "This role is still assigned to one or more subjects. Please remove those assignments first, then try deleting the role again.",
+    "AUTHORIZATION_SYSTEM_ROLE_IMMUTABLE": "This is a protected system role. Please update its allowed metadata only, and do not try to delete it or change its system status.",
+    "AUTHORIZATION_ROLE_VERSION_CONFLICT": "Another administrator updated this role before your changes were saved. Please refresh the role, review the current values, and submit your changes again.",
+    "AUTHORIZATION_PERMISSION_NOT_FOUND": "We couldn't find one of the selected permissions. Please refresh the permission catalogue and select existing permissions only.",
+    "AUTHORIZATION_PERMISSION_NOT_ASSIGNABLE": "One or more selected permissions cannot be assigned. Please remove deprecated or non-assignable permissions and try again.",
+    "AUTHORIZATION_PERMISSION_PLATFORM_MISMATCH": "A selected permission belongs to another platform. Please select permissions from the same platform as this role.",
+    "AUTHORIZATION_SUBJECT_NOT_FOUND": "We couldn't find that authorization subject. Please refresh the subject list and select an existing subject before trying again.",
+    "AUTHORIZATION_ROLE_PLATFORM_MISMATCH": "This role belongs to another platform. Please select a role from the subject's platform.",
+    "AUTHORIZATION_LAST_ADMIN_PROTECTION": "This change would remove the last administrator who can manage authorization. Please keep at least one active administrator with authorization-management permissions.",
+    "AUTHORIZATION_ASSIGNMENT_CONFLICT": "The assignment changed while you were editing it. Please refresh the subject's roles and submit the complete, current selection again.",
+    "PROVIDER_LAST_OWNER_PROTECTION": "This change would leave the provider without an owner. Please assign another active OWNER first, then remove the current owner."
+  },
+  "vi": {
+    "AUTHORIZATION_PLATFORM_NOT_FOUND": "Không tìm thấy nền tảng phân quyền. Vui lòng chọn nền tảng trong danh sách được hệ thống cung cấp rồi thử lại.",
+    "AUTHORIZATION_ROLE_NOT_FOUND": "Không tìm thấy role này. Vui lòng làm mới danh sách role và chọn một role đang tồn tại rồi thử lại.",
+    "AUTHORIZATION_ROLE_CODE_EXISTS": "Mã role này đã được sử dụng trong nền tảng. Vui lòng chọn mã UPPER_SNAKE_CASE chưa trùng.",
+    "AUTHORIZATION_ROLE_IN_USE": "Role này vẫn đang được gán cho một hoặc nhiều đối tượng. Vui lòng gỡ các assignment trước rồi thử xóa lại.",
+    "AUTHORIZATION_SYSTEM_ROLE_IMMUTABLE": "Đây là role hệ thống được bảo vệ. Vui lòng chỉ cập nhật thông tin được phép và không xóa role hoặc thay đổi trạng thái hệ thống.",
+    "AUTHORIZATION_ROLE_VERSION_CONFLICT": "Quản trị viên khác đã cập nhật role trước khi thay đổi của bạn được lưu. Vui lòng làm mới role, kiểm tra lại thông tin hiện tại rồi gửi lại.",
+    "AUTHORIZATION_PERMISSION_NOT_FOUND": "Không tìm thấy một trong các permission đã chọn. Vui lòng làm mới danh mục permission và chỉ chọn permission đang tồn tại.",
+    "AUTHORIZATION_PERMISSION_NOT_ASSIGNABLE": "Một hoặc nhiều permission đã chọn không thể gán. Vui lòng bỏ permission deprecated hoặc không được phép gán rồi thử lại.",
+    "AUTHORIZATION_PERMISSION_PLATFORM_MISMATCH": "Có permission thuộc nền tảng khác. Vui lòng chỉ chọn permission cùng nền tảng với role này.",
+    "AUTHORIZATION_SUBJECT_NOT_FOUND": "Không tìm thấy đối tượng được phân quyền. Vui lòng làm mới danh sách và chọn đối tượng đang tồn tại rồi thử lại.",
+    "AUTHORIZATION_ROLE_PLATFORM_MISMATCH": "Role này thuộc nền tảng khác. Vui lòng chọn role thuộc đúng nền tảng của đối tượng.",
+    "AUTHORIZATION_LAST_ADMIN_PROTECTION": "Thay đổi này sẽ xóa quản trị viên cuối cùng có thể quản lý phân quyền. Vui lòng giữ lại ít nhất một quản trị viên đang hoạt động với quyền quản lý authorization.",
+    "AUTHORIZATION_ASSIGNMENT_CONFLICT": "Assignment đã thay đổi trong lúc bạn chỉnh sửa. Vui lòng làm mới danh sách role của đối tượng và gửi lại toàn bộ lựa chọn hiện tại.",
+    "PROVIDER_LAST_OWNER_PROTECTION": "Thay đổi này sẽ khiến Provider không còn owner. Vui lòng gán một OWNER đang hoạt động khác trước khi xóa owner hiện tại."
+  }
+}

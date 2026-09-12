@@ -11,6 +11,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
@@ -31,7 +32,7 @@
   "include": [
     "src/**/*.ts",
     "test/**/*.ts"
-, "src/database/migrations/1741614900000-CreateMediaTable.ts"  ],
+  ],
   "exclude": [
     "node_modules",
     "dist",

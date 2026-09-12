@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { Ward } from '../../../../modules/location/entities/location.entity';
+import { Ward } from '../../../../modules/location/administrative-division/entities/location.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 

@@ -15,8 +15,9 @@ This directory is the **single source of truth** for all project documentation.
 ```
 Client Apps ──▶ API Gateway (NestJS) ──▶ PostgreSQL
                      │
-                     ├── Auth Module (JWT + Passport)
-                     ├── User Module (CRUD + Password)
+                     ├── Customer Module (customer account + customer authentication)
+                     ├── Provider Platform (provider onboarding + supply ownership)
+                     ├── Administration (internal portal + admin authentication)
                      ├── RBAC Module (Roles + Permissions)
                      │
                      ├── Abstraction Layer
@@ -57,6 +58,7 @@ npm run test:all          # Full pipeline: build + lint + unit + integration
 
 # Database
 npm run migration:run     # Run pending migrations
+npm run migration:run:prod # Run compiled migrations inside the production image
 npm run migration:revert  # Revert last migration
 ```
 
