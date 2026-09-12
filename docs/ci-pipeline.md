@@ -1,51 +1,36 @@
 # CI/CD Pipeline — GitHub Actions
 
-This project uses **GitHub Actions** for source verification and immutable
-image publication. Kubernetes deployment remains owned by infra Git and ArgoCD.
+This project uses GitHub Actions for source verification and immutable image
+publication. Kubernetes deployment remains owned by infra Git and ArgoCD.
 
-## CI Workflow
+## Pull requests
 
-The CI workflow runs on every push to `main`/`develop` and on pull requests
-targeting those branches.
+Every pull request targeting `main` or `develop` runs:
 
-### Pipeline Steps
+1. `npm ci`
+2. `npm run build`
+3. `npm run typecheck`
+4. `npm run lint:check`
+5. `npm test -- --no-coverage`
+6. `npm run test:e2e -- --no-coverage` with PostgreSQL/Testcontainers
+7. `npm run migration:check`
+8. A production Docker build
 
-| Step | Trigger | Description |
-|------|---------|-------------|
-| Build | All branches | Compiles TypeScript via `nest build` |
-| Lint | All branches | Runs ESLint with auto-fix on `src/` and `test/` |
-| Unit Tests | All branches | Runs Jest unit tests in `src/` |
-| Integration Tests | All branches | Runs integration tests in `test/` (includes PostgreSQL via Testcontainers) |
-| **Docker Build** | Same-repository pull requests after CI | Builds the production image without publishing it |
-| **Docker Build & Push** | Branch/tag pushes after CI | Builds and publishes `ghcr.io/nexus-estate/nexus-api:<full-sha>` with `packages: write` |
+The API has no private npm dependency or registry credential on this path, so
+the Docker validation also runs for fork pull requests.
 
-The Docker build mounts a temporary `.npmrc` containing the CI dependency
-token only for the `npm ci` step. The token is not a Docker build argument and
-is not copied into the final image. Fork pull requests do not receive private
-package secrets, so the production Docker build job is skipped for them.
+## Pushes and tags
 
-### Image Tag Strategy
+Pushes to `main`, `develop`, and version tags run the same verification job,
+then build and publish the production image to GHCR. Images use the full commit
+SHA; `develop-latest` and `latest` are also published for their respective
+branches.
 
-| Branch | Image Tag | Example |
-|--------|-----------|---------|
-| `develop` | full 40-character SHA, optional `develop-latest` | `<full-sha>` |
-| `main` | full 40-character SHA, optional `latest` | `<full-sha>` |
+## Test database
 
-### Workflow File
+The workflow provisions PostgreSQL with these values:
 
-Located at `.github/workflows/ci.yml`.
-
-The workflow uses the dynamic repository owner in image metadata, producing:
-
-```text
-ghcr.io/nexus-estate/nexus-api:<sha>
-```
-
-## Environment Variables
-
-The CI workflow sets these environment variables for the test database:
-
-| Variable | CI Value |
+| Variable | CI value |
 |----------|----------|
 | `DB_POSTGRES_HOST` | `localhost` |
 | `DB_POSTGRES_PORT` | `5432` |
@@ -54,21 +39,24 @@ The CI workflow sets these environment variables for the test database:
 | `DB_POSTGRES_NAME` | `nexus_estate_test` |
 | `JWT_SECRET` | `ci-test-secret` |
 
-## Pre-commit Hook
+## Local verification
 
-A pre-commit hook (via Husky) runs before each commit:
+```bash
+npm ci
+npm run build
+npm run typecheck
+npm run lint:check
+npm test -- --no-coverage
+npm run test:e2e -- --no-coverage
+npm run migration:check
+docker build --target production .
+```
 
-1. `lint-staged` — ESLint fix + Prettier format on staged `.ts` files
-2. `test:all` — Full pipeline: `build → lint → test → test:e2e`
-
-This ensures code quality before any code reaches the repository.
-
-## Local Full Check
-
-Run the complete CI pipeline locally:
+Or run the application checks as one command:
 
 ```bash
 npm run test:all
 ```
 
-This executes: `build → lint → unit tests → integration tests`.
+`npm run lint:check` is read-only and is used by CI. Use `npm run lint:fix`
+when intentionally applying ESLint fixes locally.

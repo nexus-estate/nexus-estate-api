@@ -33,28 +33,13 @@ git clone https://github.com/nexus-estate/nexus-estate-api.git
 cd nexus-estate-api
 ```
 
-### Step 3: Configure private package authentication
+### Step 3: Install dependencies
 
-The API uses the private `@nexus-estate/typescript-sdk` package. Create a
-local `.npmrc` from the committed example and provide a GitHub Packages token
-with read access to the package:
+Install from the lockfile so local development matches CI:
 
 ```bash
-cp .npmrc.example .npmrc
-npm install
+npm ci
 ```
-
-For a Docker Compose build, Docker BuildKit mounts `.npmrc` only for the
-dependency install step. If the local BuildKit setup does not interpolate
-`${NODE_AUTH_TOKEN}` from the mounted file, replace that placeholder in the
-local `.npmrc` with the developer token before building:
-
-```bash
-docker compose build nexus-api
-```
-
-Never commit `.npmrc` or put a token in an image build argument. The file is
-gitignored and must remain local.
 
 ### Step 4: Configure Environment
 
@@ -79,8 +64,10 @@ DB_POSTGRES_NAME=nexus_estate
 #### Option A: Using Docker Compose (Recommended)
 
 ```bash
-docker compose up postgres -d
+docker compose up --build
 ```
+
+This starts PostgreSQL and the API development container together.
 
 #### Option B: Using Local PostgreSQL
 
@@ -107,7 +94,8 @@ npm run start:dev
 | `npm run start:dev` | Start in development mode (watch mode) |
 | `npm run start:debug` | Start with debugger enabled |
 | `npm run start:prod` | Start the compiled server |
-| `npm run lint` | Run ESLint with auto-fix |
+| `npm run lint:check` | Run ESLint without modifying files |
+| `npm run lint:fix` | Run ESLint and apply fixes |
 | `npm run format` | Format code with Prettier |
 | `npm test` | Run unit tests |
 | `npm run test:cov` | Run unit tests with coverage |
@@ -121,7 +109,7 @@ covers formatting, linting, build, unit tests, and integration tests.
 ### 1. Code Quality
 
 ```bash
-npm run lint
+npm run lint:fix
 npm run format
 npm test
 npm run test:e2e

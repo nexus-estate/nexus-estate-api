@@ -19,11 +19,10 @@
 10. [Controller Rules](#10-controller-rules)
 11. [Authentication & Authorization](#11-authentication--authorization)
 12. [Error Handling](#12-error-handling)
-13. [Shared Contracts](#13-shared-contracts)
-14. [Testing Rules](#14-testing-rules)
-15. [Import Rules](#15-import-rules)
-16. [Migration Rules](#16-migration-rules)
-17. [Code Review Checklist](#17-code-review-checklist)
+13. [Testing Rules](#13-testing-rules)
+14. [Import Rules](#14-import-rules)
+15. [Migration Rules](#15-migration-rules)
+16. [Code Review Checklist](#16-code-review-checklist)
 
 ---
 
@@ -875,267 +874,9 @@ All responses are wrapped by `TransformInterceptor`:
 
 ---
 
-## 13. Shared Contracts
+## 13. Testing Rules
 
-The `shared-contracts` repository (`../shared-contracts`) is the **contract-first single source of truth** that defines all API contracts, event schemas, error codes, and client SDKs shared across the Nexus Estate ecosystem.
-
-### 13.1 Repository Structure
-
-```
-shared-contracts/
-├── openapi/                      # OpenAPI 3.0 specifications
-│   ├── public-api.yaml           # Public API (buyers/renters)
-│   ├── broker-api.yaml           # Broker API
-│   ├── admin-api.yaml            # Admin API
-│   ├── changelog.md              # API changelog
-│   ├── common/
-│   │   ├── parameters.yaml       # Shared query parameters
-│   │   └── responses.yaml        # Shared response definitions
-│   └── schemas/
-│       ├── user.yaml             # User schema
-│       ├── property.yaml         # Property schema
-│       ├── listing.yaml          # Listing schema
-│       ├── lead.yaml             # Lead/inquiry schema
-│       ├── media.yaml            # Media/upload schema
-│       └── payment.yaml          # Payment schema
-│
-├── error-codes/
-│   └── error-codes.yaml          # Standardized error codes (EN + VI)
-│
-├── events/
-│   ├── index.json                # Event catalog (10 domain events)
-│   └── *.schema.json             # JSON Schema for each event
-│
-├── proto/                        # gRPC service definitions
-│   ├── search.proto              # Search service
-│   ├── recommendation.proto      # Recommendation service
-│   └── media.proto               # Media service
-│
-├── packages/
-│   ├── typescript-sdk/           # TypeScript SDK for frontend
-│   └── go-clients/               # Go clients for microservices
-│
-└── mock-server/                  # Mock server for development
-    └── (Express.js on port 4010)
-```
-
-### 13.2 OpenAPI Specifications
-
-Three API specs define the full Nexus Estate API surface:
-
-| Spec | File | Target Audience | Base URL |
-|------|------|----------------|----------|
-| **Public API** | `public-api.yaml` | Buyers, renters, visitors | `https://api.nexus-estate.dev/api` |
-| **Broker API** | `broker-api.yaml` | Real estate brokers | `https://api.nexus-estate.dev/api` |
-| **Admin API** | `admin-api.yaml` | System administrators | `https://api.nexus-estate.dev/api` |
-
-**Public API endpoints:**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/search` | Search properties (14 query params) |
-| `GET` | `/properties` | List properties (paginated) |
-| `GET` | `/properties/{propertyId}` | Property detail |
-| `GET` | `/recommendations/properties/{propertyId}/similar` | Similar properties |
-| `GET` | `/recommendations/properties/hot` | Hot/trending properties |
-| `POST` | `/leads/inquiries` | Submit inquiry |
-
-**Broker API endpoints:**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET/POST` | `/broker/properties` | List/create broker properties |
-| `GET/PUT/DELETE` | `/broker/properties/{propertyId}` | CRUD on broker property |
-| `GET/POST` | `/broker/listings` | List/create listings |
-| `GET/PUT/DELETE` | `/broker/listings/{listingId}` | CRUD on listing |
-| `POST` | `/broker/media/upload` | Upload media |
-| `DELETE` | `/broker/media/{mediaId}` | Delete media |
-| `GET/POST` | `/broker/payments` | List/create payments |
-| `GET` | `/broker/leads` | View inquiries |
-| `GET/PUT` | `/broker/profile` | Broker profile |
-
-**Admin API endpoints:**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/admin/users` | List users |
-| `GET/PUT/DELETE` | `/admin/users/{userId}` | Manage user |
-| `GET` | `/admin/listings` | List listings (all) |
-| `PUT` | `/admin/listings/{listingId}/approve` | Approve listing |
-| `PUT` | `/admin/listings/{listingId}/reject` | Reject listing |
-| `GET` | `/admin/stats` | System statistics |
-
-### 13.3 Shared Schemas
-
-Schemas define the data models used across all APIs:
-
-| Schema | File | Key Properties |
-|--------|------|---------------|
-| **User** | `schemas/user.yaml` | id, email, role, isEmailVerified, createdAt |
-| **Property** | `schemas/property.yaml` | id, title, description, price, area, type, purpose, address, coordinates |
-| **Listing** | `schemas/listing.yaml` | id, propertyId, status, startDate, endDate, isFeatured |
-| **Lead** | `schemas/lead.yaml` | id, propertyId, name, email, phone, message |
-| **Media** | `schemas/media.yaml` | id, url, type (image/video/document), propertyId |
-| **Payment** | `schemas/payment.yaml` | id, amount, currency, status, method |
-
-### 13.4 Error Codes (Standardized)
-
-```yaml
-# shared-contracts/error-codes/error-codes.yaml
-- code: BAD_REQUEST; message_en: Invalid request; message_vi: Yeu cau khong hop le; http_status: 400
-- code: UNAUTHORIZED; message_en: Unauthorized; message_vi: Chua dang nhap; http_status: 401
-- code: FORBIDDEN; message_en: Forbidden; message_vi: Khong co quyen; http_status: 403
-- code: NOT_FOUND; message_en: Resource not found; message_vi: Khong tim thay; http_status: 404
-- code: CONFLICT; message_en: Already exists; message_vi: Da ton tai; http_status: 409
-- code: TOO_MANY_REQUESTS; message_en: Rate limit; message_vi: Qua nhieu yeu cau; http_status: 429
-- code: INTERNAL_ERROR; message_en: Internal error; message_vi: Loi he thong; http_status: 500
-```
-
-Domain-specific error codes are also defined (USER_NOT_FOUND, USER_EMAIL_EXISTS, USER_INVALID_CREDENTIALS, LISTING_NOT_FOUND, etc.).
-
-**Relationship to API Gateway:** The `ErrorCodes` constant in `src/utils/constants/error.constant.ts` must align with the shared-contracts error codes. When adding new error codes, add them in both places.
-
-### 13.5 Domain Events
-
-The event catalog (`events/index.json`) defines 10 domain events with JSON Schema validation:
-
-| Event | Schema File | Description |
-|-------|-------------|-------------|
-| `listing.created` | `listing.created.schema.json` | New listing published |
-| `listing.updated` | `listing.updated.schema.json` | Listing details changed |
-| `listing.deleted` | `listing.deleted.schema.json` | Listing removed |
-| `media.uploaded` | `media.uploaded.schema.json` | Media file uploaded |
-| `media.processed` | `media.processed.schema.json` | Media processing complete |
-| `media.deleted` | `media.deleted.schema.json` | Media file deleted |
-| `payment.created` | `payment.created.schema.json` | Payment initiated |
-| `payment.completed` | `payment.completed.schema.json` | Payment successful |
-| `payment.failed` | `payment.failed.schema.json` | Payment failed |
-| `user.behavior` | `user.behavior.schema.json` | User behavior tracking |
-
-### 13.6 gRPC Proto Definitions
-
-| Service | File | RPCs |
-|---------|------|------|
-| **SearchService** | `proto/search.proto` | `Search`, `Suggest`, `IndexProperty`, `DeleteProperty` |
-| **RecommendationService** | `proto/recommendation.proto` | `GetSimilar`, `GetHotProperties`, `RecordBehavior` |
-| **MediaService** | `proto/media.proto` | `Upload`, `Process`, `Delete`, `GetUrl` |
-
-### 13.7 TypeScript SDK (`@nexus-estate/typescript-sdk`)
-
-The TypeScript SDK is the primary client library for frontend teams and other TypeScript consumers.
-
-**Package:** `@nexus-estate/typescript-sdk`
-
-**Installation:**
-
-```bash
-npm install @nexus-estate/typescript-sdk
-# or from GitHub Packages registry
-```
-
-**SDK Structure:**
-
-```
-packages/typescript-sdk/
-├── src/
-│   ├── index.ts                  # Barrel export (re-exports everything)
-│   ├── client/
-│   │   ├── api-client.ts         # ApiClient class (axios-based HTTP client)
-│   │   └── configuration.ts      # Configuration class (baseUrl, token, headers)
-│   ├── api/
-│   │   ├── auth-api.ts           # AuthApi (signup, signin, refresh, profile)
-│   │   ├── search-api.ts         # SearchApi (search properties)
-│   │   ├── properties-api.ts     # PropertiesApi (list, detail)
-│   │   ├── listings-api.ts       # ListingsApi (CRUD)
-│   │   ├── media-api.ts          # MediaApi (upload, delete)
-│   │   ├── payments-api.ts       # PaymentsApi (list, create)
-│   │   ├── leads-api.ts          # LeadsApi (inquiries)
-│   │   ├── recommendations-api.ts # RecommendationsApi (similar, hot)
-│   │   └── admin-api.ts          # AdminApi (users, listings, stats)
-│   └── types/
-│       └── models.ts             # TypeScript type definitions for all models
-```
-
-**Usage Example:**
-
-```typescript
-import { ApiClient, Configuration, AuthApi, SearchApi } from '@nexus-estate/typescript-sdk';
-
-// Configure the client
-const config = new Configuration({
-  baseUrl: 'https://api.nexus-estate.dev/api',
-});
-
-const client = new ApiClient(config);
-
-// Auth
-const authApi = new AuthApi(client);
-const { accessToken } = await authApi.signin({ email: 'user@example.com', password: 'pass' });
-
-// Update config with token
-config.setAccessToken(accessToken);
-
-// Search properties
-const searchApi = new SearchApi(client);
-const results = await searchApi.search({
-  query: 'apartment',
-  city: 'Ho Chi Minh',
-  priceMin: 500000000,
-  priceMax: 2000000000,
-  page: 1,
-  limit: 20,
-});
-```
-
-**SDK API Modules:**
-
-| Module | Class | Key Methods |
-|--------|-------|-------------|
-| Auth | `AuthApi` | `signup()`, `signin()`, `refresh()`, `getProfile()` |
-| Search | `SearchApi` | `search()` |
-| Properties | `PropertiesApi` | `list()`, `getById()` |
-| Listings | `ListingsApi` | `list()`, `create()`, `update()`, `delete()` |
-| Media | `MediaApi` | `upload()`, `delete()` |
-| Payments | `PaymentsApi` | `list()`, `create()` |
-| Leads | `LeadsApi` | `createInquiry()` |
-| Recommendations | `RecommendationsApi` | `getSimilar()`, `getHot()` |
-| Admin | `AdminApi` | `listUsers()`, `getUser()`, `updateUser()`, `deleteUser()`, `approveListing()`, `rejectListing()`, `getStats()` |
-
-### 13.8 Mock Server
-
-For local development without backend services:
-
-```bash
-cd ../shared-contracts/mock-server
-npm start
-# Runs on http://localhost:4010
-```
-
-The mock server provides sample data for all API endpoints, useful for frontend development.
-
-### 13.9 Contract-First Workflow
-
-```
-1. Define/update API contract in shared-contracts (OpenAPI spec)
-2. Update shared schemas if new data models are needed
-3. Update error codes if new error scenarios exist
-4. Regenerate TypeScript SDK: npm run generate:sdk
-5. Validate no breaking changes: npm run validate:breaking
-6. Implement the API in nexus-estate-api following the contract
-7. Frontend team consumes the updated SDK
-```
-
-**Rules:**
-- API Gateway implementations MUST match the OpenAPI contract.
-- New API endpoints MUST be added to the appropriate OpenAPI spec first.
-- Breaking changes require a major version bump and must pass `validate:breaking`.
-- Error codes in API Gateway (`src/utils/constants/error.constant.ts`) must align with `error-codes/error-codes.yaml`.
-
----
-
-## 14. Testing Rules
-
-### 14.1 Test Structure
+### 13.1 Test Structure
 
 ```
 src/                              # Unit tests (colocated)
@@ -1157,7 +898,7 @@ test/                             # Integration & E2E tests
     └── user.integration-spec.ts
 ```
 
-### 14.2 Test Commands
+### 13.2 Test Commands
 
 ```bash
 npm test                  # Unit tests (Jest)
@@ -1167,7 +908,7 @@ npm run test:e2e          # Integration/E2E tests
 npm run test:all          # Full pipeline: build + lint + unit + integration
 ```
 
-### 14.3 Test Conventions
+### 13.3 Test Conventions
 
 - Unit test files: `*.spec.ts` (colocated with source or in `__tests__/`)
 - Integration test files: `*.integration-spec.ts` (in `test/integration/`)
@@ -1179,9 +920,9 @@ npm run test:all          # Full pipeline: build + lint + unit + integration
 
 ---
 
-## 15. Import Rules
+## 14. Import Rules
 
-### 15.1 Barrel Exports
+### 14.1 Barrel Exports
 
 Use barrel exports (`index.ts`) to simplify imports:
 
@@ -1195,7 +936,7 @@ import { HashHelper, TokenHelper } from '../../utils/helpers';
 import { BaseEntity } from '../../services/abstraction-services/base.entity';
 ```
 
-### 15.2 Import Order
+### 14.2 Import Order
 
 1. Node.js built-in modules
 2. NestJS framework imports (`@nestjs/*`)
@@ -1206,7 +947,7 @@ import { BaseEntity } from '../../services/abstraction-services/base.entity';
 7. Sibling module imports (`../other-module/*`)
 8. Local imports (`./`)
 
-### 15.3 Type-Only Imports
+### 14.3 Type-Only Imports
 
 Use `import type` for type-only imports:
 
@@ -1216,9 +957,9 @@ import type { Request } from 'express';
 
 ---
 
-## 16. Migration Rules
+## 15. Migration Rules
 
-### 16.1 File Naming
+### 15.1 File Naming
 
 ```
 <timestamp>-<DescriptionInPascalCase>.ts
@@ -1226,7 +967,7 @@ import type { Request } from 'express';
 
 Example: `1741614400000-CreateUserTable.ts`
 
-### 16.2 Migration Template
+### 15.2 Migration Template
 
 ```typescript
 import { MigrationInterface, QueryRunner, Table } from 'typeorm';
@@ -1263,7 +1004,7 @@ export class CreateExampleTable1741614700000 implements MigrationInterface {
 - Use `snake_case` for column names in migrations (TypeORM maps to entity properties).
 - Never modify existing migration files — create a new migration instead.
 
-### 16.3 Current Migrations
+### 15.3 Current Migrations
 
 | Timestamp | File | Description |
 |-----------|------|-------------|
@@ -1273,7 +1014,7 @@ export class CreateExampleTable1741614700000 implements MigrationInterface {
 
 ---
 
-## 17. Code Review Checklist
+## 16. Code Review Checklist
 
 Before submitting a PR, verify:
 
@@ -1291,7 +1032,6 @@ Before submitting a PR, verify:
 
 ### Error Handling
 - [ ] Business errors use `BusinessException` with `ErrorCodes`
-- [ ] New error codes added to both `error.constant.ts` and `shared-contracts/error-codes/error-codes.yaml`
 - [ ] No silent error swallowing
 
 ### Database
@@ -1306,7 +1046,7 @@ Before submitting a PR, verify:
 - [ ] Appropriate guards applied to endpoints
 
 ### API Contract
-- [ ] New endpoints match OpenAPI spec in `shared-contracts`
+- [ ] New endpoints are documented through NestJS Swagger
 - [ ] Response format follows `{ data, timestamp }` convention
 - [ ] Error responses follow `{ statusCode, code, message, timestamp }` convention
 
@@ -1356,10 +1096,13 @@ npm run test:e2e            # Integration tests
 npm run test:all            # Full pipeline
 
 # Code Quality
-npm run lint                # ESLint with auto-fix
+npm run typecheck           # TypeScript check without emitting files
+npm run lint:check          # ESLint without modifying files
+npm run lint:fix            # Apply ESLint fixes locally
 npm run format              # Prettier formatting
 
 # Database
 npm run migration:generate  # Generate migration from entity changes
+npm run migration:check     # Check migration visibility against the database
 npm run migration:run       # Run pending migrations
 npm run migration:revert    # Revert last migration
