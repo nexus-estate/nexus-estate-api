@@ -1,7 +1,7 @@
 import {
   ErrorCodes,
   type ErrorCode,
-} from '../../../utils/constants/error.constant';
+} from '../../../../utils/constants/error.constant';
 
 export const SellerAccountErrorCodes = {
   SELLER_ACCOUNT_ALREADY_EXISTS: ErrorCodes.SELLER_ACCOUNT_ALREADY_EXISTS,

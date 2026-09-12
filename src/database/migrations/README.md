@@ -8,7 +8,7 @@
 
 New aggregate-owned schema migrations belong in the owning module's `migrations/`
 directory, for example
-`src/modules/seller-platform/seller-account/migrations/`. Cross-module or
+`src/modules/seller-platform/account/migrations/`. Cross-module or
 platform changes belong in `src/database/migrations/platform/`. The configured
 TypeORM globs discover both locations and TypeORM orders migrations globally by
 the timestamp suffix in each class name.
@@ -22,7 +22,7 @@ The current ownership layout is:
 | Estate | `src/modules/estate/migrations/` |
 | Location | `src/modules/location/migrations/` |
 | Media | `src/modules/media/migrations/` |
-| SellerAccount | `src/modules/seller-platform/seller-account/migrations/` |
+| SellerAccount | `src/modules/seller-platform/account/migrations/` |
 
 The platform directory is reserved for future shared or cross-module
 migrations; it currently contains only its README. The historical DataPool

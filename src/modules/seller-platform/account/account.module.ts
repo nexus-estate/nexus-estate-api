@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { SellerAccountController } from './controller';
-import { CurrentSellerContext } from './current-seller-context';
-import { SellerAccount } from './seller-account.entity';
-import { SellerAccountPolicy } from './policy';
-import { SellerAccountRepository } from './repository';
-import { SellerAccountService } from './service';
+import { SellerAccountController } from './controllers/account.controller';
+import { CurrentSellerContext } from './services/current-seller-context.service';
+import { SellerAccount } from './models/account.entity';
+import { SellerAccountPolicy } from './helpers/account.policy';
+import { SellerAccountRepository } from './repositories/account.repository';
+import { SellerAccountService } from './services/account.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([SellerAccount])],

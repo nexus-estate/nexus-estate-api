@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 
-import { SellerAccountModule } from './seller-account/seller-account.module';
+import { SellerAccountModule } from './account/account.module';
 
 @Module({ imports: [SellerAccountModule], exports: [SellerAccountModule] })
 export class SellerPlatformModule {}

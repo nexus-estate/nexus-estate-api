@@ -11,14 +11,14 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import type { AuthenticatedPrincipal } from '../../../modules/auth/types/auth.type';
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
+import type { AuthenticatedPrincipal } from '../../../../modules/auth/types/auth.type';
 import {
   CreateSellerAccountDto,
   SellerAccountResponse,
   UpdateSellerAccountDto,
-} from './dto';
-import { SellerAccountService } from './service';
+} from '../dto';
+import { SellerAccountService } from '../services/account.service';
 
 @ApiTags('Seller Account')
 @ApiBearerAuth()

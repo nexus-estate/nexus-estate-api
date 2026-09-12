@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
-import { SellerType } from '../enums';
+import { SellerType } from '../enums/account.enums';
 
 export class CreateSellerAccountDto {
   @ApiProperty({ enum: SellerType, example: SellerType.INDIVIDUAL })

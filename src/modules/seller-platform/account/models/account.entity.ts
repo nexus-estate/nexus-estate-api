@@ -1,9 +1,13 @@
 import { Check, Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 
-import { BaseEntity } from '../../../services/abstraction-services';
-import { User } from '../../../modules/user/entities/user.entity';
-import { SellerStatus, SellerType, SellerVerificationStatus } from './enums';
+import { BaseEntity } from '../../../../services/abstraction-services';
+import { User } from '../../../../modules/user/entities/user.entity';
+import {
+  SellerStatus,
+  SellerType,
+  SellerVerificationStatus,
+} from '../enums/account.enums';
 
 @Entity('tbl_seller_account')
 @Check(

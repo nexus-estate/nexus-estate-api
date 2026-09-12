@@ -1,11 +1,15 @@
 import { ErrorCodes } from '../../../../utils/constants/error.constant';
 import { CreateSellerAccountDto, UpdateSellerAccountDto } from '../dto';
-import { SellerAccount } from '../seller-account.entity';
-import { CurrentSellerContext } from '../current-seller-context';
-import { SellerAccountPolicy } from '../policy';
-import { SellerAccountRepository } from '../repository';
-import { SellerAccountService } from '../service';
-import { SellerStatus, SellerType, SellerVerificationStatus } from '../enums';
+import { SellerAccount } from '../models/account.entity';
+import { CurrentSellerContext } from '../services/current-seller-context.service';
+import { SellerAccountPolicy } from '../helpers/account.policy';
+import { SellerAccountRepository } from '../repositories/account.repository';
+import { SellerAccountService } from '../services/account.service';
+import {
+  SellerStatus,
+  SellerType,
+  SellerVerificationStatus,
+} from '../enums/account.enums';
 
 type RepositoryMock = {
   findById: jest.MockedFunction<SellerAccountRepository['findById']>;
