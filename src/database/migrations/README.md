@@ -4,6 +4,18 @@
 - New migration filenames use a unique current epoch-millisecond timestamp: `<timestamp>-<Description>.ts`.
 - Keep one cohesive schema change per migration and make `down()` reverse the same change.
 - Keep migrations free of application service imports. They should use only TypeORM's `QueryRunner` and migration-local SQL.
-- Run `npm run migration:verify` before merge. The verifier creates a temporary database with the configured PostgreSQL admin connection (`DB_POSTGRES_ADMIN_NAME`, default `postgres`; the user needs `CREATEDB`/`DROP DATABASE` privileges), runs every migration from an empty database, checks migration history and final schema invariants, exercises the latest revert/run cycle, and drops the temporary database in all exit paths.
+- Run `npm run migration:verify` before merge. The verifier creates a temporary database with the configured PostgreSQL admin connection (`DB_POSTGRES_ADMIN_NAME`, default `postgres`; the user needs `CREATEDB`/`DROP DATABASE` privileges), runs every discovered schema migration from an empty database, checks migration history and ordering, and drops the temporary database in all exit paths.
+
+New aggregate-owned schema migrations belong in the owning module's `migrations/`
+directory, for example
+`src/modules/seller-platform/seller-account/migrations/`. Cross-module or
+platform changes belong in `src/database/migrations/platform/`. The configured
+TypeORM globs discover both locations and TypeORM orders migrations globally by
+the timestamp suffix in each class name.
+
+Business-data transformations are data migrations, not seeds. Keep them in the
+owning module's `data-migrations/` directory and run them through an explicit
+script such as `npm run backfill:seller-account`. Use `src/database/seed/` only
+for reference/bootstrap data.
 
 The legacy migration set contains historical timestamp collisions. They are intentionally left unchanged because migration identity is part of the database history; all new migrations must use unique timestamps.

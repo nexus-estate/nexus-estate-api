@@ -19,7 +19,10 @@ export const commonConfig: DataSourceOptions = {
 export const typeOrmConfig: DataSourceOptions = {
   ...commonConfig,
   entities: [path.join(__dirname, '../modules/**/*.entity{.ts,.js}')],
-  migrations: [__dirname + '/migrations/!(*.spec){.ts,.js}'],
+  migrations: [
+    path.join(__dirname, 'migrations/**/!(*.spec|*.d).{ts,js}'),
+    path.join(__dirname, '../modules/**/migrations/!(*.spec|*.d).{ts,js}'),
+  ],
   synchronize: false,
   migrationsTransactionMode: 'each',
 };

@@ -1102,7 +1102,9 @@ npm run lint:fix            # Apply ESLint fixes locally
 npm run format              # Prettier formatting
 
 # Database
-npm run migration:generate  # Generate migration from entity changes
+npm run typeorm -- migration:create <module>/migrations/<Name>
+# Use src/database/migrations/platform for cross-module changes.
+npm run migration:generate  # Generate a platform migration from entity changes
 npm run migration:check     # Check migration visibility against the database
 npm run migration:run       # Run pending migrations
 npm run migration:revert    # Revert last migration

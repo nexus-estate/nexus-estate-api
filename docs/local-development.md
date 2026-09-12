@@ -127,13 +127,16 @@ npm run test:e2e
 ### 3. Working with the Database
 
 ```bash
-# Generate a new migration
-npx typeorm migration:create src/database/migrations/MigrationName
+# Generate a module-owned migration (use the owning module's migrations folder)
+npm run typeorm -- migration:create src/modules/seller-platform/property/migrations/CreateProperty
+
+# Generate a platform migration when the change is cross-module
+npm run typeorm -- migration:create src/database/migrations/platform/NormalizeCrossDomainLocationReferences
 
 # Run migrations
 npx typeorm migration:run
 
-# Revert the last migration
+# Revert the last migration (only for a deliberate local rollback)
 npx typeorm migration:revert
 ```
 

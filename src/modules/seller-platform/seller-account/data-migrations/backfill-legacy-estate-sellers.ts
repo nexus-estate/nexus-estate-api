@@ -1,4 +1,4 @@
-import dataSource from '../type.config';
+import dataSource from '../../../../database/type.config';
 
 /**
  * Creates seller accounts only for users who already own Estate records.

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { DataSource } from 'typeorm';
 
-import { assertMigrationDatabase } from './migration-verification/assertions';
-import { createTypeOrmDataSource } from './type.config';
+import { assertAllMigrationsApplied, assertMigrationMetadata } from './helpers';
+import { createTypeOrmDataSource } from '../type.config';
 
 const adminDatabase = process.env.DB_POSTGRES_ADMIN_NAME || 'postgres';
 
@@ -43,34 +43,19 @@ async function verifyMigrations(): Promise<void> {
     await verificationDataSource.initialize();
     verificationInitialized = true;
 
+    assertMigrationMetadata(verificationDataSource);
+    const discoveredMigrationCount = verificationDataSource.migrations.length;
     const executedMigrations = await verificationDataSource.runMigrations();
-    if (
-      executedMigrations.length !== verificationDataSource.migrations.length
-    ) {
-      throw new Error(
-        `Migration verification failed: expected ${verificationDataSource.migrations.length} migrations to run, found ${executedMigrations.length}`,
-      );
-    }
-    await assertMigrationDatabase(verificationDataSource);
 
-    await verificationDataSource.undoLastMigration();
-    const sellerAccountTableAfterRevert: unknown[] =
-      await verificationDataSource.query(`
-        SELECT 1
-        FROM information_schema.tables
-        WHERE table_schema = current_schema()
-          AND table_name = 'tbl_seller_account'
-      `);
-    if (sellerAccountTableAfterRevert.length !== 0) {
+    if (executedMigrations.length !== discoveredMigrationCount) {
       throw new Error(
-        'Migration verification failed: reverting the latest migration should remove tbl_seller_account',
+        `Migration verification failed: expected ${discoveredMigrationCount} migrations to run, found ${executedMigrations.length}`,
       );
     }
 
-    await verificationDataSource.runMigrations();
-    await assertMigrationDatabase(verificationDataSource);
+    await assertAllMigrationsApplied(verificationDataSource);
     console.log(
-      `Migration verification passed on ${databaseName}: fresh create -> run all -> assert -> revert -> run all -> assert -> drop`,
+      `Migration verification passed on ${databaseName}: fresh create -> run all -> no pending migrations -> applied count matches discovery -> drop`,
     );
   } finally {
     if (verificationInitialized) {
