@@ -9,17 +9,15 @@ import { BusinessException } from '../../../common/exceptions/business.exception
 import { ErrorCodes, HashHelper } from '../../../utils';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { SafeUser } from '../../user/types/user.type';
-import { RoleService } from '../../rbac/services/role.service';
 import { RegisterDto } from '../dto/register.dto';
-import { CreateUserInput } from '../../user/dto/user.dto';
-import { ROLES } from '../../../utils/constants/role.constant';
+import { BuyerService } from '../../buyer/services/buyer.service';
 type JwtExpiresIn = JwtSignOptions['expiresIn'];
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
-    private readonly roleService: RoleService,
+    private readonly buyerService: BuyerService,
   ) {}
   //LOGIN
   async validateCredential(
@@ -47,21 +45,7 @@ export class AuthService {
     return TokenPair;
   }
   async handleRegister(dto: RegisterDto): Promise<SafeUser> {
-    // Public registration always creates a buyer; seller elevation is an
-    // explicit onboarding/approval workflow and must never be client-selected.
-    const role = await this.roleService.findByName(ROLES.BUYER);
-    if (!role) {
-      throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND);
-    }
-    const passwordHash = await HashHelper.hash(dto.password);
-
-    const createUserInput: CreateUserInput = {
-      email: dto.email,
-      passwordHash,
-      roleId: role.id,
-    };
-
-    return this.userService.handleCreate(createUserInput);
+    return this.buyerService.register(dto);
   }
 
   // REFRESHTOKEN

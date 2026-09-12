@@ -193,4 +193,21 @@ export class UserRepository {
     );
     return rows.length > 0;
   }
+
+  /** Updates a user's role and returns whether an active user was changed. */
+  async updateRole(userId: string, roleId: string): Promise<boolean> {
+    const rows = await this.repository.query<UpdatedUserIdRow[]>(
+      `
+        UPDATE tbl_user
+        SET
+          role_id = $2,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+          AND deleted_at IS NULL
+        RETURNING id
+      `,
+      [userId, roleId],
+    );
+    return rows.length > 0;
+  }
 }

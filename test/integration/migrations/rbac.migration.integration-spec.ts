@@ -84,6 +84,9 @@ describe('RBAC base roles and permissions migration (PostgreSQL integration)', (
       permissionsByRole.get(ROLES.BUYER)?.has(PERMISSIONS.SELLER_ACCOUNT_READ),
     ).toBe(true);
     expect(
+      permissionsByRole.get(ROLES.BUYER)?.has(PERMISSIONS.BUYER_PROFILE_READ),
+    ).toBe(true);
+    expect(
       permissionsByRole.get(ROLES.SELLER)?.has(PERMISSIONS.ESTATE_CREATE),
     ).toBe(true);
     expect(
@@ -101,6 +104,11 @@ describe('RBAC base roles and permissions migration (PostgreSQL integration)', (
     ).toBe(true);
     expect(
       permissionsByRole.get(ROLES.ADMINISTRATOR)?.has(PERMISSIONS.METRICS_READ),
+    ).toBe(true);
+    expect(
+      permissionsByRole
+        .get(ROLES.ADMINISTRATOR)
+        ?.has(PERMISSIONS.BUYER_PROFILE_READ),
     ).toBe(true);
   });
 });

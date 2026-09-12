@@ -11,6 +11,8 @@ import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EstateModule } from './modules/estate/estate.module';
 import { SellerPlatformModule } from './modules/seller-platform/seller-platform.module';
+import { BuyerModule } from './modules/buyer/buyer.module';
+import { SellerModule } from './modules/seller/seller.module';
 @Controller({
   path: 'healthz',
   version: VERSION_NEUTRAL,
@@ -47,6 +49,8 @@ export class HealthController {
     AuthModule,
     EstateModule,
     SellerPlatformModule,
+    BuyerModule,
+    SellerModule,
   ],
   controllers: [HealthController],
 })

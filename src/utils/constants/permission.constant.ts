@@ -1,4 +1,7 @@
 export const PERMISSIONS = {
+  // Buyer profile
+  BUYER_PROFILE_READ: 'buyer:profile:read',
+
   // Seller account
   SELLER_ACCOUNT_REGISTER: 'seller-account:register',
   SELLER_ACCOUNT_READ: 'seller-account:read',

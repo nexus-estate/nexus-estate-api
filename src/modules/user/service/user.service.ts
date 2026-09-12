@@ -108,4 +108,13 @@ export class UserService {
       throw new BusinessException(ErrorCodes.USER_NOT_FOUND, userId);
     }
   }
+
+  /** Assigns a validated role to an active user and returns the refreshed user. */
+  async updateRole(userId: string, roleId: string): Promise<SafeUser> {
+    const updated = await this.userRepo.updateRole(userId, roleId);
+    if (!updated) {
+      throw new BusinessException(ErrorCodes.USER_NOT_FOUND, userId);
+    }
+    return this.findById(userId);
+  }
 }

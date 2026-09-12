@@ -15,10 +15,12 @@ import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { RbacModule } from '../rbac/rbac.module';
 import { RoleGuard } from '../rbac/guard/role.guard';
 import { PermissionsGuard } from '../rbac/guard/permission.guard';
+import { BuyerModule } from '../buyer/buyer.module';
 
 @Module({
   imports: [
     UserModule,
+    BuyerModule,
     PassportModule,
     RbacModule,
     JwtModule.registerAsync({
