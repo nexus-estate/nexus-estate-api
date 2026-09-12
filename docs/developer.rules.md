@@ -130,9 +130,7 @@ src/
 │   ├── database.module.ts           # TypeORM module configuration
 │   ├── type.config.ts               # TypeORM DataSource config (for CLI & app)
 │   └── migrations/
-│       ├── 1741614400000-CreateUserTable.ts
-│       ├── 1741614500000-CreateDataPoolTable.ts
-│       └── 1741614600000-CreateRbacTables.ts
+│       └── platform/                 # Cross-module/shared migrations
 │
 ├── modules/
 │   ├── auth/

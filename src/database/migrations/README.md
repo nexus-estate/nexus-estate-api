@@ -13,6 +13,22 @@ platform changes belong in `src/database/migrations/platform/`. The configured
 TypeORM globs discover both locations and TypeORM orders migrations globally by
 the timestamp suffix in each class name.
 
+The current ownership layout is:
+
+| Owner | Migration directory |
+| --- | --- |
+| Platform/shared | `src/database/migrations/platform/` |
+| User | `src/modules/user/migrations/` |
+| RBAC | `src/modules/rbac/migrations/` |
+| Estate | `src/modules/estate/migrations/` |
+| Location | `src/modules/location/migrations/` |
+| Media | `src/modules/media/migrations/` |
+| SellerAccount | `src/modules/seller-platform/seller-account/migrations/` |
+
+Historical files were physically reorganized without changing their migration
+class names, timestamps, or SQL behavior. TypeORM therefore retains the same
+migration identities while the directory tree reflects ownership.
+
 Business-data transformations are data migrations, not seeds. Keep them in the
 owning module's `data-migrations/` directory and run them through an explicit
 script such as `npm run backfill:seller-account`. Use `src/database/seed/` only

@@ -9,14 +9,13 @@ Accepted for the SellerAccount foundation and future modules.
 Schema migrations are owned by the aggregate or module whose persistence
 contract they change. They live in that module's `migrations/` directory. A
 change that spans modules or belongs to shared database infrastructure lives in
-`src/database/migrations/platform/`. Existing historical migrations remain in
-the central directory so their deployed identity and replay behavior are not
-changed by a reorganization.
+`src/database/migrations/platform/`. The current module-owned directories are
+User, RBAC, Estate, Location, Media, and SellerAccount. DataPool and the
+cross-module index cleanup remain under the platform directory.
 
-The SellerAccount migration is the exception to the physical-location rule in
-that it moved from the legacy directory, but its existing class name and
-timestamp were preserved so the recorded TypeORM migration identity remains
-unchanged.
+Historical files were physically reorganized without changing their class
+names, timestamps, or SQL behavior, so the recorded TypeORM migration
+identities remain unchanged.
 
 TypeORM discovers both central and module-owned schema migration directories.
 Folder hierarchy does not define execution order: the timestamp suffix in the
