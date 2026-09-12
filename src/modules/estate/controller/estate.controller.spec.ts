@@ -1,4 +1,4 @@
-import { AuthenticatedPrincipal } from '../../auth/types/auth.type';
+import { AuthenticatedPrincipal } from '../../../common/security/auth.types';
 import { CreateEstateDto } from '../dto/create-estate-dto';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
 import { Estate } from '../entities';
@@ -8,7 +8,7 @@ import { EstateController } from './estate.controller';
 
 type EstateServiceMock = {
   createEstate: jest.MockedFunction<EstateService['createEstate']>;
-  findByUserId: jest.MockedFunction<EstateService['findByUserId']>;
+  findByBuyerId: jest.MockedFunction<EstateService['findByBuyerId']>;
   findById: jest.MockedFunction<EstateService['findById']>;
   updateEstate: jest.MockedFunction<EstateService['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateService['softDeleteEstate']>;
@@ -35,12 +35,12 @@ describe('EstateController', () => {
     provinceId: '30000000-0000-4000-8000-000000000001',
     wardId: '40000000-0000-4000-8000-000000000001',
   };
-  const estate = { id: estateId, userId: user.id } as Estate;
+  const estate = { id: estateId, buyerId: user.id } as Estate;
 
   beforeEach(() => {
     estateService = {
       createEstate: jest.fn(),
-      findByUserId: jest.fn(),
+      findByBuyerId: jest.fn(),
       findById: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
@@ -60,10 +60,10 @@ describe('EstateController', () => {
   });
 
   it('returns estates belonging to the authenticated principal', async () => {
-    estateService.findByUserId.mockResolvedValue([estate]);
+    estateService.findByBuyerId.mockResolvedValue([estate]);
 
     await expect(controller.findEstateMine(request)).resolves.toEqual([estate]);
-    expect(estateService.findByUserId).toHaveBeenCalledWith(user.id);
+    expect(estateService.findByBuyerId).toHaveBeenCalledWith(user.id);
   });
 
   it('finds an estate by the route id', async () => {

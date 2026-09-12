@@ -7,12 +7,11 @@ import { CommonModule } from './common/common.module';
 
 import { Public } from './common/decorators/public.decorator';
 import { LocationModule } from './database/seed/locations/location.module';
-import { UserModule } from './modules/user/user.module';
-import { AuthModule } from './modules/auth/auth.module';
 import { EstateModule } from './modules/estate/estate.module';
 import { SellerPlatformModule } from './modules/seller-platform/seller-platform.module';
 import { BuyerModule } from './modules/buyer/buyer.module';
 import { SellerModule } from './modules/seller/seller.module';
+import { AdministrationModule } from './modules/administration/administration.module';
 @Controller({
   path: 'healthz',
   version: VERSION_NEUTRAL,
@@ -45,12 +44,11 @@ export class HealthController {
     }),
     CommonModule,
     LocationModule,
-    UserModule,
-    AuthModule,
     EstateModule,
     SellerPlatformModule,
     BuyerModule,
     SellerModule,
+    AdministrationModule,
   ],
   controllers: [HealthController],
 })

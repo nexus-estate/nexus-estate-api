@@ -5,20 +5,20 @@ type JwtExpiresIn = JwtSignOptions['expiresIn'];
 export class TokenHelper {
   static async generateAccessToken(
     jwtService: JwtService,
-    userId: string,
+    principalId: string,
   ): Promise<string> {
     const expiresIn = (process.env.JWT_ACCESS_EXPIRES_IN ||
       '15m') as JwtExpiresIn;
-    return jwtService.signAsync({ sub: userId }, { expiresIn });
+    return jwtService.signAsync({ sub: principalId }, { expiresIn });
   }
 
   static async generateRefreshToken(
     jwtService: JwtService,
-    userId: string,
+    principalId: string,
   ): Promise<string> {
     const expiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ||
       '7d') as JwtExpiresIn;
-    return jwtService.signAsync({ sub: userId }, { expiresIn });
+    return jwtService.signAsync({ sub: principalId }, { expiresIn });
   }
 
   static async verifyToken(

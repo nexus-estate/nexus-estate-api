@@ -1,21 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { BaseRepository } from '../../../services/abstraction-services';
 import { Estate } from '../entities';
 import { CreateEstateData } from '../type/estate.type';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
 
 @Injectable()
-export class EstateRepo {
-  constructor(
-    @InjectRepository(Estate)
-    private readonly repository: Repository<Estate>,
-  ) {}
+export class EstateRepo extends BaseRepository<Estate> {
+  constructor(dataSource: DataSource) {
+    super(dataSource, Estate, 'Estate');
+  }
 
   async findById(id: string): Promise<Estate | null> {
     return this.repository
       .createQueryBuilder('estate')
-      .innerJoinAndSelect('estate.user', 'user')
+      .innerJoinAndSelect('estate.buyer', 'buyer')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
       .where('estate.id = :id', { id })
@@ -23,13 +22,13 @@ export class EstateRepo {
       .getOne();
   }
 
-  async findByUserId(userId: string): Promise<Estate[]> {
+  async findByBuyerId(buyerId: string): Promise<Estate[]> {
     return this.repository
       .createQueryBuilder('estate')
-      .innerJoinAndSelect('estate.user', 'user')
+      .innerJoinAndSelect('estate.buyer', 'buyer')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
-      .where('estate.userId = :userId', { userId })
+      .where('estate.buyerId = :buyerId', { buyerId })
       .andWhere('estate.deletedAt IS NULL')
       .getMany();
   }

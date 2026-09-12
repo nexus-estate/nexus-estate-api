@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { CurrentSellerContextValue } from '../services/current-seller-context.service';
 import { SellerStatus } from '../enums/account.enums';
-import { SellerAccountErrorCodes } from './errors';
+import { SellerAccountErrorCodes } from '../errors/seller-account-error-codes';
 
 /** Encapsulates seller-state and ownership checks shared by supply features. */
 @Injectable()
@@ -16,7 +16,7 @@ export class SellerAccountPolicy {
       this.logger.warn(
         JSON.stringify({
           operation: 'seller_account.supply_mutation_denied',
-          user_id: context.userId,
+          buyer_id: context.buyerId,
           seller_id: context.sellerId,
         }),
       );

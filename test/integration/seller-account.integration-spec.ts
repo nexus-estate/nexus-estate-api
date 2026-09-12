@@ -10,7 +10,7 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { Permission } from '../../src/modules/rbac/entities/permission.entity';
 import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
 import { Role } from '../../src/modules/rbac/entities/role.entity';
-import { User } from '../../src/modules/user/entities/user.entity';
+import { BuyerAccount } from '../../src/modules/buyer/account/models/buyer-account.entity';
 import { SellerAccount } from '../../src/modules/seller-platform/account/models/account.entity';
 import { SellerAccountModule } from '../../src/modules/seller-platform/account/account.module';
 import { SellerAccountRepository } from '../../src/modules/seller-platform/account/repositories/account.repository';
@@ -27,7 +27,7 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
   let module: TestingModule | undefined;
   let dataSource: DataSource;
   let repository: SellerAccountRepository;
-  let user: User;
+  let user: BuyerAccount;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine')
@@ -45,7 +45,13 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
           username: container.getUsername(),
           password: container.getPassword(),
           database: container.getDatabase(),
-          entities: [SellerAccount, User, Role, Permission, RolePermission],
+          entities: [
+            SellerAccount,
+            BuyerAccount,
+            Role,
+            Permission,
+            RolePermission,
+          ],
           namingStrategy: new SnakeNamingStrategy(),
           synchronize: true,
         }),
@@ -59,14 +65,14 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_seller_account, tbl_user, tbl_role CASCADE',
+      'TRUNCATE TABLE tbl_seller_account, tbl_buyer_account, tbl_role CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({
       name: 'buyer',
       isSystem: true,
     });
-    user = await dataSource.getRepository(User).save({
+    user = await dataSource.getRepository(BuyerAccount).save({
       email: 'seller@nexus.test',
       password: 'not-used',
       roleId: role.id,
@@ -80,17 +86,17 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
 
   it('inserts and finds an account by owner', async () => {
     const created = await repository.create({
-      ownerUserId: user.id,
+      ownerBuyerId: user.id,
       type: SellerType.INDIVIDUAL,
       displayName: 'Seller',
       status: SellerStatus.ACTIVE,
       verificationStatus: SellerVerificationStatus.UNVERIFIED,
     });
 
-    const found = await repository.findByOwnerUserId(user.id);
+    const found = await repository.findByOwnerBuyerId(user.id);
     expect(found).toMatchObject({
       id: created.id,
-      ownerUserId: user.id,
+      ownerBuyerId: user.id,
       type: SellerType.INDIVIDUAL,
     });
     expect(found?.createdAt).toBeInstanceOf(Date);
@@ -99,14 +105,14 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
 
   it('enforces one account per owner and the owner foreign key', async () => {
     await repository.create({
-      ownerUserId: user.id,
+      ownerBuyerId: user.id,
       type: SellerType.BROKER,
       displayName: 'Broker',
     });
 
     await expect(
       repository.create({
-        ownerUserId: user.id,
+        ownerBuyerId: user.id,
         type: SellerType.AGENCY,
         displayName: 'Agency',
       }),
@@ -114,7 +120,7 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
 
     await expect(
       repository.create({
-        ownerUserId: '00000000-0000-4000-8000-000000000099',
+        ownerBuyerId: '00000000-0000-4000-8000-000000000099',
         type: SellerType.INDIVIDUAL,
         displayName: 'Orphan',
       }),

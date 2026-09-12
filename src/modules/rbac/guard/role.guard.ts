@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLE_KEY } from '../decorator/roles.decorator';
 import type { RoleName } from '../../../utils';
-import type { AuthenticatedPrincipal } from '../../auth/types/auth.type';
+import type { AuthenticatedPrincipal } from '../../../common/security/auth.types';
 
 type RoleMetadata = RoleName[];
 

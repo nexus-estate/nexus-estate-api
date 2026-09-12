@@ -1,4 +1,4 @@
-import { ErrorCodes } from '../../../../utils/constants/error.constant';
+import { SellerAccountErrorCodes } from '../errors/seller-account-error-codes';
 import { SellerAccountPolicy } from '../helpers/account.policy';
 import {
   SellerStatus,
@@ -10,7 +10,7 @@ import { CurrentSellerContextValue } from '../services/current-seller-context.se
 describe('SellerAccountPolicy', () => {
   const policy = new SellerAccountPolicy();
   const context: CurrentSellerContextValue = {
-    userId: '10000000-0000-4000-8000-000000000001',
+    buyerId: '10000000-0000-4000-8000-000000000001',
     sellerId: '20000000-0000-4000-8000-000000000001',
     sellerType: SellerType.INDIVIDUAL,
     sellerStatus: SellerStatus.ACTIVE,
@@ -32,7 +32,7 @@ describe('SellerAccountPolicy', () => {
       error = candidate;
     }
     expect(error).toMatchObject({
-      errorCode: ErrorCodes.SELLER_ACCOUNT_SUSPENDED.code,
+      errorCode: SellerAccountErrorCodes.SELLER_ACCOUNT_SUSPENDED.code,
     });
   });
 
@@ -47,7 +47,7 @@ describe('SellerAccountPolicy', () => {
       error = candidate;
     }
     expect(error).toMatchObject({
-      errorCode: ErrorCodes.SELLER_ACCOUNT_FORBIDDEN.code,
+      errorCode: SellerAccountErrorCodes.SELLER_ACCOUNT_FORBIDDEN.code,
     });
   });
 });

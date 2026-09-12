@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RoleRepository } from '../repositories/role.repository';
 import { BusinessException } from '../../../common/exceptions/business.exception';
-import { ErrorCodes } from '../../../utils/constants/error.constant';
+import { RbacErrorCodes } from '../errors/rbac-error-codes';
 import { Permission } from '../entities/permission.entity';
 import { Role } from '../entities/role.entity';
 import { RolePermissionRepository } from '../repositories/role-permission.repository';
@@ -19,7 +19,7 @@ export class RoleService {
     const role = await this.roleRepository.findById(id);
 
     if (!role) {
-      throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND, id);
+      throw new BusinessException(RbacErrorCodes.ROLE_NOT_FOUND, id);
     }
 
     return role;
@@ -33,7 +33,7 @@ export class RoleService {
     const role = await this.roleRepository.findByIdWithPermissions(id);
 
     if (!role) {
-      throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND, id);
+      throw new BusinessException(RbacErrorCodes.ROLE_NOT_FOUND, id);
     }
 
     return role;
@@ -50,7 +50,7 @@ export class RoleService {
       });
 
       if (!role) {
-        throw new BusinessException(ErrorCodes.ROLE_NOT_FOUND, roleId);
+        throw new BusinessException(RbacErrorCodes.ROLE_NOT_FOUND, roleId);
       }
       if (uniquePermissionIds.length > 0) {
         const permissions = await manager.find(Permission, {
@@ -69,7 +69,7 @@ export class RoleService {
 
         if (missingPermissionId) {
           throw new BusinessException(
-            ErrorCodes.PERMISSION_NOT_FOUND,
+            RbacErrorCodes.PERMISSION_NOT_FOUND,
             missingPermissionId,
           );
         }

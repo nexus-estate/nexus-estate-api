@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
-import { SellerAccountErrorCodes } from '../helpers/errors';
+import { SellerAccountErrorCodes } from '../errors/seller-account-error-codes';
 import { SellerAccountRepository } from '../repositories/account.repository';
 import {
   SellerStatus,
@@ -13,8 +13,8 @@ import {
  * Snapshot of the seller state needed by authorization and supply use cases.
  */
 export type CurrentSellerContextValue = {
-  /** Authenticated user identifier. */
-  userId: string;
+  /** Authenticated buyer identifier. */
+  buyerId: string;
   /** Seller-account identifier. */
   sellerId: string;
   /** Seller operating model. */
@@ -25,7 +25,7 @@ export type CurrentSellerContextValue = {
   verificationStatus: SellerVerificationStatus;
 };
 
-/** Resolves the seller account associated with an authenticated user. */
+/** Resolves the seller account associated with an authenticated buyer. */
 @Injectable()
 export class CurrentSellerContext {
   constructor(
@@ -36,9 +36,9 @@ export class CurrentSellerContext {
    * Loads the seller identity and state needed by downstream seller features.
    * A missing account is an explicit domain error; this method never creates it.
    */
-  async resolve(userId: string): Promise<CurrentSellerContextValue> {
+  async resolve(buyerId: string): Promise<CurrentSellerContextValue> {
     const account =
-      await this.sellerAccountRepository.findByOwnerUserId(userId);
+      await this.sellerAccountRepository.findByOwnerBuyerId(buyerId);
 
     if (!account) {
       throw new BusinessException(
@@ -47,7 +47,7 @@ export class CurrentSellerContext {
     }
 
     return {
-      userId,
+      buyerId,
       sellerId: account.id,
       sellerType: account.type,
       sellerStatus: account.status,

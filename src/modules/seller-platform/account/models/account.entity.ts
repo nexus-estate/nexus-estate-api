@@ -2,7 +2,7 @@ import { Check, Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 
 import { BaseEntity } from '../../../../services/abstraction-services';
-import { User } from '../../../../modules/user/entities/user.entity';
+import { BuyerAccount } from '../../../../modules/buyer/account/models/buyer-account.entity';
 import {
   SellerStatus,
   SellerType,
@@ -19,23 +19,23 @@ import {
   'chk_seller_account_verification_status',
   `"verification_status" IN ('UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED')`,
 )
-@Index('uq_seller_account_owner_user_id', ['ownerUserId'], { unique: true })
+@Index('uq_seller_account_owner_buyer_id', ['ownerBuyerId'], { unique: true })
 @Index('idx_seller_account_status', ['status'])
 @Index('idx_seller_account_type', ['type'])
 /** TypeORM model for the seller-account persistence contract. */
 export class SellerAccount extends BaseEntity {
-  /** User who owns this account; one user may own at most one account. */
-  @Column({ name: 'owner_user_id', type: 'uuid', nullable: false })
-  ownerUserId: string;
+  /** Buyer account who owns this account; one buyer may own one account. */
+  @Column({ name: 'owner_buyer_id', type: 'uuid', nullable: false })
+  ownerBuyerId: string;
 
-  /** Relation used when a use case needs the owning user record. */
-  @OneToOne(() => User, { nullable: false, onDelete: 'RESTRICT' })
+  /** Relation used when a use case needs the owning buyer record. */
+  @OneToOne(() => BuyerAccount, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({
-    name: 'owner_user_id',
+    name: 'owner_buyer_id',
     referencedColumnName: 'id',
-    foreignKeyConstraintName: 'fk_seller_account_owner_user',
+    foreignKeyConstraintName: 'fk_seller_account_owner_buyer',
   })
-  owner: Relation<User>;
+  owner: Relation<BuyerAccount>;
 
   /** Operating model selected by the seller. */
   @Column({ type: 'varchar', length: 32, nullable: false })

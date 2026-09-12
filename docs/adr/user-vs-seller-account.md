@@ -1,9 +1,9 @@
-# ADR: User versus SellerAccount ownership
+# ADR: Buyer account versus SellerAccount ownership
 
 ## Decision
 
-`User` remains the authentication identity. `SellerAccount` is the canonical
-business identity for supply-side ownership.
+`BuyerAccount` is the public buyer authentication identity. `SellerAccount` is
+the canonical business identity for supply-side ownership.
 
 Current-account endpoints use the authenticated principal and never accept a
 seller ID in the URL or request body:
@@ -14,16 +14,16 @@ GET   /api/v1/seller/account
 PATCH /api/v1/seller/account
 ```
 
-`owner_user_id` is unique and immutable. Seller status and verification status
+`owner_buyer_id` is unique and immutable. Seller status and verification status
 are server-controlled. Profile updates initially allow only `display_name`.
 
 Future Property and Listing entities should reference `seller_id`; services
 should resolve the reusable `CurrentSellerContext` rather than repeatedly
-reimplementing User-to-SellerAccount lookup.
+reimplementing BuyerAccount-to-SellerAccount lookup.
 
 ## Consequences
 
-- A User can create at most one SellerAccount in the current phase.
+- A BuyerAccount can create at most one SellerAccount in the current phase.
 - Authentication and seller lifecycle remain separate concerns.
 - Suspending a seller can block future supply mutations through
   `SellerAccountPolicy.requireActiveSeller`.

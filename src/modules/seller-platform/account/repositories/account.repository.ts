@@ -17,14 +17,14 @@ export class SellerAccountRepository extends BaseRepository<SellerAccount> {
     super(dataSource, SellerAccount, 'SellerAccount');
   }
 
-  /** Finds the account owned by a specific user, excluding soft-deleted rows. */
-  findByOwnerUserId(ownerUserId: string): Promise<SellerAccount | null> {
-    return this.repository.findOne({ where: { ownerUserId } });
+  /** Finds the account owned by a specific buyer, excluding soft-deleted rows. */
+  findByOwnerBuyerId(ownerBuyerId: string): Promise<SellerAccount | null> {
+    return this.repository.findOne({ where: { ownerBuyerId } });
   }
 
   /** Checks account ownership without loading the full entity. */
-  async existsByOwnerUserId(ownerUserId: string): Promise<boolean> {
-    return this.repository.exists({ where: { ownerUserId } });
+  async existsByOwnerBuyerId(ownerBuyerId: string): Promise<boolean> {
+    return this.repository.exists({ where: { ownerBuyerId } });
   }
 
   /** Lists pending seller accounts with owner data for administrator review. */

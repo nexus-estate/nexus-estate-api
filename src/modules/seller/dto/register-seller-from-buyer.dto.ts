@@ -11,7 +11,7 @@ import { SellerType } from '../../seller-platform/account/enums/account.enums';
 
 /** Authenticated buyer payload for submitting a seller-registration request. */
 export class RegisterSellerFromBuyerDto {
-  /** Existing buyer user identifier submitting the request. */
+  /** Existing buyer buyer identifier submitting the request. */
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   buyerId: string;

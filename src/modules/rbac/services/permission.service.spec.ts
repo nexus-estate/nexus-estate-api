@@ -1,16 +1,9 @@
 import { PermissionService } from './permission.service';
 import { PermissionRepository } from '../repositories/permission.repository';
 import { Permission } from '../entities/permission.entity';
-import { ErrorCodes } from '../../../utils/constants/error.constant';
+import { CommonErrorCodes } from '../../../common/errors/common-error-codes';
+import { RbacErrorCodes } from '../errors/rbac-error-codes';
 import { QueryFailedError } from 'typeorm';
-
-jest.mock('../../../utils', () => {
-  const actual = jest.requireActual<
-    typeof import('../../../utils/constants/error.constant')
-  >('../../../utils/constants/error.constant');
-
-  return { ErrorCodes: actual.ErrorCodes };
-});
 
 type PermissionRepositoryMock = {
   findById: jest.MockedFunction<PermissionRepository['findById']>;
@@ -52,7 +45,7 @@ describe('PermissionService', () => {
       permissionRepository.findById.mockResolvedValue(null);
 
       await expect(service.findById('missing-id')).rejects.toMatchObject({
-        errorCode: ErrorCodes.PERMISSION_NOT_FOUND.code,
+        errorCode: RbacErrorCodes.PERMISSION_NOT_FOUND.code,
       });
     });
   });
@@ -73,7 +66,7 @@ describe('PermissionService', () => {
   describe('create', () => {
     it('rejects an empty normalized name without querying the repository', async () => {
       await expect(service.create({ name: '   ' })).rejects.toMatchObject({
-        errorCode: ErrorCodes.VALIDATION_ERROR.code,
+        errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
       });
       expect(permissionRepository.findByName).not.toHaveBeenCalled();
       expect(permissionRepository.create).not.toHaveBeenCalled();
@@ -85,7 +78,7 @@ describe('PermissionService', () => {
       await expect(
         service.create({ name: '  LISTING:CREATE  ' }),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.PERMISSION_EXISTS.code,
+        errorCode: RbacErrorCodes.PERMISSION_EXISTS.code,
       });
       expect(permissionRepository.findByName).toHaveBeenCalledWith(
         'listing:create',
@@ -121,7 +114,7 @@ describe('PermissionService', () => {
       await expect(
         service.create({ name: 'listing:create' }),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.PERMISSION_EXISTS.code,
+        errorCode: RbacErrorCodes.PERMISSION_EXISTS.code,
       });
     });
 

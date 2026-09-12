@@ -9,12 +9,12 @@ export const PERMISSIONS = {
   SELLER_ACCOUNT_APPROVE: 'seller-account:approve',
   SELLER_ACCOUNT_SUSPEND: 'seller-account:suspend',
 
-  // User
-  USER_CREATE: 'user:create',
-  USER_READ: 'user:read',
-  USER_UPDATE: 'user:update',
-  USER_DELETE: 'user:delete',
-  USER_ASSIGN_ROLE: 'user:assign-role',
+  // Buyer account administration
+  BUYER_ACCOUNT_CREATE: 'buyer-account:create',
+  BUYER_ACCOUNT_READ: 'buyer-account:read',
+  BUYER_ACCOUNT_UPDATE: 'buyer-account:update',
+  BUYER_ACCOUNT_DELETE: 'buyer-account:delete',
+  BUYER_ACCOUNT_ASSIGN_ROLE: 'buyer-account:assign-role',
 
   // Estate
   ESTATE_CREATE: 'estate:create',

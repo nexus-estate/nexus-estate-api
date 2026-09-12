@@ -1,12 +1,15 @@
 import { HttpException } from '@nestjs/common';
-import { ErrorCode } from '../../utils/constants/error.constant';
+import { BusinessErrorCode } from '../errors/business-error-code';
 
 export class BusinessException extends HttpException {
   public readonly errorCode: string;
+  public readonly errorDefinition: BusinessErrorCode;
+  public readonly messageArgs: readonly string[];
 
-  constructor(errorCode: ErrorCode, ...args: string[]) {
+  constructor(errorCode: BusinessErrorCode, ...args: string[]) {
+    const messageArgs = [...args];
     let message = errorCode.message;
-    args.forEach((arg) => {
+    messageArgs.forEach((arg) => {
       message = message.replace('%s', arg);
     });
 
@@ -20,6 +23,8 @@ export class BusinessException extends HttpException {
     );
 
     this.errorCode = errorCode.code;
+    this.errorDefinition = errorCode;
+    this.messageArgs = messageArgs;
     this.name = 'BusinessException';
   }
 }

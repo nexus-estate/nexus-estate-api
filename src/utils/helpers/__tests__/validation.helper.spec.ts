@@ -1,6 +1,6 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
 
-import { ErrorCodes } from '../../constants/error.constant';
+import { CommonErrorCodes } from '../../../common/errors/common-error-codes';
 import { ValidationHelper } from '../validation.helper';
 
 class ExampleDto {
@@ -33,7 +33,7 @@ describe('ValidationHelper', () => {
         name: 'x',
       }),
     ).rejects.toMatchObject({
-      errorCode: ErrorCodes.VALIDATION_ERROR.code,
+      errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
     });
   });
 });

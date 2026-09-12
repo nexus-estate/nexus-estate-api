@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { PERMISSION_KEY } from '../decorator/permission.decorator';
 import type { PermissionName } from '../../../utils';
-import type { AuthenticatedPrincipal } from '../../auth/types/auth.type';
+import type { AuthenticatedPrincipal } from '../../../common/security/auth.types';
 import { RoleService } from '../services/role.service';
 
 type PermissionMetadata =
@@ -34,7 +34,7 @@ export class PermissionsGuard implements CanActivate {
     if (!requiredPermissions || requiredPermissions.length === 0) {
       return true;
     }
-    //user in request
+    // Passport attaches the authenticated principal to request.user.
     const request = context
       .switchToHttp()
       .getRequest<Request & { user?: AuthenticatedPrincipal }>();
@@ -45,7 +45,7 @@ export class PermissionsGuard implements CanActivate {
       return false;
     }
 
-    //Call repository and get Role by user payload
+    // Resolve the current role and its permissions from the principal payload.
     const role = await this.roleService.findByIdWithPermissions(user.roleId);
 
     const rolePermissions = new Set(

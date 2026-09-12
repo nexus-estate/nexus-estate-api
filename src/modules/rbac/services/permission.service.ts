@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PermissionRepository } from '../repositories/permission.repository';
 import { Permission } from '../entities/permission.entity';
 import { BusinessException } from '../../../common/exceptions/business.exception';
-import { ErrorCodes } from '../../../utils/constants/error.constant';
+import { CommonErrorCodes } from '../../../common/errors/common-error-codes';
+import { RbacErrorCodes } from '../errors/rbac-error-codes';
 import { QueryFailedError } from 'typeorm';
 interface CreatePermissionData {
   name: string;
@@ -16,7 +17,7 @@ export class PermissionService {
   async findById(id: string): Promise<Permission> {
     const permission = await this.permissionRepo.findById(id);
     if (!permission)
-      throw new BusinessException(ErrorCodes.PERMISSION_NOT_FOUND, id);
+      throw new BusinessException(RbacErrorCodes.PERMISSION_NOT_FOUND, id);
     return permission;
   }
 
@@ -30,7 +31,7 @@ export class PermissionService {
     const normalizedName = name.trim().toLowerCase();
     if (normalizedName.length === 0) {
       throw new BusinessException(
-        ErrorCodes.VALIDATION_ERROR,
+        CommonErrorCodes.VALIDATION_ERROR,
         'Permission name is required',
       );
     }
@@ -38,7 +39,10 @@ export class PermissionService {
       await this.permissionRepo.findByName(normalizedName);
 
     if (existingPermission)
-      throw new BusinessException(ErrorCodes.PERMISSION_EXISTS, normalizedName);
+      throw new BusinessException(
+        RbacErrorCodes.PERMISSION_EXISTS,
+        normalizedName,
+      );
     try {
       const permission = await this.permissionRepo.create(
         normalizedName,
@@ -51,7 +55,7 @@ export class PermissionService {
 
         if (driverError.code === '23505') {
           throw new BusinessException(
-            ErrorCodes.PERMISSION_EXISTS,
+            RbacErrorCodes.PERMISSION_EXISTS,
             normalizedName,
           );
         }

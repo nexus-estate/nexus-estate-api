@@ -14,7 +14,7 @@ export async function backfillLegacyEstateSellers(
   // legacy Estate records; the unique owner index is the final guardrail.
   const result = await dataSource.query<{ id: string }[]>(`
     INSERT INTO tbl_seller_account (
-      owner_user_id,
+      owner_buyer_id,
       type,
       display_name,
       status,
@@ -27,11 +27,11 @@ export async function backfillLegacyEstateSellers(
       'ACTIVE',
       'UNVERIFIED'
     FROM tbl_estate e
-    INNER JOIN tbl_user u ON u.id = e.fk_user_id
+    INNER JOIN tbl_buyer_account u ON u.id = e.fk_buyer_id
     WHERE e.deleted_at IS NULL
       AND u.deleted_at IS NULL
     -- Re-running the controlled backfill must not duplicate accounts.
-    ON CONFLICT (owner_user_id) DO NOTHING
+    ON CONFLICT (owner_buyer_id) DO NOTHING
     RETURNING id
   `);
 

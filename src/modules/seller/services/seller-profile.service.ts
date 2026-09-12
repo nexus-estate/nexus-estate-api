@@ -9,7 +9,7 @@ export class SellerProfileService {
   constructor(private readonly sellerAccountService: SellerAccountService) {}
 
   /** Returns the seller account owned by the authenticated seller. */
-  getCurrent(userId: string): Promise<SellerAccountResponse> {
-    return this.sellerAccountService.getCurrent(userId);
+  getCurrent(buyerId: string): Promise<SellerAccountResponse> {
+    return this.sellerAccountService.getCurrent(buyerId);
   }
 }

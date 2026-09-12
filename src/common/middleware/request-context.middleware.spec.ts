@@ -27,7 +27,24 @@ describe('RequestContextMiddleware', () => {
       REQUEST_ID_HEADER,
       'client-correlation-id',
     );
+    expect(setHeader).toHaveBeenCalledWith('content-language', 'en');
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes the Vietnamese language header for the response', () => {
+    const request = {
+      headers: { 'x-lang': 'vi-VN' },
+    } as unknown as Request;
+    const setHeader = jest.fn();
+    const next = jest.fn() as NextFunction;
+
+    new RequestContextMiddleware().use(
+      request,
+      { setHeader } as unknown as Response,
+      next,
+    );
+
+    expect(setHeader).toHaveBeenCalledWith('content-language', 'vi');
   });
 
   it('generates and attaches a request id when the client does not provide one', () => {

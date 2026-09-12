@@ -1,4 +1,4 @@
-import { ErrorCodes } from '../../../utils/constants/error.constant';
+import { CommonErrorCodes } from '../../../common/errors/common-error-codes';
 import { ProvinceRepo } from '../../../database/seed/locations/repositories/province.repo';
 import { WardRepository } from '../../../database/seed/locations/repositories/ward.repo';
 import { Province, Ward } from '../../location/entities/location.entity';
@@ -11,7 +11,7 @@ import { EstateService } from './estate.service';
 
 type EstateRepoMock = {
   findById: jest.MockedFunction<EstateRepo['findById']>;
-  findByUserId: jest.MockedFunction<EstateRepo['findByUserId']>;
+  findByBuyerId: jest.MockedFunction<EstateRepo['findByBuyerId']>;
   createEstate: jest.MockedFunction<EstateRepo['createEstate']>;
   updateEstate: jest.MockedFunction<EstateRepo['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateRepo['softDeleteEstate']>;
@@ -31,7 +31,7 @@ describe('EstateService', () => {
   let provinceRepository: ProvinceRepoMock;
   let wardRepository: WardRepositoryMock;
 
-  const userId = '10000000-0000-4000-8000-000000000001';
+  const buyerId = '10000000-0000-4000-8000-000000000001';
   const otherUserId = '10000000-0000-4000-8000-000000000002';
   const estateId = '20000000-0000-4000-8000-000000000001';
   const provinceId = '30000000-0000-4000-8000-000000000001';
@@ -56,7 +56,7 @@ describe('EstateService', () => {
 
   const estate = {
     id: estateId,
-    userId,
+    buyerId,
     title: createDto.title,
     type: createDto.type,
     purpose: createDto.purpose,
@@ -69,7 +69,7 @@ describe('EstateService', () => {
   beforeEach(() => {
     estateRepository = {
       findById: jest.fn(),
-      findByUserId: jest.fn(),
+      findByBuyerId: jest.fn(),
       createEstate: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
@@ -90,14 +90,14 @@ describe('EstateService', () => {
       wardRepository.findById.mockResolvedValue(ward);
       estateRepository.createEstate.mockResolvedValue(estate);
 
-      await expect(service.createEstate(userId, createDto)).resolves.toBe(
+      await expect(service.createEstate(buyerId, createDto)).resolves.toBe(
         estate,
       );
       expect(provinceRepository.findById).toHaveBeenCalledWith(provinceId);
       expect(wardRepository.findById).toHaveBeenCalledWith(wardId);
       expect(estateRepository.createEstate).toHaveBeenCalledWith({
         ...createDto,
-        userId,
+        buyerId,
       });
     });
 
@@ -105,9 +105,9 @@ describe('EstateService', () => {
       provinceRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.createEstate(userId, createDto),
+        service.createEstate(buyerId, createDto),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.RESOURCE_NOT_FOUND.code,
+        errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
       expect(wardRepository.findById).not.toHaveBeenCalled();
       expect(estateRepository.createEstate).not.toHaveBeenCalled();
@@ -118,9 +118,9 @@ describe('EstateService', () => {
       wardRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.createEstate(userId, createDto),
+        service.createEstate(buyerId, createDto),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.RESOURCE_NOT_FOUND.code,
+        errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
       expect(estateRepository.createEstate).not.toHaveBeenCalled();
     });
@@ -133,8 +133,10 @@ describe('EstateService', () => {
       });
 
       await expect(
-        service.createEstate(userId, createDto),
-      ).rejects.toMatchObject({ errorCode: ErrorCodes.VALIDATION_ERROR.code });
+        service.createEstate(buyerId, createDto),
+      ).rejects.toMatchObject({
+        errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
+      });
       expect(estateRepository.createEstate).not.toHaveBeenCalled();
     });
   });
@@ -151,23 +153,23 @@ describe('EstateService', () => {
       estateRepository.findById.mockResolvedValue(null);
 
       await expect(service.findById(estateId)).rejects.toMatchObject({
-        errorCode: ErrorCodes.RESOURCE_NOT_FOUND.code,
+        errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
     });
   });
 
-  describe('findByUserId', () => {
+  describe('findByBuyerId', () => {
     it('returns the repository results', async () => {
-      estateRepository.findByUserId.mockResolvedValue([estate]);
+      estateRepository.findByBuyerId.mockResolvedValue([estate]);
 
-      await expect(service.findByUserId(userId)).resolves.toEqual([estate]);
-      expect(estateRepository.findByUserId).toHaveBeenCalledWith(userId);
+      await expect(service.findByBuyerId(buyerId)).resolves.toEqual([estate]);
+      expect(estateRepository.findByBuyerId).toHaveBeenCalledWith(buyerId);
     });
 
     it('returns an empty array without throwing', async () => {
-      estateRepository.findByUserId.mockResolvedValue([]);
+      estateRepository.findByBuyerId.mockResolvedValue([]);
 
-      await expect(service.findByUserId(userId)).resolves.toEqual([]);
+      await expect(service.findByBuyerId(buyerId)).resolves.toEqual([]);
     });
   });
 
@@ -176,9 +178,9 @@ describe('EstateService', () => {
       estateRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateEstate({ title: 'Updated' }, userId, estateId),
+        service.updateEstate({ title: 'Updated' }, buyerId, estateId),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.RESOURCE_NOT_FOUND.code,
+        errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
       expect(estateRepository.updateEstate).not.toHaveBeenCalled();
     });
@@ -190,7 +192,7 @@ describe('EstateService', () => {
 
       await expect(
         service.updateEstate({ title: 'Updated' }, otherUserId, estateId),
-      ).rejects.toMatchObject({ errorCode: ErrorCodes.FORBIDDEN.code });
+      ).rejects.toMatchObject({ errorCode: CommonErrorCodes.FORBIDDEN.code });
       expect(estateRepository.updateEstate).not.toHaveBeenCalled();
     });
 
@@ -207,7 +209,7 @@ describe('EstateService', () => {
         ...dto,
       });
 
-      await service.updateEstate(dto, userId, estateId);
+      await service.updateEstate(dto, buyerId, estateId);
 
       expect(provinceRepository.findById).toHaveBeenCalledWith(newProvinceId);
       expect(wardRepository.findById).toHaveBeenCalledWith(newWardId);
@@ -227,7 +229,7 @@ describe('EstateService', () => {
         ...dto,
       });
 
-      await service.updateEstate(dto, userId, estateId);
+      await service.updateEstate(dto, buyerId, estateId);
 
       expect(provinceRepository.findById).toHaveBeenCalledWith(provinceId);
       expect(wardRepository.findById).toHaveBeenCalledWith(newWardId);
@@ -240,9 +242,9 @@ describe('EstateService', () => {
       wardRepository.findById.mockResolvedValue(ward);
 
       await expect(
-        service.updateEstate(dto, userId, estateId),
+        service.updateEstate(dto, buyerId, estateId),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.VALIDATION_ERROR.code,
+        errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
       });
       expect(estateRepository.updateEstate).not.toHaveBeenCalled();
     });
@@ -255,9 +257,9 @@ describe('EstateService', () => {
       estateRepository.updateEstate.mockResolvedValue(null);
 
       await expect(
-        service.updateEstate(dto, userId, estateId),
+        service.updateEstate(dto, buyerId, estateId),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.RESOURCE_NOT_FOUND.code,
+        errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
     });
   });
@@ -267,9 +269,9 @@ describe('EstateService', () => {
       estateRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.softDeleteEstate(userId, estateId),
+        service.softDeleteEstate(buyerId, estateId),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.RESOURCE_NOT_FOUND.code,
+        errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
       expect(estateRepository.softDeleteEstate).not.toHaveBeenCalled();
     });
@@ -279,7 +281,7 @@ describe('EstateService', () => {
 
       await expect(
         service.softDeleteEstate(otherUserId, estateId),
-      ).rejects.toMatchObject({ errorCode: ErrorCodes.FORBIDDEN.code });
+      ).rejects.toMatchObject({ errorCode: CommonErrorCodes.FORBIDDEN.code });
       expect(estateRepository.softDeleteEstate).not.toHaveBeenCalled();
     });
 
@@ -288,9 +290,9 @@ describe('EstateService', () => {
       estateRepository.softDeleteEstate.mockResolvedValue(false);
 
       await expect(
-        service.softDeleteEstate(userId, estateId),
+        service.softDeleteEstate(buyerId, estateId),
       ).rejects.toMatchObject({
-        errorCode: ErrorCodes.DATABASE_ERROR.code,
+        errorCode: CommonErrorCodes.DATABASE_ERROR.code,
       });
     });
 
@@ -298,7 +300,7 @@ describe('EstateService', () => {
       estateRepository.findById.mockResolvedValue(estate);
       estateRepository.softDeleteEstate.mockResolvedValue(true);
 
-      await expect(service.softDeleteEstate(userId, estateId)).resolves.toBe(
+      await expect(service.softDeleteEstate(buyerId, estateId)).resolves.toBe(
         true,
       );
       expect(estateRepository.softDeleteEstate).toHaveBeenCalledWith(estateId);

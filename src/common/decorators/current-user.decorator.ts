@@ -7,7 +7,7 @@ type RequestWithUser = Request & { user?: unknown };
  * Extracts `req.user` from the current request.
  *
  * Must only be used on routes protected by an authentication guard
- * (e.g. LocalAuthGuard, JwtAuthGuard) which guarantees `req.user` is defined.
+ * (e.g. BuyerLocalAuthGuard, BuyerJwtAuthGuard) which guarantees `req.user` is defined.
  */
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext) => {

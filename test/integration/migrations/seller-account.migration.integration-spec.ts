@@ -73,7 +73,7 @@ describe('SellerAccount migration (PostgreSQL integration)', () => {
     );
 
     for (const columnName of [
-      'owner_user_id',
+      'owner_buyer_id',
       'status',
       'type',
       'verification_status',
@@ -93,7 +93,7 @@ describe('SellerAccount migration (PostgreSQL integration)', () => {
     const indexByName = new Map(
       indexes.map((index) => [index.indexname, index.indexdef]),
     );
-    expect(indexByName.get('uq_seller_account_owner_user_id')).toContain(
+    expect(indexByName.get('uq_seller_account_owner_buyer_id')).toContain(
       'UNIQUE',
     );
     expect(indexByName.has('idx_seller_account_status')).toBe(true);
@@ -106,9 +106,11 @@ describe('SellerAccount migration (PostgreSQL integration)', () => {
         AND contype = 'f'
     `);
     const ownerForeignKey = foreignKeys.find(
-      (foreignKey) => foreignKey.conname === 'fk_seller_account_owner_user',
+      (foreignKey) => foreignKey.conname === 'fk_seller_account_owner_buyer',
     );
-    expect(ownerForeignKey?.definition).toContain('REFERENCES tbl_user(id)');
+    expect(ownerForeignKey?.definition).toContain(
+      'REFERENCES tbl_buyer_account(id)',
+    );
 
     const checkConstraints: CatalogRow[] = await dataSource.query(`
       SELECT conname, pg_get_constraintdef(oid) AS definition
@@ -157,7 +159,7 @@ describe('SellerAccount migration (PostgreSQL integration)', () => {
     );
     const userRows: CatalogRow[] = await dataSource.query(
       `
-        INSERT INTO tbl_user (email, password, role_id)
+        INSERT INTO tbl_buyer_account (email, password, role_id)
         VALUES ('backfill-seller@nexus.test', 'not-used', $1)
         RETURNING id
       `,
@@ -181,7 +183,7 @@ describe('SellerAccount migration (PostgreSQL integration)', () => {
     await dataSource.query(
       `
         INSERT INTO tbl_estate (
-          fk_user_id,
+          fk_buyer_id,
           address_line,
           title,
           price,
@@ -198,7 +200,7 @@ describe('SellerAccount migration (PostgreSQL integration)', () => {
     const firstRun = await backfillLegacyEstateSellers(dataSource);
     const secondRun = await backfillLegacyEstateSellers(dataSource);
     const accountRows: CatalogRow[] = await dataSource.query(
-      `SELECT id FROM tbl_seller_account WHERE owner_user_id = $1`,
+      `SELECT id FROM tbl_seller_account WHERE owner_buyer_id = $1`,
       [userRows[0].id],
     );
 

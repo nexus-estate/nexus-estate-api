@@ -1,4 +1,4 @@
-import type { AuthenticatedPrincipal } from '../../../auth/types/auth.type';
+import type { AuthenticatedPrincipal } from '../../../../common/security/auth.types';
 import { CreateSellerAccountDto, UpdateSellerAccountDto } from '../dto';
 import { SellerAccountResponse } from '../dto/account.response';
 import { SellerAccountController } from '../controllers/account.controller';
@@ -6,7 +6,7 @@ import { SellerAccountService } from '../services/account.service';
 import { SellerType } from '../enums/account.enums';
 
 type ServiceMock = {
-  createForUser: jest.MockedFunction<SellerAccountService['createForUser']>;
+  createForBuyer: jest.MockedFunction<SellerAccountService['createForBuyer']>;
   getCurrent: jest.MockedFunction<SellerAccountService['getCurrent']>;
   updateCurrent: jest.MockedFunction<SellerAccountService['updateCurrent']>;
 };
@@ -26,7 +26,7 @@ describe('SellerAccountController', () => {
 
   beforeEach(() => {
     service = {
-      createForUser: jest.fn(),
+      createForBuyer: jest.fn(),
       getCurrent: jest.fn(),
       updateCurrent: jest.fn(),
     };
@@ -40,10 +40,10 @@ describe('SellerAccountController', () => {
       type: SellerType.INDIVIDUAL,
       displayName: 'Seller',
     };
-    service.createForUser.mockResolvedValue(account);
+    service.createForBuyer.mockResolvedValue(account);
 
     await expect(controller.create(user, dto)).resolves.toBe(account);
-    expect(service.createForUser).toHaveBeenCalledWith(user.id, dto);
+    expect(service.createForBuyer).toHaveBeenCalledWith(user.id, dto);
   });
 
   it('gets the current seller', async () => {

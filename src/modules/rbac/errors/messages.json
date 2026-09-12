@@ -1,0 +1,14 @@
+{
+  "en": {
+    "ROLE_NOT_FOUND": "Role with id %s not found.",
+    "ROLE_NAME_EXISTS": "Role with name %s already exists.",
+    "PERMISSION_NOT_FOUND": "Permission with id %s not found.",
+    "PERMISSION_EXISTS": "Permission %s already exists."
+  },
+  "vi": {
+    "ROLE_NOT_FOUND": "Không tìm thấy role với id %s.",
+    "ROLE_NAME_EXISTS": "Role với tên %s đã tồn tại.",
+    "PERMISSION_NOT_FOUND": "Không tìm thấy permission với id %s.",
+    "PERMISSION_EXISTS": "Permission %s đã tồn tại."
+  }
+}

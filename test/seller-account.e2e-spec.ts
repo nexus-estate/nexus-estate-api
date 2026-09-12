@@ -12,14 +12,14 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CommonModule } from '../src/common/common.module';
-import { AuthModule } from '../src/modules/auth/auth.module';
+import { BuyerModule } from '../src/modules/buyer/buyer.module';
 import { Permission } from '../src/modules/rbac/entities/permission.entity';
 import { RolePermission } from '../src/modules/rbac/entities/role-permission.entity';
 import { Role } from '../src/modules/rbac/entities/role.entity';
 import { SellerAccount } from '../src/modules/seller-platform/account/models/account.entity';
 import { SellerPlatformModule } from '../src/modules/seller-platform/seller-platform.module';
-import { User } from '../src/modules/user/entities/user.entity';
-import { ErrorCodes } from '../src/utils/constants/error.constant';
+import { BuyerAccount } from '../src/modules/buyer/account/models/buyer-account.entity';
+import { SellerAccountErrorCodes } from '../src/modules/seller-platform/account/errors/seller-account-error-codes';
 import { PERMISSIONS } from '../src/utils/constants/permission.constant';
 
 type ApiSuccess<T> = { status: true; data: T };
@@ -65,12 +65,18 @@ describe('SellerAccount API (e2e)', () => {
           username: container.getUsername(),
           password: container.getPassword(),
           database: container.getDatabase(),
-          entities: [SellerAccount, User, Role, Permission, RolePermission],
+          entities: [
+            SellerAccount,
+            BuyerAccount,
+            Role,
+            Permission,
+            RolePermission,
+          ],
           namingStrategy: new SnakeNamingStrategy(),
           synchronize: true,
         }),
         CommonModule,
-        AuthModule,
+        BuyerModule,
         SellerPlatformModule,
       ],
     }).compile();
@@ -90,7 +96,7 @@ describe('SellerAccount API (e2e)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_seller_account, tbl_user, tbl_role, tbl_permission CASCADE',
+      'TRUNCATE TABLE tbl_seller_account, tbl_buyer_account, tbl_role, tbl_permission CASCADE',
     );
     const buyerRole = await dataSource.getRepository(Role).save({
       name: 'buyer',
@@ -120,11 +126,11 @@ describe('SellerAccount API (e2e)', () => {
 
   const registerAndLogin = async (): Promise<string> => {
     await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
+      .post('/api/v1/buyers/register')
       .send({ email, password })
       .expect(201);
     const response = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
+      .post('/api/v1/buyers/auth/login')
       .send({ email, password })
       .expect(201);
     return (response.body as ApiSuccess<TokenPair>).data.accessToken;
@@ -185,11 +191,16 @@ describe('SellerAccount API (e2e)', () => {
     const duplicate = await request(app.getHttpServer())
       .post('/api/v1/seller/account')
       .set('Authorization', `Bearer ${token}`)
+      .set('x-lang', 'vi-VN')
       .send({ type: 'INDIVIDUAL', displayName: 'Duplicate' })
       .expect(409);
     expect((duplicate.body as ApiError).code).toBe(
-      ErrorCodes.SELLER_ACCOUNT_ALREADY_EXISTS.code,
+      SellerAccountErrorCodes.SELLER_ACCOUNT_ALREADY_EXISTS.code,
     );
+    expect((duplicate.body as ApiError).message).toBe(
+      'Seller account đã tồn tại.',
+    );
+    expect(duplicate.headers['content-language']).toBe('vi');
 
     const injection = await request(app.getHttpServer())
       .patch('/api/v1/seller/account')

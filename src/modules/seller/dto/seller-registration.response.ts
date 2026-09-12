@@ -2,11 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { SellerAccountResponse } from '../../seller-platform/account/dto/account.response';
 
-/** Public result returned after a seller user and seller account are created. */
+/** Public result returned after a seller buyer and seller account are created. */
 export class SellerRegistrationResponse {
-  /** User identifier used for subsequent authentication. */
+  /** BuyerAccount identifier used for subsequent authentication. */
   @ApiProperty({ format: 'uuid' })
-  userId: string;
+  buyerId: string;
 
   /** Persisted role assigned to seller API access. */
   @ApiProperty({ example: 'seller' })

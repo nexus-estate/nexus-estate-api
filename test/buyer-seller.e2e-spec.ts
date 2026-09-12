@@ -12,15 +12,16 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CommonModule } from '../src/common/common.module';
-import { AuthModule } from '../src/modules/auth/auth.module';
 import { BuyerModule } from '../src/modules/buyer/buyer.module';
+import { AdministrationModule } from '../src/modules/administration/administration.module';
+import { AdministratorAccount } from '../src/modules/administration/models/administrator-account.entity';
 import { SellerModule } from '../src/modules/seller/seller.module';
 import { Permission } from '../src/modules/rbac/entities/permission.entity';
 import { RolePermission } from '../src/modules/rbac/entities/role-permission.entity';
 import { Role } from '../src/modules/rbac/entities/role.entity';
 import { SellerAccount } from '../src/modules/seller-platform/account/models/account.entity';
 import { SellerPlatformModule } from '../src/modules/seller-platform/seller-platform.module';
-import { User } from '../src/modules/user/entities/user.entity';
+import { BuyerAccount } from '../src/modules/buyer/account/models/buyer-account.entity';
 import { HashHelper } from '../src/utils/helpers/hash.helper';
 import { PERMISSIONS } from '../src/utils/constants/permission.constant';
 import { ROLES } from '../src/utils/constants/role.constant';
@@ -28,7 +29,7 @@ import { ROLES } from '../src/utils/constants/role.constant';
 type ApiSuccess<T> = { status: true; data: T };
 type TokenPair = { accessToken: string; refreshToken: string };
 type SellerRegistration = {
-  userId: string;
+  buyerId: string;
   role: string;
   sellerAccount: {
     type: string;
@@ -79,15 +80,22 @@ describe('Buyer and Seller APIs (e2e)', () => {
           username: container.getUsername(),
           password: container.getPassword(),
           database: container.getDatabase(),
-          entities: [SellerAccount, User, Role, Permission, RolePermission],
+          entities: [
+            SellerAccount,
+            BuyerAccount,
+            AdministratorAccount,
+            Role,
+            Permission,
+            RolePermission,
+          ],
           namingStrategy: new SnakeNamingStrategy(),
           synchronize: true,
         }),
         CommonModule,
-        AuthModule,
         BuyerModule,
         SellerModule,
         SellerPlatformModule,
+        AdministrationModule,
       ],
     }).compile();
 
@@ -106,7 +114,7 @@ describe('Buyer and Seller APIs (e2e)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_seller_account, tbl_user, tbl_role, tbl_permission CASCADE',
+      'TRUNCATE TABLE tbl_seller_account, tbl_buyer_account, tbl_administrator_account, tbl_role, tbl_permission CASCADE',
     );
 
     const roles = await dataSource.getRepository(Role).save([
@@ -163,7 +171,18 @@ describe('Buyer and Seller APIs (e2e)', () => {
 
   const login = async (email: string, password: string): Promise<string> => {
     const response = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
+      .post('/api/v1/buyers/auth/login')
+      .send({ email, password })
+      .expect(201);
+    return (response.body as ApiSuccess<TokenPair>).data.accessToken;
+  };
+
+  const loginAdministrator = async (
+    email: string,
+    password: string,
+  ): Promise<string> => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/administration/auth/login')
       .send({ email, password })
       .expect(201);
     return (response.body as ApiSuccess<TokenPair>).data.accessToken;
@@ -248,7 +267,7 @@ describe('Buyer and Seller APIs (e2e)', () => {
     expect(
       (requestResponse.body as ApiSuccess<SellerRegistration>).data,
     ).toMatchObject({
-      userId: buyerId,
+      buyerId: buyerId,
       role: ROLES.BUYER,
       sellerAccount: {
         displayName: 'Promoted Agency',
@@ -264,15 +283,18 @@ describe('Buyer and Seller APIs (e2e)', () => {
     const adminRole = await dataSource.getRepository(Role).findOneByOrFail({
       name: ROLES.ADMINISTRATOR,
     });
-    await dataSource.getRepository(User).save({
+    await dataSource.getRepository(AdministratorAccount).save({
       email: 'admin@nexus.test',
       password: await HashHelper.hash('admin-password'),
       roleId: adminRole.id,
     });
-    const adminToken = await login('admin@nexus.test', 'admin-password');
+    const adminToken = await loginAdministrator(
+      'admin@nexus.test',
+      'admin-password',
+    );
 
     const listResponse = await request(app.getHttpServer())
-      .get('/api/v1/admin/seller-registrations')
+      .get('/api/v1/administration/seller-registrations')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     const pending = (
@@ -292,7 +314,7 @@ describe('Buyer and Seller APIs (e2e)', () => {
     });
 
     const detailResponse = await request(app.getHttpServer())
-      .get(`/api/v1/admin/seller-registrations/${pending[0].id}`)
+      .get(`/api/v1/administration/seller-registrations/${pending[0].id}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     expect(
@@ -301,13 +323,15 @@ describe('Buyer and Seller APIs (e2e)', () => {
     ).toBe(buyerId);
 
     const response = await request(app.getHttpServer())
-      .post(`/api/v1/admin/seller-registrations/${pending[0].id}/approve`)
+      .post(
+        `/api/v1/administration/seller-registrations/${pending[0].id}/approve`,
+      )
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(201);
     expect(
       (response.body as ApiSuccess<SellerRegistration>).data,
     ).toMatchObject({
-      userId: buyerId,
+      buyerId: buyerId,
       role: ROLES.SELLER,
       sellerAccount: {
         displayName: 'Promoted Agency',

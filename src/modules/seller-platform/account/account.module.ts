@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { RbacModule } from '../../rbac/rbac.module';
 import { SellerAccountController } from './controllers/account.controller';
 import { CurrentSellerContext } from './services/current-seller-context.service';
 import { SellerAccount } from './models/account.entity';
@@ -13,7 +14,7 @@ import { SellerAccountService } from './services/account.service';
  * components.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([SellerAccount])],
+  imports: [TypeOrmModule.forFeature([SellerAccount]), RbacModule],
   controllers: [SellerAccountController],
   providers: [
     SellerAccountRepository,

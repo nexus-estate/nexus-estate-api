@@ -10,9 +10,10 @@ Schema migrations are owned by the aggregate or module whose persistence
 contract they change. They live in that module's `migrations/` directory. A
 change that spans modules or belongs to shared database infrastructure lives in
 `src/database/migrations/platform/`. The current module-owned directories are
-User, RBAC, Estate, Location, Media, and SellerAccount. DataPool and the
-former DataPool lifecycle are now represented by User-owned migrations. The
-cross-module index cleanup is owned by RBAC because it cleans up User/RBAC
+Buyer account, RBAC, Estate, Location, Media, and Seller Platform account.
+DataPool and the former DataPool lifecycle are now represented by Buyer
+account-owned migrations. The cross-module index cleanup is owned by RBAC
+because it cleans up Buyer/RBAC
 unique indexes together with the RBAC schema history.
 
 Historical files were physically reorganized without changing their class
@@ -35,7 +36,8 @@ migrations.
   `src/database/seed/`.
 
 The SellerAccount legacy owner backfill is a data migration because it creates
-business records from existing Estate and User data; it is not seed data.
+business records from existing Estate and Buyer account data; it is not seed
+data.
 
 ## Verification
 

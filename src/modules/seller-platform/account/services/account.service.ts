@@ -9,7 +9,7 @@ import {
 } from './current-seller-context.service';
 import { CreateSellerAccountDto, UpdateSellerAccountDto } from '../dto';
 import { SellerAccountResponse } from '../dto/account.response';
-import { SellerAccountErrorCodes } from '../helpers/errors';
+import { SellerAccountErrorCodes } from '../errors/seller-account-error-codes';
 import { SellerAccountMapper } from '../helpers/account.mapper';
 import { SellerAccountPolicy } from '../helpers/account.policy';
 import { SellerAccount } from '../models/account.entity';
@@ -24,7 +24,7 @@ import {
  * Application service for seller-account lifecycle and seller context rules.
  *
  * BaseService supplies generic entity CRUD; the methods in this class add
- * authenticated-user scoping, validation, response mapping, and domain errors.
+ * authenticated-buyer scoping, validation, response mapping, and domain errors.
  */
 @Injectable()
 export class SellerAccountService extends BaseService<
@@ -41,48 +41,48 @@ export class SellerAccountService extends BaseService<
   }
 
   /**
-   * Creates the authenticated user's seller account.
+   * Creates the authenticated buyer's seller account.
    *
    * The base service owns persistence mechanics; this method owns the
    * seller-specific validation, defaults, and conflict translation.
    */
-  async createForUser(
-    userId: string,
+  async createForBuyer(
+    buyerId: string,
     dto: CreateSellerAccountDto,
   ): Promise<SellerAccountResponse> {
-    return this.createForUserWithVerification(
-      userId,
+    return this.createForBuyerWithVerification(
+      buyerId,
       dto,
       SellerVerificationStatus.UNVERIFIED,
     );
   }
 
   /** Creates a seller account that is waiting for administrator approval. */
-  async createPendingForUser(
-    userId: string,
+  async createPendingForBuyer(
+    buyerId: string,
     dto: CreateSellerAccountDto,
   ): Promise<SellerAccountResponse> {
-    return this.createForUserWithVerification(
-      userId,
+    return this.createForBuyerWithVerification(
+      buyerId,
       dto,
       SellerVerificationStatus.PENDING,
     );
   }
 
   /** Persists a seller account with the requested onboarding state. */
-  private async createForUserWithVerification(
-    userId: string,
+  private async createForBuyerWithVerification(
+    buyerId: string,
     dto: CreateSellerAccountDto,
     verificationStatus: SellerVerificationStatus,
   ): Promise<SellerAccountResponse> {
     this.validateType(dto.type);
     const displayName = this.validateDisplayName(dto.displayName);
 
-    if (await this.sellerAccountRepository.existsByOwnerUserId(userId)) {
+    if (await this.sellerAccountRepository.existsByOwnerBuyerId(buyerId)) {
       this.logger.warn(
         JSON.stringify({
           operation: 'seller_account.create_duplicate',
-          user_id: userId,
+          buyer_id: buyerId,
         }),
       );
       throw new BusinessException(
@@ -92,7 +92,7 @@ export class SellerAccountService extends BaseService<
 
     try {
       const account = await super.create({
-        ownerUserId: userId,
+        ownerBuyerId: buyerId,
         type: dto.type,
         displayName,
         status: SellerStatus.ACTIVE,
@@ -102,7 +102,7 @@ export class SellerAccountService extends BaseService<
       this.logger.log(
         JSON.stringify({
           operation: 'seller_account.created',
-          user_id: userId,
+          buyer_id: buyerId,
           seller_id: account.id,
         }),
       );
@@ -122,9 +122,9 @@ export class SellerAccountService extends BaseService<
     }
   }
 
-  /** Returns the current user's account without creating one implicitly. */
-  async getCurrent(userId: string): Promise<SellerAccountResponse> {
-    const context = await this.currentSellerContext.resolve(userId);
+  /** Returns the current buyer's account without creating one implicitly. */
+  async getCurrent(buyerId: string): Promise<SellerAccountResponse> {
+    const context = await this.currentSellerContext.resolve(buyerId);
     const account = await this.sellerAccountRepository.findById(
       context.sellerId,
     );
@@ -140,10 +140,10 @@ export class SellerAccountService extends BaseService<
 
   /** Updates only fields that are editable through the seller profile API. */
   async updateCurrent(
-    userId: string,
+    buyerId: string,
     dto: UpdateSellerAccountDto,
   ): Promise<SellerAccountResponse> {
-    const context = await this.currentSellerContext.resolve(userId);
+    const context = await this.currentSellerContext.resolve(buyerId);
     const account = await this.sellerAccountRepository.findById(
       context.sellerId,
     );
@@ -161,7 +161,7 @@ export class SellerAccountService extends BaseService<
     this.logger.log(
       JSON.stringify({
         operation: 'seller_account.profile_updated',
-        user_id: userId,
+        buyer_id: buyerId,
         seller_id: updated.id,
       }),
     );
@@ -169,13 +169,13 @@ export class SellerAccountService extends BaseService<
   }
 
   /** Resolves the reusable seller context used by downstream supply features. */
-  resolveCurrentSeller(userId: string): Promise<CurrentSellerContextValue> {
-    return this.currentSellerContext.resolve(userId);
+  resolveCurrentSeller(buyerId: string): Promise<CurrentSellerContextValue> {
+    return this.currentSellerContext.resolve(buyerId);
   }
 
   /** Rejects supply mutations when the current seller is suspended. */
-  requireActiveSeller(userId: string): Promise<CurrentSellerContextValue> {
-    return this.resolveCurrentSeller(userId).then((context) => {
+  requireActiveSeller(buyerId: string): Promise<CurrentSellerContextValue> {
+    return this.resolveCurrentSeller(buyerId).then((context) => {
       this.sellerAccountPolicy.requireActiveSeller(context);
       return context;
     });
@@ -207,7 +207,7 @@ export class SellerAccountService extends BaseService<
 /** Fields accepted by the inherited generic BaseService.create operation. */
 type SellerAccountCreateData = Pick<
   SellerAccount,
-  'ownerUserId' | 'type' | 'displayName' | 'status' | 'verificationStatus'
+  'ownerBuyerId' | 'type' | 'displayName' | 'status' | 'verificationStatus'
 >;
 
 /** Fields accepted by the inherited generic BaseService.update operation. */

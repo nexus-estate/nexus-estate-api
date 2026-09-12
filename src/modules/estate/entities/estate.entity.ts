@@ -2,17 +2,17 @@ import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { BaseEntity } from '../../../services/abstraction-services';
 import { Province, Ward } from '../../location/entities/location.entity';
-import { User } from '../../user/entities/user.entity';
+import { BuyerAccount } from '../../buyer/account/models/buyer-account.entity';
 import { EstatePurpose, EstateType } from '../type/estate.type';
 
 @Entity('tbl_estate')
 export class Estate extends BaseEntity {
-  @Column({ name: 'fk_user_id', type: 'uuid', nullable: false })
-  userId: string;
+  @Column({ name: 'fk_buyer_id', type: 'uuid', nullable: false })
+  buyerId: string;
 
-  @ManyToOne(() => User, { nullable: false, onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'fk_user_id' })
-  user: Relation<User>;
+  @ManyToOne(() => BuyerAccount, { nullable: false, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'fk_buyer_id' })
+  buyer: Relation<BuyerAccount>;
 
   @Column({ type: 'varchar', length: 500, nullable: false })
   title: string;

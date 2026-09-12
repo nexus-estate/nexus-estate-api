@@ -11,6 +11,7 @@ import {
   REQUEST_ID_HEADER,
   RequestWithContext,
 } from '../middleware/request-context.middleware';
+import { API_LANGUAGE_HEADER, resolveApiLanguage } from '../i18n/language';
 
 /**
  * Global exception filter that catches all exceptions and returns
@@ -36,6 +37,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const language = resolveApiLanguage(request.headers?.[API_LANGUAGE_HEADER]);
 
     let statusCode: number;
     let message: string;
@@ -79,6 +81,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? request.header(REQUEST_ID_HEADER)
         : undefined);
 
+    if (typeof response.setHeader === 'function') {
+      response.setHeader('content-language', language);
+    }
     response.status(statusCode).json({
       status: false,
       statusCode,

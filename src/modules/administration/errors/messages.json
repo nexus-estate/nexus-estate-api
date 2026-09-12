@@ -1,0 +1,14 @@
+{
+  "en": {
+    "ADMIN_INVALID_CREDENTIALS": "The administration email or password is incorrect.",
+    "ADMIN_ACCOUNT_NOT_FOUND": "We couldn't find the administration account.",
+    "ADMIN_ACCOUNT_INACTIVE": "This administration account is inactive. Please contact an administrator.",
+    "ADMIN_TOKEN_INVALID": "Your administration session is invalid. Please sign in again."
+  },
+  "vi": {
+    "ADMIN_INVALID_CREDENTIALS": "Email hoặc mật khẩu quản trị không chính xác.",
+    "ADMIN_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản quản trị.",
+    "ADMIN_ACCOUNT_INACTIVE": "Tài khoản quản trị đang bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
+    "ADMIN_TOKEN_INVALID": "Phiên quản trị không hợp lệ. Vui lòng đăng nhập lại."
+  }
+}

@@ -12,12 +12,12 @@ import { SellerType } from '../../seller-platform/account/enums/account.enums';
 
 /** Required fields for an independent public seller registration. */
 export class RegisterSellerDto {
-  /** Login email for the seller user. */
+  /** Login email for the seller buyer. */
   @ApiProperty({ example: 'seller@nexus.test' })
   @IsEmail()
   email: string;
 
-  /** Login password for the seller user. */
+  /** Login password for the seller buyer. */
   @ApiProperty({ minLength: 8, example: 'correct-password' })
   @IsString()
   @MinLength(8)

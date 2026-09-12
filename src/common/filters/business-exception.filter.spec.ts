@@ -2,7 +2,7 @@ import type { ArgumentsHost } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { ErrorCodes } from '../../utils/constants/error.constant';
+import { BuyerAccountErrorCodes } from '../../modules/buyer/account/errors/buyer-account-error-codes';
 import { BusinessException } from '../exceptions/business.exception';
 import { BusinessExceptionFilter } from './business-exception.filter';
 
@@ -14,7 +14,8 @@ describe('BusinessExceptionFilter', () => {
     const request = {
       originalUrl: '/api/v1/users/missing-id',
       url: '/users/missing-id',
-    } as Request;
+      headers: { 'x-lang': 'vi' },
+    } as unknown as Request;
     const response = { status, json } as unknown as Response;
     const host = {
       switchToHttp: () => ({
@@ -23,19 +24,22 @@ describe('BusinessExceptionFilter', () => {
       }),
     } as ArgumentsHost;
     const exception = new BusinessException(
-      ErrorCodes.USER_NOT_FOUND,
+      BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND,
       'missing-id',
     );
 
     new BusinessExceptionFilter().catch(exception, host);
 
-    expect(status).toHaveBeenCalledWith(ErrorCodes.USER_NOT_FOUND.httpStatus);
+    expect(status).toHaveBeenCalledWith(
+      BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND.httpStatus,
+    );
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         status: false,
-        statusCode: ErrorCodes.USER_NOT_FOUND.httpStatus,
-        code: ErrorCodes.USER_NOT_FOUND.code,
+        statusCode: BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND.httpStatus,
+        code: BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND.code,
         path: request.originalUrl,
+        message: 'Không tìm thấy tài khoản người mua với mã missing-id.',
       }),
     );
   });

@@ -1,0 +1,26 @@
+{
+  "en": {
+    "AUTHENTICATION_REQUIRED": "Authentication required. Please provide a valid token.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
+    "VALIDATION_ERROR": "Validation failed: %s",
+    "INVALID_UUID": "%s is not a valid UUID.",
+    "INVALID_PAGINATION": "Pagination parameters are invalid. Page must be >= 1 and limit must be between 1 and 100.",
+    "RESOURCE_NOT_FOUND": "We couldn't find the requested %s with id %s.",
+    "RESOURCE_CONFLICT": "A %s with the same details already exists.",
+    "INTERNAL_ERROR": "Something went wrong. Please try again later.",
+    "DATABASE_ERROR": "We couldn't complete this request because of a database problem.",
+    "RATE_LIMIT_EXCEEDED": "Too many requests. Please try again later."
+  },
+  "vi": {
+    "AUTHENTICATION_REQUIRED": "Yêu cầu xác thực. Vui lòng cung cấp token hợp lệ.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
+    "VALIDATION_ERROR": "Dữ liệu không hợp lệ: %s",
+    "INVALID_UUID": "%s không phải UUID hợp lệ.",
+    "INVALID_PAGINATION": "Tham số phân trang không hợp lệ. Page phải >= 1 và limit phải từ 1 đến 100.",
+    "RESOURCE_NOT_FOUND": "Không tìm thấy %s với mã %s.",
+    "RESOURCE_CONFLICT": "Đã tồn tại %s có cùng thông tin.",
+    "INTERNAL_ERROR": "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
+    "DATABASE_ERROR": "Không thể hoàn tất yêu cầu do lỗi cơ sở dữ liệu.",
+    "RATE_LIMIT_EXCEEDED": "Quá nhiều yêu cầu. Vui lòng thử lại sau."
+  }
+}

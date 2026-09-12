@@ -2,6 +2,9 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { ValidationError } from 'class-validator';
+import { CommonErrorCodes } from './common/errors/common-error-codes';
+import { BusinessException } from './common/exceptions/business.exception';
 
 const logger = new Logger('Bootstrap');
 
@@ -45,6 +48,15 @@ async function bootstrap(): Promise<void> {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: (errors: ValidationError[]) => {
+        const messages = errors.flatMap((error) =>
+          Object.values(error.constraints ?? {}),
+        );
+        return new BusinessException(
+          CommonErrorCodes.VALIDATION_ERROR,
+          messages.join('; '),
+        );
+      },
     }),
   );
 
