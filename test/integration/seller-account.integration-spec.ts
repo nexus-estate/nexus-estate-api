@@ -11,14 +11,14 @@ import { Permission } from '../../src/modules/rbac/entities/permission.entity';
 import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
 import { Role } from '../../src/modules/rbac/entities/role.entity';
 import { User } from '../../src/modules/user/entities/user.entity';
-import { SellerAccount } from '../../src/modules/seller-platform/models/seller-account.entity';
-import { SellerAccountModule } from '../../src/modules/seller-platform/seller-account.module';
-import { SellerAccountRepository } from '../../src/modules/seller-platform/repositories/seller-account.repository';
+import { SellerAccount } from '../../src/modules/seller-platform/seller-account/entity';
+import { SellerAccountModule } from '../../src/modules/seller-platform/seller-account/seller-account.module';
+import { SellerAccountRepository } from '../../src/modules/seller-platform/seller-account/repository';
 import {
   SellerStatus,
   SellerType,
   SellerVerificationStatus,
-} from '../../src/modules/seller-platform/models/seller-account.enums';
+} from '../../src/modules/seller-platform/seller-account/enums';
 
 jest.setTimeout(120_000);
 

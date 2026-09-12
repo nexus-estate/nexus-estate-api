@@ -7,6 +7,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import {
+  REQUEST_ID_HEADER,
+  RequestWithContext,
+} from '../middleware/request-context.middleware';
 
 /**
  * Global exception filter that catches all exceptions and returns
@@ -69,6 +73,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       error = 'InternalServerError';
     }
 
+    const requestId =
+      (request as RequestWithContext).requestId ||
+      (typeof request.header === 'function'
+        ? request.header(REQUEST_ID_HEADER)
+        : undefined);
+
     response.status(statusCode).json({
       status: false,
       statusCode,
@@ -76,6 +86,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       error,
       timestamp: new Date().toISOString(),
       path: request.originalUrl || request.url,
+      request_id: requestId,
     });
   }
 }

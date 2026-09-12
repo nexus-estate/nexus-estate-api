@@ -16,7 +16,7 @@ import { AuthModule } from '../src/modules/auth/auth.module';
 import { Permission } from '../src/modules/rbac/entities/permission.entity';
 import { RolePermission } from '../src/modules/rbac/entities/role-permission.entity';
 import { Role } from '../src/modules/rbac/entities/role.entity';
-import { SellerAccount } from '../src/modules/seller-platform/models/seller-account.entity';
+import { SellerAccount } from '../src/modules/seller-platform/seller-account/entity';
 import { SellerPlatformModule } from '../src/modules/seller-platform/seller-platform.module';
 import { User } from '../src/modules/user/entities/user.entity';
 import { ErrorCodes } from '../src/utils/constants/error.constant';

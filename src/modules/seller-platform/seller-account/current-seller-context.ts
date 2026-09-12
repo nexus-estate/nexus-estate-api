@@ -1,13 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
 import { BusinessException } from '../../../common/exceptions/business.exception';
-import { SellerAccountErrorCodes } from '../helpers/seller-account.errors';
-import { SellerAccountRepository } from '../repositories/seller-account.repository';
-import {
-  SellerStatus,
-  SellerType,
-  SellerVerificationStatus,
-} from '../models/seller-account.enums';
+import { SellerAccountErrorCodes } from './errors';
+import { SellerAccountRepository } from './repository';
+import { SellerStatus, SellerType, SellerVerificationStatus } from './enums';
 
 export type CurrentSellerContextValue = {
   userId: string;

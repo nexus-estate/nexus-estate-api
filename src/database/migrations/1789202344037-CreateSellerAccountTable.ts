@@ -6,7 +6,7 @@ import {
   TableIndex,
 } from 'typeorm';
 
-export class CreateSellerAccountTable1789000000000 implements MigrationInterface {
+export class CreateSellerAccountTable1789202344037 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
@@ -22,17 +22,18 @@ export class CreateSellerAccountTable1789000000000 implements MigrationInterface
           },
           {
             name: 'created_at',
-            type: 'timestamptz',
+            // BaseEntity uses TypeORM's default timestamp without time zone.
+            type: 'timestamp',
             default: 'NOW()',
             isNullable: false,
           },
           {
             name: 'updated_at',
-            type: 'timestamptz',
+            type: 'timestamp',
             default: 'NOW()',
             isNullable: false,
           },
-          { name: 'deleted_at', type: 'timestamptz', isNullable: true },
+          { name: 'deleted_at', type: 'timestamp', isNullable: true },
           { name: 'created_by', type: 'varchar', isNullable: true },
           { name: 'updated_by', type: 'varchar', isNullable: true },
           { name: 'owner_user_id', type: 'uuid', isNullable: false },

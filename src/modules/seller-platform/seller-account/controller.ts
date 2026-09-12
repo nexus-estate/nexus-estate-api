@@ -17,8 +17,8 @@ import {
   CreateSellerAccountDto,
   SellerAccountResponse,
   UpdateSellerAccountDto,
-} from '../dto';
-import { SellerAccountService } from '../services/seller-account.service';
+} from './dto';
+import { SellerAccountService } from './service';
 
 @ApiTags('Seller Account')
 @ApiBearerAuth()

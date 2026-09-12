@@ -1,10 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import {
-  SellerStatus,
-  SellerType,
-  SellerVerificationStatus,
-} from '../models/seller-account.enums';
+import { SellerStatus, SellerType, SellerVerificationStatus } from '../enums';
 
 export class SellerAccountResponse {
   @ApiProperty({ format: 'uuid' })

@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { BusinessException } from '../../../common/exceptions/business.exception';
-import { CurrentSellerContextValue } from '../services/current-seller-context';
-import { SellerStatus } from '../models/seller-account.enums';
-import { SellerAccountErrorCodes } from './seller-account.errors';
+import { CurrentSellerContextValue } from './current-seller-context';
+import { SellerStatus } from './enums';
+import { SellerAccountErrorCodes } from './errors';
 
 @Injectable()
 export class SellerAccountPolicy {

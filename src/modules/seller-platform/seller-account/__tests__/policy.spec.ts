@@ -1,11 +1,7 @@
-import { ErrorCodes } from '../../../utils/constants/error.constant';
-import { SellerAccountPolicy } from '../helpers/seller-account.policy';
-import {
-  SellerStatus,
-  SellerType,
-  SellerVerificationStatus,
-} from '../models/seller-account.enums';
-import { CurrentSellerContextValue } from '../services/current-seller-context';
+import { ErrorCodes } from '../../../../utils/constants/error.constant';
+import { SellerAccountPolicy } from '../policy';
+import { SellerStatus, SellerType, SellerVerificationStatus } from '../enums';
+import { CurrentSellerContextValue } from '../current-seller-context';
 
 describe('SellerAccountPolicy', () => {
   const policy = new SellerAccountPolicy();

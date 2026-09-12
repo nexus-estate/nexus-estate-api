@@ -1,9 +1,9 @@
-import type { AuthenticatedPrincipal } from '../../auth/types/auth.type';
+import type { AuthenticatedPrincipal } from '../../../auth/types/auth.type';
 import { CreateSellerAccountDto, UpdateSellerAccountDto } from '../dto';
 import { SellerAccountResponse } from '../dto/seller-account.response';
-import { SellerAccountController } from '../controllers/seller-account.controller';
-import { SellerAccountService } from '../services/seller-account.service';
-import { SellerType } from '../models/seller-account.enums';
+import { SellerAccountController } from '../controller';
+import { SellerAccountService } from '../service';
+import { SellerType } from '../enums';
 
 type ServiceMock = {
   create: jest.MockedFunction<SellerAccountService['create']>;

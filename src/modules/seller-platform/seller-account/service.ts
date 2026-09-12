@@ -3,17 +3,13 @@ import { QueryFailedError } from 'typeorm';
 
 import { BusinessException } from '../../../common/exceptions/business.exception';
 import { CurrentSellerContext } from './current-seller-context';
-import { CreateSellerAccountDto, UpdateSellerAccountDto } from '../dto';
-import { SellerAccountResponse } from '../dto/seller-account.response';
-import { SellerAccountErrorCodes } from '../helpers/seller-account.errors';
-import { SellerAccountMapper } from '../helpers/seller-account.mapper';
-import { SellerAccountPolicy } from '../helpers/seller-account.policy';
-import { SellerAccountRepository } from '../repositories/seller-account.repository';
-import {
-  SellerStatus,
-  SellerType,
-  SellerVerificationStatus,
-} from '../models/seller-account.enums';
+import { CreateSellerAccountDto, UpdateSellerAccountDto } from './dto';
+import { SellerAccountResponse } from './dto/seller-account.response';
+import { SellerAccountErrorCodes } from './errors';
+import { SellerAccountMapper } from './mapper';
+import { SellerAccountPolicy } from './policy';
+import { SellerAccountRepository } from './repository';
+import { SellerStatus, SellerType, SellerVerificationStatus } from './enums';
 
 @Injectable()
 export class SellerAccountService {

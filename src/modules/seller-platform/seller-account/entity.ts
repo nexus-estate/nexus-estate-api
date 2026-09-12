@@ -3,11 +3,7 @@ import type { Relation } from 'typeorm';
 
 import { BaseEntity } from '../../../services/abstraction-services';
 import { User } from '../../../modules/user/entities/user.entity';
-import {
-  SellerStatus,
-  SellerType,
-  SellerVerificationStatus,
-} from './seller-account.enums';
+import { SellerStatus, SellerType, SellerVerificationStatus } from './enums';
 
 @Entity('tbl_seller_account')
 @Index('uq_seller_account_owner_user_id', ['ownerUserId'], { unique: true })
