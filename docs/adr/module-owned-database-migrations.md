@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for the SellerAccount foundation and future modules.
+Accepted for the ProviderAccount foundation and future modules.
 
 ## Decision
 
@@ -10,10 +10,10 @@ Schema migrations are owned by the aggregate or module whose persistence
 contract they change. They live in that module's `migrations/` directory. A
 change that spans modules or belongs to shared database infrastructure lives in
 `src/database/migrations/platform/`. The current module-owned directories are
-Buyer account, RBAC, Estate, Location, Media, and Seller Platform account.
-DataPool and the former DataPool lifecycle are now represented by Buyer
+Customer account, RBAC, Estate, Location, Media, and Provider Platform account.
+DataPool and the former DataPool lifecycle are now represented by Customer
 account-owned migrations. The cross-module index cleanup is owned by RBAC
-because it cleans up Buyer/RBAC
+because it cleans up Customer/RBAC
 unique indexes together with the RBAC schema history.
 
 Historical files were physically reorganized without changing their class
@@ -35,8 +35,8 @@ migrations.
 - Seeds bootstrap reference or development data and remain in
   `src/database/seed/`.
 
-The SellerAccount legacy owner backfill is a data migration because it creates
-business records from existing Estate and Buyer account data; it is not seed
+The ProviderAccount legacy owner backfill is a data migration because it creates
+business records from existing Estate and Customer account data; it is not seed
 data.
 
 ## Verification
@@ -49,8 +49,8 @@ ordering, and destroys the temporary database. It does not assert any feature
 table, column, or latest-migration behavior.
 
 Feature-specific persistence contracts belong in feature-owned integration
-tests. Therefore SellerAccount schema assertions live in
-`test/integration/migrations/seller-account.migration.integration-spec.ts`, and
+tests. Therefore ProviderAccount schema assertions live in
+`test/integration/migrations/provider-account.migration.integration-spec.ts`, and
 future Property or Listing migration tests can be added without changing the
 generic verifier.
 

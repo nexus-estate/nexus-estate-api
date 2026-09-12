@@ -2,7 +2,7 @@ import type { ArgumentsHost } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { BuyerAccountErrorCodes } from '../../modules/buyer/account/errors/buyer-account-error-codes';
+import { CustomerAccountErrorCodes } from '../../modules/customer/errors/customer-account-error-codes';
 import { BusinessException } from '../exceptions/business.exception';
 import { BusinessExceptionFilter } from './business-exception.filter';
 
@@ -24,22 +24,23 @@ describe('BusinessExceptionFilter', () => {
       }),
     } as ArgumentsHost;
     const exception = new BusinessException(
-      BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND,
+      CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND,
       'missing-id',
     );
 
     new BusinessExceptionFilter().catch(exception, host);
 
     expect(status).toHaveBeenCalledWith(
-      BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND.httpStatus,
+      CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND.httpStatus,
     );
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         status: false,
-        statusCode: BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND.httpStatus,
-        code: BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND.code,
+        statusCode:
+          CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND.httpStatus,
+        code: CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND.code,
         path: request.originalUrl,
-        message: 'Không tìm thấy tài khoản người mua với mã missing-id.',
+        message: 'Không tìm thấy tài khoản người dùng với mã missing-id.',
       }),
     );
   });

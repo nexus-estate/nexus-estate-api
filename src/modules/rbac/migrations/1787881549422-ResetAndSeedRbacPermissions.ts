@@ -8,10 +8,10 @@ export class ResetAndSeedRbacPermissions1787881549422 implements MigrationInterf
         IF (
           SELECT COUNT(DISTINCT name)
           FROM tbl_role
-          WHERE name IN ('admin', 'broker', 'buyer')
+          WHERE name IN ('administrator', 'provider', 'customer')
         ) <> 3 THEN
           RAISE EXCEPTION
-            'Cannot seed RBAC permissions: admin, broker, and buyer roles must all exist';
+            'Cannot seed RBAC permissions: administrator, provider, and customer roles must all exist';
         END IF;
       END
       $$;
@@ -82,8 +82,8 @@ export class ResetAndSeedRbacPermissions1787881549422 implements MigrationInterf
           ('broker', 'lead:read'),
           ('broker', 'lead:update'),
           ('broker', 'lead:delete'),
-          ('buyer', 'estate:read'),
-          ('buyer', 'lead:create')
+          ('customer', 'estate:read'),
+          ('customer', 'lead:create')
       ) AS mapping(role_name, permission_name)
       INNER JOIN tbl_role AS role ON role.name = mapping.role_name
       INNER JOIN tbl_permission AS permission

@@ -37,7 +37,7 @@ export class CreateEstateTable1741614800000 implements MigrationInterface {
           { name: 'rejected_by', type: 'uuid', isNullable: true },
           { name: 'rejected_date', type: 'timestamptz', isNullable: true },
           { name: 'rejection_reason', type: 'text', isNullable: true },
-          { name: 'fk_user_id', type: 'uuid' },
+          { name: 'fk_customer_id', type: 'uuid' },
           { name: 'address', type: 'varchar', length: '500' },
           { name: 'title', type: 'varchar', length: '500' },
           { name: 'price', type: 'bigint', isNullable: true },
@@ -75,9 +75,9 @@ export class CreateEstateTable1741614800000 implements MigrationInterface {
         ],
         foreignKeys: [
           {
-            name: 'fk_estate_user_id',
-            columnNames: ['fk_user_id'],
-            referencedTableName: 'tbl_user',
+            name: 'fk_estate_customer_id',
+            columnNames: ['fk_customer_id'],
+            referencedTableName: 'tbl_customer_account',
             referencedColumnNames: ['id'],
             onDelete: 'CASCADE',
           },

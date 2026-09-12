@@ -32,7 +32,7 @@ export class AlignEstateTableWithEntity1788883926000 implements MigrationInterfa
       END $$;
     `);
 
-    await this.dropForeignKeyByColumns(queryRunner, ['fk_user_id']);
+    await this.dropForeignKeyByColumns(queryRunner, ['fk_customer_id']);
     await this.dropForeignKeyByColumns(queryRunner, ['fk_province_id']);
     await this.dropForeignKeyByColumns(queryRunner, ['fk_ward_id']);
 
@@ -55,8 +55,8 @@ export class AlignEstateTableWithEntity1788883926000 implements MigrationInterfa
     await queryRunner.createForeignKeys('tbl_estate', [
       new TableForeignKey({
         name: 'FK_ea385f80db7ac7785a7c596775d',
-        columnNames: ['fk_user_id'],
-        referencedTableName: 'tbl_user',
+        columnNames: ['fk_customer_id'],
+        referencedTableName: 'tbl_customer_account',
         referencedColumnNames: ['id'],
         onDelete: 'RESTRICT',
       }),
@@ -78,7 +78,7 @@ export class AlignEstateTableWithEntity1788883926000 implements MigrationInterfa
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await this.dropForeignKeyByColumns(queryRunner, ['fk_user_id']);
+    await this.dropForeignKeyByColumns(queryRunner, ['fk_customer_id']);
     await this.dropForeignKeyByColumns(queryRunner, ['fk_province_id']);
     await this.dropForeignKeyByColumns(queryRunner, ['fk_ward_id']);
 
@@ -100,9 +100,9 @@ export class AlignEstateTableWithEntity1788883926000 implements MigrationInterfa
 
     await queryRunner.createForeignKeys('tbl_estate', [
       new TableForeignKey({
-        name: 'fk_estate_user_id',
-        columnNames: ['fk_user_id'],
-        referencedTableName: 'tbl_user',
+        name: 'fk_estate_customer_id',
+        columnNames: ['fk_customer_id'],
+        referencedTableName: 'tbl_customer_account',
         referencedColumnNames: ['id'],
         onDelete: 'CASCADE',
       }),

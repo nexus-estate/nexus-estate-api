@@ -5,7 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * The anonymous actor is not stored in tbl_role. It is represented by
  * @Public() on endpoints that may be called without a JWT. Persisted roles
- * remain limited to administrator, seller, and buyer.
+ * remain limited to administrator, provider, and customer.
  */
 export class AlignBaseRolesAndPermissions1789300000000 implements MigrationInterface {
   /** Renames legacy roles and adds the permission catalogue for current APIs. */
@@ -18,24 +18,24 @@ export class AlignBaseRolesAndPermissions1789300000000 implements MigrationInter
     `);
     await queryRunner.query(`
       UPDATE tbl_role
-      SET name = 'seller',
-          description = 'Seller operating on the Seller Platform'
+      SET name = 'provider',
+          description = 'Provider operating on the marketplace platform'
       WHERE name = 'broker'
     `);
     await queryRunner.query(`
       UPDATE tbl_role
-      SET description = 'Property buyer or renter'
-      WHERE name = 'buyer'
+      SET description = 'Customer using the marketplace'
+      WHERE name = 'customer'
     `);
 
     await queryRunner.query(`
       INSERT INTO tbl_permission (name, description)
       VALUES
-        ('seller-account:register', 'Register a seller account'),
-        ('seller-account:read', 'Read the current seller account'),
-        ('seller-account:update', 'Update the current seller account profile'),
-        ('seller-account:approve', 'Approve seller onboarding'),
-        ('seller-account:suspend', 'Suspend or reinstate a seller account'),
+        ('provider-account:register', 'Register a provider account'),
+        ('provider-account:read', 'Read the current provider account'),
+        ('provider-account:update', 'Update the current provider account profile'),
+        ('provider-account:approve', 'Approve provider onboarding'),
+        ('provider-account:suspend', 'Suspend or reinstate a provider account'),
         ('metrics:read', 'Read operational and business metrics'),
         ('admin-portal:access', 'Access internal administrator portal APIs')
       ON CONFLICT (name) DO UPDATE
@@ -53,18 +53,18 @@ export class AlignBaseRolesAndPermissions1789300000000 implements MigrationInter
       ON CONFLICT (role_id, permission_id) DO NOTHING
     `);
 
-    // Buyers may browse public marketplace data and start seller onboarding,
-    // but they do not receive seller supply or administrator permissions.
+    // Customers may browse public marketplace data and start provider onboarding,
+    // but they do not receive provider supply or administrator permissions.
     await queryRunner.query(`
       INSERT INTO tbl_role_permissions (role_id, permission_id)
       SELECT role.id, permission.id
       FROM (
         VALUES
-          ('buyer', 'estate:read'),
-          ('buyer', 'lead:create'),
-          ('buyer', 'seller-account:register'),
-          ('buyer', 'seller-account:read'),
-          ('buyer', 'seller-account:update')
+          ('customer', 'estate:read'),
+          ('customer', 'lead:create'),
+          ('customer', 'provider-account:register'),
+          ('customer', 'provider-account:read'),
+          ('customer', 'provider-account:update')
       ) AS mapping(role_name, permission_name)
       INNER JOIN tbl_role AS role ON role.name = mapping.role_name
       INNER JOIN tbl_permission AS permission
@@ -72,26 +72,26 @@ export class AlignBaseRolesAndPermissions1789300000000 implements MigrationInter
       ON CONFLICT (role_id, permission_id) DO NOTHING
     `);
 
-    // Seller permissions cover Seller Platform account and supply actions;
+    // Provider permissions cover provider account and supply actions;
     // approval and system administration remain administrator-only.
     await queryRunner.query(`
       INSERT INTO tbl_role_permissions (role_id, permission_id)
       SELECT role.id, permission.id
       FROM (
         VALUES
-          ('seller', 'seller-account:read'),
-          ('seller', 'seller-account:update'),
-          ('seller', 'estate:create'),
-          ('seller', 'estate:read'),
-          ('seller', 'estate:update'),
-          ('seller', 'estate:delete'),
-          ('seller', 'media:upload'),
-          ('seller', 'media:read'),
-          ('seller', 'media:update'),
-          ('seller', 'media:delete'),
-          ('seller', 'lead:read'),
-          ('seller', 'lead:update'),
-          ('seller', 'lead:delete')
+          ('provider', 'provider-account:read'),
+          ('provider', 'provider-account:update'),
+          ('provider', 'estate:create'),
+          ('provider', 'estate:read'),
+          ('provider', 'estate:update'),
+          ('provider', 'estate:delete'),
+          ('provider', 'media:upload'),
+          ('provider', 'media:read'),
+          ('provider', 'media:update'),
+          ('provider', 'media:delete'),
+          ('provider', 'lead:read'),
+          ('provider', 'lead:update'),
+          ('provider', 'lead:delete')
       ) AS mapping(role_name, permission_name)
       INNER JOIN tbl_role AS role ON role.name = mapping.role_name
       INNER JOIN tbl_permission AS permission
@@ -103,11 +103,11 @@ export class AlignBaseRolesAndPermissions1789300000000 implements MigrationInter
   /** Reverts the role names and removes only permissions introduced here. */
   public async down(queryRunner: QueryRunner): Promise<void> {
     const permissionNames = [
-      'seller-account:register',
-      'seller-account:read',
-      'seller-account:update',
-      'seller-account:approve',
-      'seller-account:suspend',
+      'provider-account:register',
+      'provider-account:read',
+      'provider-account:update',
+      'provider-account:approve',
+      'provider-account:suspend',
       'metrics:read',
       'admin-portal:access',
     ];
@@ -131,7 +131,7 @@ export class AlignBaseRolesAndPermissions1789300000000 implements MigrationInter
       UPDATE tbl_role
       SET name = 'broker',
           description = 'Real estate broker'
-      WHERE name = 'seller'
+      WHERE name = 'provider'
     `);
     await queryRunner.query(`
       UPDATE tbl_role

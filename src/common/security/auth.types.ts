@@ -12,7 +12,7 @@ export type AuthenticatedPrincipal = {
 };
 
 /** Identifies the authentication boundary that issued a JWT. */
-export type AuthenticationContext = 'buyer' | 'administration';
+export type AuthenticationContext = 'customer' | 'administration';
 
 /** Claims carried by access and refresh tokens. */
 export type JwtPayload = {

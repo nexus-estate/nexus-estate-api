@@ -12,7 +12,7 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CommonModule } from '../src/common/common.module';
-import { BuyerModule } from '../src/modules/buyer/buyer.module';
+import { CustomerModule } from '../src/modules/customer/customer.module';
 import { Estate } from '../src/modules/estate/entities';
 import { EstateModule } from '../src/modules/estate/estate.module';
 import {
@@ -28,9 +28,9 @@ import {
 import { Permission } from '../src/modules/rbac/entities/permission.entity';
 import { RolePermission } from '../src/modules/rbac/entities/role-permission.entity';
 import { Role } from '../src/modules/rbac/entities/role.entity';
-import { BuyerAccount } from '../src/modules/buyer/account/models/buyer-account.entity';
+import { CustomerAccount } from '../src/modules/customer/models/customer-account.entity';
 import { CommonErrorCodes } from '../src/common/errors/common-error-codes';
-import { HashHelper } from '../src/utils/helpers/hash.helper';
+import { BcryptService } from '../src/common/security/bcrypt.service';
 
 type ApiSuccess<T> = {
   status: true;
@@ -54,7 +54,7 @@ type TokenPair = {
 
 type EstateResponse = {
   id: string;
-  buyerId: string;
+  customerId: string;
   title: string;
   provinceId: string;
   wardId: string;
@@ -66,8 +66,8 @@ describe('Estate API (e2e)', () => {
   let module: TestingModule | undefined;
   let app: INestApplication<Server>;
   let dataSource: DataSource;
-  let owner: BuyerAccount;
-  let otherUser: BuyerAccount;
+  let owner: CustomerAccount;
+  let otherUser: CustomerAccount;
   let province: Province;
   let ward: Ward;
   let ownerToken: string;
@@ -94,7 +94,7 @@ describe('Estate API (e2e)', () => {
 
   const login = async (email: string): Promise<string> => {
     const response = await request(app.getHttpServer())
-      .post('/api/v1/buyers/auth/login')
+      .post('/api/v1/customers/auth/login')
       .send({ email, password })
       .expect(201);
     const body = response.body as ApiSuccess<TokenPair>;
@@ -133,7 +133,7 @@ describe('Estate API (e2e)', () => {
           database: container.getDatabase(),
           entities: [
             Estate,
-            BuyerAccount,
+            CustomerAccount,
             Role,
             Permission,
             RolePermission,
@@ -144,7 +144,7 @@ describe('Estate API (e2e)', () => {
           synchronize: true,
         }),
         CommonModule,
-        BuyerModule,
+        CustomerModule,
         EstateModule,
       ],
     }).compile();
@@ -164,21 +164,21 @@ describe('Estate API (e2e)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_estate, tbl_buyer_account, tbl_role, tbl_ward, tbl_province CASCADE',
+      'TRUNCATE TABLE tbl_estate, tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({
-      name: 'buyer',
+      name: 'customer',
       description: null,
       isSystem: true,
     });
-    const passwordHash = await HashHelper.hash(password);
-    owner = await dataSource.getRepository(BuyerAccount).save({
+    const passwordHash = await new BcryptService().hash(password);
+    owner = await dataSource.getRepository(CustomerAccount).save({
       email: 'owner@nexus.test',
       password: passwordHash,
       roleId: role.id,
     });
-    otherUser = await dataSource.getRepository(BuyerAccount).save({
+    otherUser = await dataSource.getRepository(CustomerAccount).save({
       email: 'other@nexus.test',
       password: passwordHash,
       roleId: role.id,
@@ -213,7 +213,7 @@ describe('Estate API (e2e)', () => {
 
     expect(body.status).toBe(true);
     expect(body.data).toMatchObject({
-      buyerId: owner.id,
+      customerId: owner.id,
       title: estateBody().title,
       provinceId: province.id,
       wardId: ward.id,
@@ -224,12 +224,12 @@ describe('Estate API (e2e)', () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/estates')
       .set('Authorization', `Bearer ${ownerToken}`)
-      .send({ ...estateBody(), buyerId: otherUser.id })
+      .send({ ...estateBody(), customerId: otherUser.id })
       .expect(400);
     const body = response.body as ApiError;
 
     expect(body).toMatchObject({ status: false, statusCode: 400 });
-    expect(body.message).toContain('property buyerId should not exist');
+    expect(body.message).toContain('property customerId should not exist');
   });
 
   it('lists only estates belonging to the authenticated principal', async () => {
@@ -237,7 +237,7 @@ describe('Estate API (e2e)', () => {
     await dataSource.getRepository(Estate).save({
       ...estateBody(),
       id: undefined,
-      buyerId: otherUser.id,
+      customerId: otherUser.id,
       title: 'Other owner estate',
     });
 
@@ -260,7 +260,7 @@ describe('Estate API (e2e)', () => {
       .expect(200);
     const body = response.body as ApiSuccess<EstateResponse>;
 
-    expect(body.data).toMatchObject({ id: created.id, buyerId: owner.id });
+    expect(body.data).toMatchObject({ id: created.id, customerId: owner.id });
   });
 
   it('allows the owner to update an estate', async () => {

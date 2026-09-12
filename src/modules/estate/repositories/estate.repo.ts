@@ -14,7 +14,7 @@ export class EstateRepo extends BaseRepository<Estate> {
   async findById(id: string): Promise<Estate | null> {
     return this.repository
       .createQueryBuilder('estate')
-      .innerJoinAndSelect('estate.buyer', 'buyer')
+      .innerJoinAndSelect('estate.customer', 'customer')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
       .where('estate.id = :id', { id })
@@ -22,13 +22,13 @@ export class EstateRepo extends BaseRepository<Estate> {
       .getOne();
   }
 
-  async findByBuyerId(buyerId: string): Promise<Estate[]> {
+  async findByCustomerId(customerId: string): Promise<Estate[]> {
     return this.repository
       .createQueryBuilder('estate')
-      .innerJoinAndSelect('estate.buyer', 'buyer')
+      .innerJoinAndSelect('estate.customer', 'customer')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
-      .where('estate.buyerId = :buyerId', { buyerId })
+      .where('estate.customerId = :customerId', { customerId })
       .andWhere('estate.deletedAt IS NULL')
       .getMany();
   }

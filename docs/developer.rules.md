@@ -42,7 +42,7 @@
 │    NestJS + TypeORM + PostgreSQL + JWT + Passport             │
 │                                                              │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │  Buyer   │  │  Seller  │  │ Admin    │  │  Future  │     │
+│  │  Customer   │  │  Provider  │  │ Admin    │  │  Future  │     │
 │  │  Module  │  │ Platform │  │ Portal   │  │ Modules  │     │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
 │                                                              │
@@ -72,10 +72,10 @@ AppModule
 ├── ConfigModule (global)
 ├── TypeOrmModule (async, global)
 ├── CommonModule (global: filters, interceptors)
-├── BuyerModule
+├── CustomerModule
 │   ├── JwtModule (async config)
 │   ├── PassportModule
-│   └── imports BuyerAccountModule
+│   └── owns customer account and authentication services
 ├── AdministrationModule
 │   └── owns the internal portal and its dedicated authentication
 └── RbacModule
@@ -132,12 +132,20 @@ src/
 │       └── platform/                 # Cross-module/shared migrations
 │
 ├── modules/
-│   ├── buyer/
-│   │   ├── account/                 # Buyer account bounded context
-│   │   └── auth/                    # Buyer-only authentication boundary
-│   │
-│   ├── seller/                      # Seller onboarding and APIs
-│   ├── seller-platform/account/     # Seller account bounded context
+│   ├── customer/                    # Customer account and authentication
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   ├── repositories/
+│   │   ├── models/
+│   │   ├── dto/ and errors/
+│   │   └── migrations/
+│   ├── provider/                    # Provider onboarding and APIs
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   ├── repositories/
+│   │   ├── models/
+│   │   ├── dto/ and errors/
+│   │   └── migrations/ and data-migrations/
 │   ├── administration/              # Internal admin portal and auth
 │   │
 │   └── rbac/
@@ -182,6 +190,12 @@ src/
 │           ├── service.interface.ts
 │           └── index.ts
 │
+├── common/security/
+│   ├── bcrypt.service.ts
+│   ├── bcrypt.service.spec.ts
+│   ├── token.service.ts
+│   └── token.service.spec.ts
+│
 └── utils/
     ├── index.ts                     # Barrel export
     ├── constants/
@@ -192,16 +206,11 @@ src/
     └── helpers/
         ├── index.ts
         ├── date.helper.ts
-        ├── hash.helper.ts
         ├── pagination.helper.ts
-        ├── token.helper.ts
         ├── validation.helper.ts
-        └── __tests__/
-            ├── date.helper.spec.ts
-            ├── hash.helper.spec.ts
-            ├── pagination.helper.spec.ts
-            ├── token.helper.spec.ts
-            └── validation.helper.spec.ts
+        ├── date.helper.spec.ts
+        ├── pagination.helper.spec.ts
+        └── validation.helper.spec.ts
 ```
 
 **Ownership rules:**
@@ -303,7 +312,7 @@ Provides generic CRUD operations for any entity extending `BaseEntity`.
 **Example — Custom Repository:**
 
 ```typescript
-// src/modules/buyer/account/repositories/buyer-account.repository.ts
+// src/modules/customer/repositories/customer-account.repository.ts
 @Injectable()
 export class UserRepository extends BaseRepository<User> {
   constructor(
@@ -334,7 +343,7 @@ Provides business logic layer on top of `BaseRepository`.
 **Example — Custom Service:**
 
 ```typescript
-// src/modules/buyer/account/services/buyer-account.service.ts
+// src/modules/customer/services/customer-account.service.ts
 @Injectable()
 export class UserService extends BaseService<User, RegisterUserDto, UpdateUserDto> {
   protected override readonly logger = new Logger(UserService.name);
@@ -347,13 +356,13 @@ export class UserService extends BaseService<User, RegisterUserDto, UpdateUserDt
     const existing = await this.userRepository.findByEmail(dto.email);
     if (existing)
       throw new BusinessException(
-        BuyerAccountErrorCodes.BUYER_ACCOUNT_EMAIL_EXISTS,
+        CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS,
         dto.email,
       );
 
     return this.userRepository.transaction(async (manager) => {
       const roleRepo = manager.getRepository(Role);
-      const buyerRole = await roleRepo.findOne({ where: { name: RoleName.BUYER } });
+      const customerRole = await roleRepo.findOne({ where: { name: RoleName.CUSTOMER } });
       // ... hash password, create user with role
     });
   }
@@ -473,10 +482,10 @@ export class FeatureModule {}
 | **Class** | `PascalCase` | `UserService`, `CreateRoleDto` |
 | **Interface** | `PascalCase` with `I` prefix | `IBaseRepository`, `IBaseService` |
 | **Method** | `camelCase` with `handle` prefix for service public methods | `handleSignUp`, `handleFindByEmail` |
-| **Entity table** | `tbl_` prefix + `snake_case` | `tbl_buyer_account`, `tbl_role`, `tbl_permission` |
+| **Entity table** | `tbl_` prefix + `snake_case` | `tbl_customer_account`, `tbl_role`, `tbl_permission` |
 | **Entity class** | `PascalCase` singular | `User`, `Role`, `Permission` |
-| **Constant** | `UPPER_SNAKE_CASE` | `BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND`, `ROLES.ADMINISTRATOR` |
-| **Enum** | `PascalCase` enum, `UPPER_SNAKE_CASE` values | `RoleName.BUYER`, `ApprovalStatus.PENDING` |
+| **Constant** | `UPPER_SNAKE_CASE` | `CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND`, `ROLES.ADMINISTRATOR` |
+| **Enum** | `PascalCase` enum, `UPPER_SNAKE_CASE` values | `RoleName.CUSTOMER`, `ApprovalStatus.PENDING` |
 | **DTO** | `<Action><Entity>Dto` | `RegisterUserDto`, `CreateRoleDto`, `UpdateUserDto` |
 | **Guard** | `<Name>Guard` | `JwtAuthGuard`, `RolesGuard`, `PermissionsGuard` |
 | **Strategy** | `<Name>Strategy` | `JwtStrategy`, `LocalStrategy` |
@@ -547,7 +556,7 @@ export class Example extends BaseEntity {
 
 | Entity | Table | Extends | Key Fields |
 |--------|-------|---------|------------|
-| `BuyerAccount` | `tbl_buyer_account` | `BaseEntity` | email, password (@Exclude), roleId, isEmailVerified, lastLogin |
+| `CustomerAccount` | `tbl_customer_account` | `BaseEntity` | email, password (@Exclude), roleId, isEmailVerified, lastLogin |
 | `Role` | `tbl_role` | `BaseEntity` | name (unique), description, permissions (ManyToMany) |
 | `Permission` | `tbl_permission` | `BaseEntity` | name (unique, PermissionName enum), description |
 
@@ -634,14 +643,14 @@ export class FeatureService extends BaseService<Feature, CreateDto, UpdateDto> {
 async handleSignUp(dto: RegisterUserDto): Promise<User> {
   return this.userRepository.transaction(async (manager) => {
     const roleRepo = manager.getRepository(Role);
-    const buyerRole = await roleRepo.findOne({ where: { name: RoleName.BUYER } });
-    
+    const customerRole = await roleRepo.findOne({ where: { name: RoleName.CUSTOMER } });
+
     const user = manager.create(User, {
       ...dto,
       password: await HashHelper.hash(dto.password),
-      role: buyerRole,
+      role: customerRole,
     });
-    
+
     return manager.save(user);
   });
 }
@@ -758,19 +767,19 @@ export class FeatureController {
 async publicEndpoint() { ... }
 
 // Require specific roles
-@AnyRolesRequire(ROLES.ADMINISTRATOR, ROLES.SELLER)
+@AnyRolesRequire(ROLES.ADMINISTRATOR, ROLES.PROVIDER)
 @Get('admin-only')
 async adminOnly() { ... }
 
 // Require specific permissions
-@PermissionRequire(PERMISSIONS.BUYER_ACCOUNT_READ)
+@PermissionRequire(PERMISSIONS.CUSTOMER_ACCOUNT_READ)
 @Get('requires-permission')
 async requiresPermission() { ... }
 
 // Require any one of several permissions
 @AnyPermissionsRequire(
-  PERMISSIONS.BUYER_ACCOUNT_READ,
-  PERMISSIONS.BUYER_ACCOUNT_UPDATE,
+  PERMISSIONS.CUSTOMER_ACCOUNT_READ,
+  PERMISSIONS.CUSTOMER_ACCOUNT_UPDATE,
 )
 @Get('requires-any-permission')
 async requiresAnyPermission() { ... }
@@ -783,8 +792,8 @@ async requiresAnyPermission() { ... }
 | Role | Description |
 |------|-------------|
 | `ADMINISTRATOR` | Internal administrator for admin portal and system management |
-| `SELLER` | Seller operating on Seller Platform |
-| `BUYER` | Property buyer (default for new users) |
+| `PROVIDER` | Provider operating on Provider Platform |
+| `CUSTOMER` | Property customer (default for new users) |
 
 Anonymous is an unauthenticated access state, not a persisted role. Public
 routes use `@Public()` and must not rely on `req.user`.
@@ -802,14 +811,14 @@ routes use `@Public()` and must not rely on `req.user`.
 
 ```typescript
 import { BusinessException } from '../../common/exceptions/business.exception';
-import { BuyerAccountErrorCodes } from '../modules/buyer/account/errors/buyer-account-error-codes';
+import { CustomerAccountErrorCodes } from '../modules/customer/errors/customer-account-error-codes';
 
 // Simple error
-throw new BusinessException(BuyerAccountErrorCodes.BUYER_ACCOUNT_NOT_FOUND);
+throw new BusinessException(CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_NOT_FOUND);
 
 // Error with dynamic message (replaces %s in message template)
 throw new BusinessException(
-  BuyerAccountErrorCodes.BUYER_ACCOUNT_EMAIL_EXISTS,
+  CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS,
   'john@example.com',
 );
 ```
@@ -818,7 +827,7 @@ throw new BusinessException(
 
 ```typescript
 interface BusinessErrorCode {
-  code: string;       // Machine-readable code (e.g., 'BUYER_ACCOUNT_NOT_FOUND')
+  code: string;       // Machine-readable code (e.g., 'CUSTOMER_ACCOUNT_NOT_FOUND')
   message: string;    // Default English message (supports %s substitution)
   messages: { en: string; vi: string };
   httpStatus: number; // HTTP status code
@@ -843,8 +852,8 @@ regional values resolve to Vietnamese.
 | `INVALID_UUID` | INVALID_UUID | 400 | Invalid UUID |
 | `RESOURCE_NOT_FOUND` | RESOURCE_NOT_FOUND | 404 | Resource %s not found |
 | `RESOURCE_CONFLICT` | RESOURCE_CONFLICT | 409 | Resource already exists |
-| `BUYER_ACCOUNT_NOT_FOUND` | BUYER_ACCOUNT_NOT_FOUND | 404 | Buyer account not found |
-| `BUYER_ACCOUNT_EMAIL_EXISTS` | BUYER_ACCOUNT_EMAIL_EXISTS | 409 | Buyer email %s is already registered |
+| `CUSTOMER_ACCOUNT_NOT_FOUND` | CUSTOMER_ACCOUNT_NOT_FOUND | 404 | Customer account not found |
+| `CUSTOMER_ACCOUNT_EMAIL_EXISTS` | CUSTOMER_ACCOUNT_EMAIL_EXISTS | 409 | Customer email %s is already registered |
 | `PASSWORD_INCORRECT` | PASSWORD_INCORRECT | 400 | Current password is incorrect |
 | `ROLE_NOT_FOUND` | ROLE_NOT_FOUND | 404 | Role not found |
 | `ROLE_NAME_EXISTS` | ROLE_NAME_EXISTS | 409 | Role %s already exists |
@@ -866,7 +875,7 @@ All responses are wrapped by `TransformInterceptor`:
 // Error response (from BusinessExceptionFilter)
 {
   "statusCode": 404,
-  "code": "BUYER_ACCOUNT_NOT_FOUND",
+  "code": "CUSTOMER_ACCOUNT_NOT_FOUND",
   "message": "User with id ... not found.",
   "timestamp": "2026-07-11T06:00:00.000Z"
 }
@@ -886,15 +895,16 @@ x-lang: vi
 ### 13.1 Test Structure
 
 ```
-src/                              # Unit tests (colocated)
+src/                              # Unit tests (colocated with the source file)
 ├── app.module.spec.ts
 ├── main.spec.ts
 ├── database/type.config.spec.ts
-└── utils/helpers/__tests__/
+└── utils/helpers/
+    ├── date.helper.ts
     ├── date.helper.spec.ts
-    ├── hash.helper.spec.ts
+    ├── pagination.helper.ts
     ├── pagination.helper.spec.ts
-    ├── token.helper.spec.ts
+    ├── validation.helper.ts
     └── validation.helper.spec.ts
 
 test/                             # Integration & E2E tests
@@ -917,7 +927,9 @@ npm run test:all          # Full pipeline: build + lint + unit + integration
 
 ### 13.3 Test Conventions
 
-- Unit test files: `*.spec.ts` (colocated with source or in `__tests__/`)
+- Unit test files: `*.spec.ts` placed beside the source file with the same basename.
+- Do not create module-level `__tests__/` directories.
+- Full-flow integration and E2E tests belong under `test/<module>` or `test/integration/`.
 - Integration test files: `*.integration-spec.ts` (in `test/integration/`)
 - E2E test files: `*.e2e-spec.ts` (in `test/`)
 - Use descriptive `describe` and `it` blocks.
@@ -936,7 +948,7 @@ Use barrel exports (`index.ts`) to simplify imports:
 ```typescript
 // ✅ Import from barrel
 import { BaseEntity, BaseRepository, BaseService } from '../../services/abstraction-services';
-import { BuyerAccountErrorCodes } from '../../modules/buyer/account/errors/buyer-account-error-codes';
+import { CustomerAccountErrorCodes } from '../../modules/customer/errors/customer-account-error-codes';
 import { HashHelper, TokenHelper } from '../../utils/helpers';
 
 // ❌ Do not import from individual files
@@ -1015,7 +1027,7 @@ export class CreateExampleTable1741614700000 implements MigrationInterface {
 
 | Timestamp | File | Description |
 |-----------|------|-------------|
-| 1741614400000 | `CreateUserTable` | Creates the historical buyer identity table; a later migration renames it to `tbl_buyer_account` |
+| 1741614400000 | `CreateUserTable` | Creates the historical customer identity table; a later migration renames it to `tbl_customer_account` |
 | 1741614600000 | `CreateRbacTables` | Creates `tbl_role`, `tbl_permission`, `tbl_role_permissions` |
 
 ---

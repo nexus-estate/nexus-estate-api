@@ -8,7 +8,7 @@ import { EstateController } from './estate.controller';
 
 type EstateServiceMock = {
   createEstate: jest.MockedFunction<EstateService['createEstate']>;
-  findByBuyerId: jest.MockedFunction<EstateService['findByBuyerId']>;
+  findByCustomerId: jest.MockedFunction<EstateService['findByCustomerId']>;
   findById: jest.MockedFunction<EstateService['findById']>;
   updateEstate: jest.MockedFunction<EstateService['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateService['softDeleteEstate']>;
@@ -22,7 +22,7 @@ describe('EstateController', () => {
     id: '10000000-0000-4000-8000-000000000001',
     email: 'owner@nexus.test',
     roleId: '50000000-0000-4000-8000-000000000001',
-    role: 'buyer',
+    role: 'customer',
   };
   const request = { user };
   const estateId = '20000000-0000-4000-8000-000000000001';
@@ -35,12 +35,12 @@ describe('EstateController', () => {
     provinceId: '30000000-0000-4000-8000-000000000001',
     wardId: '40000000-0000-4000-8000-000000000001',
   };
-  const estate = { id: estateId, buyerId: user.id } as Estate;
+  const estate = { id: estateId, customerId: user.id } as Estate;
 
   beforeEach(() => {
     estateService = {
       createEstate: jest.fn(),
-      findByBuyerId: jest.fn(),
+      findByCustomerId: jest.fn(),
       findById: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
@@ -60,10 +60,10 @@ describe('EstateController', () => {
   });
 
   it('returns estates belonging to the authenticated principal', async () => {
-    estateService.findByBuyerId.mockResolvedValue([estate]);
+    estateService.findByCustomerId.mockResolvedValue([estate]);
 
     await expect(controller.findEstateMine(request)).resolves.toEqual([estate]);
-    expect(estateService.findByBuyerId).toHaveBeenCalledWith(user.id);
+    expect(estateService.findByCustomerId).toHaveBeenCalledWith(user.id);
   });
 
   it('finds an estate by the route id', async () => {

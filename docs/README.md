@@ -15,8 +15,8 @@ This directory is the **single source of truth** for all project documentation.
 ```
 Client Apps ──▶ API Gateway (NestJS) ──▶ PostgreSQL
                      │
-                     ├── Buyer Module (buyer account + buyer authentication)
-                     ├── Seller Platform (seller onboarding + supply ownership)
+                     ├── Customer Module (customer account + customer authentication)
+                     ├── Provider Platform (provider onboarding + supply ownership)
                      ├── Administration (internal portal + admin authentication)
                      ├── RBAC Module (Roles + Permissions)
                      │

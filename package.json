@@ -28,7 +28,7 @@
     "migration:verify": "ts-node src/database/migration-runner/verify.ts",
     "migration:verify:prod": "node dist/database/migration-runner/verify.js",
     "migration:check": "npm run migration:verify",
-    "backfill:seller-account": "ts-node src/modules/seller-platform/account/data-migrations/run-backfill-legacy-estate-sellers.ts",
+    "backfill:provider-account": "ts-node src/modules/provider/data-migrations/run-backfill-legacy-estate-providers.ts",
     "seed:location": "ts-node src/database/seed/locations/run-location-seed.ts",
     "lint": "npm run lint:check",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",

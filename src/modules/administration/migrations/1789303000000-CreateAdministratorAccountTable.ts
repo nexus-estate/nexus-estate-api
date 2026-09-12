@@ -8,7 +8,7 @@ import {
 
 /** Creates the credential store for the internal administration portal. */
 export class CreateAdministratorAccountTable1789303000000 implements MigrationInterface {
-  /** Creates administrator credentials without coupling them to buyer data. */
+  /** Creates administrator credentials without coupling them to customer data. */
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({

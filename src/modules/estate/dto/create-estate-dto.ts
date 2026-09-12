@@ -70,14 +70,14 @@ longitude
 
 KHÔNG được có:
 - id
-- buyerId
+- customerId
 - createdAt
 - updatedAt
 - deletedAt
 - createdBy
 - updatedBy
 
-buyerId sau này lấy từ JWT/current user.
+customerId được lấy từ JWT/current user.
 */
 
 import {

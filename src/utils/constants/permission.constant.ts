@@ -1,20 +1,20 @@
 export const PERMISSIONS = {
-  // Buyer profile
-  BUYER_PROFILE_READ: 'buyer:profile:read',
+  // Customer profile
+  CUSTOMER_PROFILE_READ: 'customer:profile:read',
 
-  // Seller account
-  SELLER_ACCOUNT_REGISTER: 'seller-account:register',
-  SELLER_ACCOUNT_READ: 'seller-account:read',
-  SELLER_ACCOUNT_UPDATE: 'seller-account:update',
-  SELLER_ACCOUNT_APPROVE: 'seller-account:approve',
-  SELLER_ACCOUNT_SUSPEND: 'seller-account:suspend',
+  // Provider account
+  PROVIDER_ACCOUNT_REGISTER: 'provider-account:register',
+  PROVIDER_ACCOUNT_READ: 'provider-account:read',
+  PROVIDER_ACCOUNT_UPDATE: 'provider-account:update',
+  PROVIDER_ACCOUNT_APPROVE: 'provider-account:approve',
+  PROVIDER_ACCOUNT_SUSPEND: 'provider-account:suspend',
 
-  // Buyer account administration
-  BUYER_ACCOUNT_CREATE: 'buyer-account:create',
-  BUYER_ACCOUNT_READ: 'buyer-account:read',
-  BUYER_ACCOUNT_UPDATE: 'buyer-account:update',
-  BUYER_ACCOUNT_DELETE: 'buyer-account:delete',
-  BUYER_ACCOUNT_ASSIGN_ROLE: 'buyer-account:assign-role',
+  // Customer account administration
+  CUSTOMER_ACCOUNT_CREATE: 'customer-account:create',
+  CUSTOMER_ACCOUNT_READ: 'customer-account:read',
+  CUSTOMER_ACCOUNT_UPDATE: 'customer-account:update',
+  CUSTOMER_ACCOUNT_DELETE: 'customer-account:delete',
+  CUSTOMER_ACCOUNT_ASSIGN_ROLE: 'customer-account:assign-role',
 
   // Estate
   ESTATE_CREATE: 'estate:create',

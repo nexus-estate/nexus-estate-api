@@ -12,7 +12,7 @@ import {
 
 import type { AuthenticatedPrincipal } from '../../../common/security/auth.types';
 import { Public } from '../../../common/decorators/public.decorator';
-import { BuyerJwtAuthGuard } from '../../buyer/auth/guards/buyer-jwt-auth.guard';
+import { CustomerJwtAuthGuard } from '../../customer/guards/customer-jwt-auth.guard';
 import { CreateEstateDto } from '../dto/create-estate-dto';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
 import { Estate } from '../entities';
@@ -23,7 +23,7 @@ type AuthenticatedRequest = {
 };
 
 @Controller('estates')
-@UseGuards(BuyerJwtAuthGuard)
+@UseGuards(CustomerJwtAuthGuard)
 export class EstateController {
   constructor(private readonly estateService: EstateService) {}
 
@@ -37,7 +37,7 @@ export class EstateController {
 
   @Get('mine')
   async findEstateMine(@Req() req: AuthenticatedRequest): Promise<Estate[]> {
-    return this.estateService.findByBuyerId(req.user.id);
+    return this.estateService.findByCustomerId(req.user.id);
   }
 
   @Get(':id')

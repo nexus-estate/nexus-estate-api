@@ -1,28 +1,28 @@
 # Platform boundaries
 
 The API is organized around business platforms. Authentication identifies a
-`BuyerAccount`; supply-side ownership is represented by a `SellerAccount` in the Seller
+`CustomerAccount`; supply-side ownership is represented by a `ProviderAccount` in the Provider
 Platform.
 
 ```text
-BuyerAccount
- └── SellerAccount
+CustomerAccount
+ └── ProviderAccount
       ├── Property
       └── Listing
 ```
 
-Seller Platform is upstream of Marketplace and ERP operational use cases. It
+Provider Platform is upstream of Marketplace and ERP operational use cases. It
 must not import Marketplace, ERP Internal, Search, or Commerce modules. Future
-Property and Listing records should use `seller_id` as their canonical owner,
-not `buyer_id`.
+Property and Listing records should use `provider_id` as their canonical owner,
+not `customer_id`.
 
-The current phase intentionally assumes one SellerAccount per BuyerAccount. The
-unique `owner_buyer_id` constraint makes that invariant database-enforced. If the
+The current phase intentionally assumes one ProviderAccount per CustomerAccount. The
+unique `owner_customer_id` constraint makes that invariant database-enforced. If the
 product later needs organizations or teams, that should be introduced as an
-explicit ownership model rather than turning SellerAccount into a polymorphic
+explicit ownership model rather than turning ProviderAccount into a polymorphic
 hierarchy.
 
 Existing Estate owners can be migrated with the controlled, idempotent
-`npm run backfill:seller-account` command. It creates only accounts for
+`npm run backfill:provider-account` command. It creates only accounts for
 distinct non-deleted Estate owners, with `INDIVIDUAL`, `ACTIVE`, and
-`UNVERIFIED` defaults. It does not promote every BuyerAccount automatically.
+`UNVERIFIED` defaults. It does not promote every CustomerAccount automatically.

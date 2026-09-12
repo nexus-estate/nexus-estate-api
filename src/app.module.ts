@@ -8,9 +8,8 @@ import { CommonModule } from './common/common.module';
 import { Public } from './common/decorators/public.decorator';
 import { LocationModule } from './database/seed/locations/location.module';
 import { EstateModule } from './modules/estate/estate.module';
-import { SellerPlatformModule } from './modules/seller-platform/seller-platform.module';
-import { BuyerModule } from './modules/buyer/buyer.module';
-import { SellerModule } from './modules/seller/seller.module';
+import { CustomerModule } from './modules/customer/customer.module';
+import { ProviderModule } from './modules/provider/provider.module';
 import { AdministrationModule } from './modules/administration/administration.module';
 @Controller({
   path: 'healthz',
@@ -45,9 +44,8 @@ export class HealthController {
     CommonModule,
     LocationModule,
     EstateModule,
-    SellerPlatformModule,
-    BuyerModule,
-    SellerModule,
+    CustomerModule,
+    ProviderModule,
     AdministrationModule,
   ],
   controllers: [HealthController],

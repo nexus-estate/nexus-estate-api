@@ -1,0 +1,18 @@
+{
+  "en": {
+    "CUSTOMER_ACCOUNT_NOT_FOUND": "We couldn't find the user account with id %s.",
+    "CUSTOMER_ACCOUNT_EMAIL_EXISTS": "The email %s is already used by another user.",
+    "CUSTOMER_ACCOUNT_USERNAME_EXISTS": "The username %s is already used by another user.",
+    "CUSTOMER_ACCOUNT_NOT_FOUND_BY_EMAIL": "We couldn't find a user account with email %s.",
+    "PASSWORD_INCORRECT": "The current password is incorrect.",
+    "PASSWORD_WEAK": "Your password must be at least 8 characters long."
+  },
+  "vi": {
+    "CUSTOMER_ACCOUNT_NOT_FOUND": "Không tìm thấy tài khoản người dùng với mã %s.",
+    "CUSTOMER_ACCOUNT_EMAIL_EXISTS": "Email %s đã được sử dụng bởi người dùng khác.",
+    "CUSTOMER_ACCOUNT_USERNAME_EXISTS": "Username %s đã được sử dụng bởi người dùng khác.",
+    "CUSTOMER_ACCOUNT_NOT_FOUND_BY_EMAIL": "Không tìm thấy tài khoản người dùng với email %s.",
+    "PASSWORD_INCORRECT": "Mật khẩu hiện tại không chính xác.",
+    "PASSWORD_WEAK": "Mật khẩu phải có ít nhất 8 ký tự."
+  }
+}

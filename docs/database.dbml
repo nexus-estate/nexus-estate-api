@@ -50,7 +50,7 @@ Table "tbl_estate" {
   "rejected_by" uuid
   "rejected_date" timestamp
   "rejection_reason" text
-  "fk_buyer_id" uuid [not null]
+  "fk_customer_id" uuid [not null]
   "address" "character varying(500)" [not null]
   "title" "character varying(500)" [not null]
   "price" bigint
@@ -142,7 +142,7 @@ Table "tbl_role_permissions" {
   }
 }
 
-Table "tbl_buyer_account" {
+Table "tbl_customer_account" {
   "id" uuid [pk, not null, default: `gen_random_uuid()`]
   "email" "character varying" [unique, not null]
   "password" "character varying" [not null]
@@ -179,7 +179,7 @@ Ref "FK_3044342ef6f666bcba1fa1b958a":"tbl_estate"."id" <? "tbl_media"."fk_estate
 
 Ref "fk_estate_province_id":"tbl_province"."id" ?<? "tbl_estate"."fk_province_id" [delete: set null]
 
-Ref "fk_estate_buyer_id":"tbl_buyer_account"."id" <? "tbl_estate"."fk_buyer_id" [delete: cascade]
+Ref "fk_estate_customer_id":"tbl_customer_account"."id" <? "tbl_estate"."fk_customer_id" [delete: cascade]
 
 Ref "fk_estate_ward_id":"tbl_ward"."id" ?<? "tbl_estate"."fk_ward_id" [delete: set null]
 
@@ -187,6 +187,6 @@ Ref "fk_role_permissions_permission":"tbl_permission"."id" <? "tbl_role_permissi
 
 Ref "fk_role_permissions_role":"tbl_role"."id" <? "tbl_role_permissions"."role_id" [delete: cascade]
 
-Ref "fk_buyer_account_role":"tbl_role"."id" <? "tbl_buyer_account"."role_id" [delete: restrict]
+Ref "fk_customer_account_role":"tbl_role"."id" <? "tbl_customer_account"."role_id" [delete: restrict]
 
 Ref "fk_ward_province_id":"tbl_province"."id" <? "tbl_ward"."fk_province_id" [delete: restrict]

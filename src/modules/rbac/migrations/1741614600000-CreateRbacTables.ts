@@ -105,23 +105,23 @@ export class CreateRbacTables1741614600000 implements MigrationInterface {
     await queryRunner.query(`
       INSERT INTO tbl_role (id, name, description, is_system)
       VALUES
-        (gen_random_uuid(), 'admin', 'System administrator with full access', true),
-        (gen_random_uuid(), 'broker', 'Real estate broker', true),
-        (gen_random_uuid(), 'buyer', 'Property buyer/renter', true)
+        (gen_random_uuid(), 'administrator', 'System administrator with full access', true),
+        (gen_random_uuid(), 'provider', 'Marketplace provider', true),
+        (gen_random_uuid(), 'customer', 'Marketplace customer', true)
     `);
 
     // 5. Seed default permissions
     await queryRunner.query(`
       INSERT INTO tbl_permission (id, name, description, role_id)
-      SELECT gen_random_uuid(), 'user:manage', 'Manage users', id FROM tbl_role WHERE name = 'admin'
-      UNION ALL SELECT gen_random_uuid(), 'user:read', 'Read user info', id FROM tbl_role WHERE name = 'admin'
-      UNION ALL SELECT gen_random_uuid(), 'listing:manage', 'Manage listings', id FROM tbl_role WHERE name = 'admin'
-      UNION ALL SELECT gen_random_uuid(), 'listing:create', 'Create listings', id FROM tbl_role WHERE name = 'broker'
-      UNION ALL SELECT gen_random_uuid(), 'listing:read', 'Read listings', id FROM tbl_role WHERE name = 'broker'
-      UNION ALL SELECT gen_random_uuid(), 'listing:update', 'Update listings', id FROM tbl_role WHERE name = 'broker'
-      UNION ALL SELECT gen_random_uuid(), 'listing:delete', 'Delete listings', id FROM tbl_role WHERE name = 'broker'
-      UNION ALL SELECT gen_random_uuid(), 'property:read', 'Read properties', id FROM tbl_role WHERE name = 'buyer'
-      UNION ALL SELECT gen_random_uuid(), 'lead:manage', 'Manage leads', id FROM tbl_role WHERE name = 'buyer'
+      SELECT gen_random_uuid(), 'user:manage', 'Manage users', id FROM tbl_role WHERE name = 'administrator'
+      UNION ALL SELECT gen_random_uuid(), 'user:read', 'Read user info', id FROM tbl_role WHERE name = 'administrator'
+      UNION ALL SELECT gen_random_uuid(), 'listing:manage', 'Manage listings', id FROM tbl_role WHERE name = 'administrator'
+      UNION ALL SELECT gen_random_uuid(), 'listing:create', 'Create listings', id FROM tbl_role WHERE name = 'provider'
+      UNION ALL SELECT gen_random_uuid(), 'listing:read', 'Read listings', id FROM tbl_role WHERE name = 'provider'
+      UNION ALL SELECT gen_random_uuid(), 'listing:update', 'Update listings', id FROM tbl_role WHERE name = 'provider'
+      UNION ALL SELECT gen_random_uuid(), 'listing:delete', 'Delete listings', id FROM tbl_role WHERE name = 'provider'
+      UNION ALL SELECT gen_random_uuid(), 'property:read', 'Read properties', id FROM tbl_role WHERE name = 'customer'
+      UNION ALL SELECT gen_random_uuid(), 'lead:manage', 'Manage leads', id FROM tbl_role WHERE name = 'customer'
     `);
   }
 

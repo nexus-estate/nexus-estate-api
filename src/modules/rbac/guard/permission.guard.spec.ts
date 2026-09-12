@@ -12,7 +12,7 @@ function createContext(): ExecutionContext {
           id: 'user-id',
           email: 'user@nexus.test',
           roleId: 'role-id',
-          role: 'seller',
+          role: 'provider',
         },
       }),
     }),
@@ -21,7 +21,7 @@ function createContext(): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-const sellerRole = {
+const providerRole = {
   rolePermissions: [
     { permission: { name: PERMISSIONS.ESTATE_READ } },
     { permission: { name: PERMISSIONS.MEDIA_READ } },
@@ -37,7 +37,7 @@ describe('PermissionsGuard', () => {
       }),
     } as unknown as Reflector;
     const roleService = {
-      findByIdWithPermissions: jest.fn().mockResolvedValue(sellerRole),
+      findByIdWithPermissions: jest.fn().mockResolvedValue(providerRole),
     };
     const guard = new PermissionsGuard(reflector, roleService as never);
 
@@ -52,7 +52,7 @@ describe('PermissionsGuard', () => {
       }),
     } as unknown as Reflector;
     const roleService = {
-      findByIdWithPermissions: jest.fn().mockResolvedValue(sellerRole),
+      findByIdWithPermissions: jest.fn().mockResolvedValue(providerRole),
     };
     const guard = new PermissionsGuard(reflector, roleService as never);
 

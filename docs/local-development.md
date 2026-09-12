@@ -128,8 +128,8 @@ npm run test:e2e
 
 ```bash
 # Generate a module-owned migration (use the owning module's migrations folder)
-npm run typeorm -- migration:create src/modules/seller-platform/property/migrations/CreateProperty
-npm run typeorm -- migration:generate src/modules/seller-platform/property/migrations/AddPropertyField
+npm run typeorm -- migration:create src/modules/provider/property/migrations/CreateProperty
+npm run typeorm -- migration:generate src/modules/provider/property/migrations/AddPropertyField
 
 # Generate a platform migration when the change is cross-module
 npm run typeorm -- migration:create src/database/migrations/platform/NormalizeCrossDomainLocationReferences

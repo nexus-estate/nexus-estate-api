@@ -1,25 +1,25 @@
-import { BuyerAccountErrorCodes } from '../../modules/buyer/account/errors/buyer-account-error-codes';
+import { CustomerAccountErrorCodes } from '../../modules/customer/errors/customer-account-error-codes';
 import { BusinessException } from './business.exception';
 
 describe('BusinessException', () => {
   it('maps an error code to the HTTP response shape', () => {
     const exception = new BusinessException(
-      BuyerAccountErrorCodes.BUYER_ACCOUNT_EMAIL_EXISTS,
-      'buyer@nexus.test',
+      CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS,
+      'customer@nexus.test',
     );
 
     expect(exception.getStatus()).toBe(
-      BuyerAccountErrorCodes.BUYER_ACCOUNT_EMAIL_EXISTS.httpStatus,
+      CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS.httpStatus,
     );
     expect(exception.errorCode).toBe(
-      BuyerAccountErrorCodes.BUYER_ACCOUNT_EMAIL_EXISTS.code,
+      CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS.code,
     );
-    expect(exception.messageArgs).toEqual(['buyer@nexus.test']);
+    expect(exception.messageArgs).toEqual(['customer@nexus.test']);
     expect(exception.getResponse()).toEqual({
-      statusCode: BuyerAccountErrorCodes.BUYER_ACCOUNT_EMAIL_EXISTS.httpStatus,
-      code: BuyerAccountErrorCodes.BUYER_ACCOUNT_EMAIL_EXISTS.code,
-      message:
-        'The email buyer@nexus.test is already used by another buyer account.',
+      statusCode:
+        CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS.httpStatus,
+      code: CustomerAccountErrorCodes.CUSTOMER_ACCOUNT_EMAIL_EXISTS.code,
+      message: 'The email customer@nexus.test is already used by another user.',
     });
   });
 });

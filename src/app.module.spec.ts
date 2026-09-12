@@ -1,5 +1,5 @@
 import { AppModule } from './app.module';
-import { BuyerModule } from './modules/buyer/buyer.module';
+import { CustomerModule } from './modules/customer/customer.module';
 
 describe('AppModule', () => {
   it('should have the correct module structure', () => {
@@ -20,18 +20,28 @@ describe('AppModule', () => {
 
     expect(moduleNames).toContain('CommonModule');
     expect(moduleNames).toContain('LocationModule');
-    expect(moduleNames).toContain('BuyerModule');
+    expect(moduleNames).toContain('CustomerModule');
     expect(moduleNames).toContain('AdministrationModule');
   });
 
-  it('should provide buyer boundaries through BuyerModule', () => {
-    const imports = Reflect.getMetadata('imports', BuyerModule) as
+  it('should provide customer boundaries through CustomerModule', () => {
+    const imports = Reflect.getMetadata('imports', CustomerModule) as
       unknown[] | undefined;
     const moduleNames = imports!
       .filter((imp: unknown) => typeof imp === 'function')
       .map((imp: unknown) => (imp as { name: string }).name);
 
-    expect(moduleNames).toContain('BuyerAccountModule');
-    expect(moduleNames).toContain('BuyerAuthenticationModule');
+    expect(moduleNames).toContain('CommonModule');
+    expect(moduleNames).toContain('RbacModule');
+    const controllers = Reflect.getMetadata('controllers', CustomerModule) as
+      unknown[] | undefined;
+    expect(
+      controllers?.map((controller) => (controller as { name: string }).name),
+    ).toEqual(
+      expect.arrayContaining([
+        'CustomerController',
+        'CustomerAuthenticationController',
+      ]),
+    );
   });
 });

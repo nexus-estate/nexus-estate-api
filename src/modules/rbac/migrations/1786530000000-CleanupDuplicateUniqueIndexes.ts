@@ -2,7 +2,10 @@ import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
 
 export class CleanupDuplicateUniqueIndexes1786530000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropIndex('tbl_user', 'IDX_da03ffed3d54f7872792df358f');
+    await queryRunner.dropIndex(
+      'tbl_customer_account',
+      'IDX_c54a0a08149c9edd6d0a7fbffc',
+    );
     await queryRunner.dropIndex('tbl_role', 'IDX_9202294311d3253394ec1a84c9');
     await queryRunner.dropIndex(
       'tbl_permission',
@@ -12,9 +15,9 @@ export class CleanupDuplicateUniqueIndexes1786530000000 implements MigrationInte
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createIndex(
-      'tbl_user',
+      'tbl_customer_account',
       new TableIndex({
-        name: 'IDX_da03ffed3d54f7872792df358f',
+        name: 'IDX_c54a0a08149c9edd6d0a7fbffc',
         columnNames: ['email'],
         isUnique: true,
       }),

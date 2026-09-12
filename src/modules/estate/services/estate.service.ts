@@ -59,7 +59,10 @@ export class EstateService extends BaseService<
     }
     return estate;
   }
-  async createEstate(buyerId: string, dto: CreateEstateDto): Promise<Estate> {
+  async createEstate(
+    customerId: string,
+    dto: CreateEstateDto,
+  ): Promise<Estate> {
     // 1. find province
     const checkedLocation = await this.validateLocaion(
       dto.wardId,
@@ -68,12 +71,12 @@ export class EstateService extends BaseService<
     if (!checkedLocation) {
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
     }
-    return await this.estateRepository.createEstate({ ...dto, buyerId });
+    return await this.estateRepository.createEstate({ ...dto, customerId });
   }
 
   async updateEstate(
     dto: UpdateEstateDto,
-    buyerId: string,
+    customerId: string,
     estateId: string,
   ): Promise<Estate> {
     //check exist estate
@@ -93,8 +96,8 @@ export class EstateService extends BaseService<
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
     }
     // 3. check owner:
-    if (buyerId !== estate.buyerId) {
-      throw new BusinessException(CommonErrorCodes.FORBIDDEN, buyerId);
+    if (customerId !== estate.customerId) {
+      throw new BusinessException(CommonErrorCodes.FORBIDDEN, customerId);
     }
 
     // 5. gọi repository.updateEstate(estateId, dto)
@@ -112,7 +115,10 @@ export class EstateService extends BaseService<
     return updatedEstate;
   }
 
-  async softDeleteEstate(buyerId: string, estateId: string): Promise<boolean> {
+  async softDeleteEstate(
+    customerId: string,
+    estateId: string,
+  ): Promise<boolean> {
     const estate = await this.estateRepository.findById(estateId);
     if (!estate) {
       throw new BusinessException(
@@ -121,8 +127,8 @@ export class EstateService extends BaseService<
       );
     }
 
-    if (buyerId !== estate.buyerId) {
-      throw new BusinessException(CommonErrorCodes.FORBIDDEN, buyerId);
+    if (customerId !== estate.customerId) {
+      throw new BusinessException(CommonErrorCodes.FORBIDDEN, customerId);
     }
     const deletedEstate =
       await this.estateRepository.softDeleteEstate(estateId);
@@ -133,7 +139,7 @@ export class EstateService extends BaseService<
     return true;
   }
 
-  async findByBuyerId(buyerId: string): Promise<Estate[]> {
-    return this.estateRepository.findByBuyerId(buyerId);
+  async findByCustomerId(customerId: string): Promise<Estate[]> {
+    return this.estateRepository.findByCustomerId(customerId);
   }
 }

@@ -24,7 +24,7 @@ import {
 import { Permission } from '../../src/modules/rbac/entities/permission.entity';
 import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
 import { Role } from '../../src/modules/rbac/entities/role.entity';
-import { BuyerAccount } from '../../src/modules/buyer/account/models/buyer-account.entity';
+import { CustomerAccount } from '../../src/modules/customer/models/customer-account.entity';
 
 jest.setTimeout(120_000);
 
@@ -33,13 +33,13 @@ describe('EstateRepo (PostgreSQL integration)', () => {
   let module: TestingModule | undefined;
   let dataSource: DataSource;
   let estateRepository: EstateRepo;
-  let owner: BuyerAccount;
-  let otherBuyer: BuyerAccount;
+  let owner: CustomerAccount;
+  let otherCustomer: CustomerAccount;
   let province: Province;
   let ward: Ward;
 
   const createData = (): CreateEstateData => ({
-    buyerId: owner.id,
+    customerId: owner.id,
     title: 'Riverside apartment',
     description: 'River view',
     type: EstateType.APARTMENT,
@@ -74,7 +74,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
           database: container.getDatabase(),
           entities: [
             Estate,
-            BuyerAccount,
+            CustomerAccount,
             Role,
             Permission,
             RolePermission,
@@ -94,20 +94,20 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_estate, tbl_buyer_account, tbl_role, tbl_ward, tbl_province CASCADE',
+      'TRUNCATE TABLE tbl_estate, tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({
-      name: 'buyer',
+      name: 'customer',
       description: null,
       isSystem: true,
     });
-    owner = await dataSource.getRepository(BuyerAccount).save({
+    owner = await dataSource.getRepository(CustomerAccount).save({
       email: 'owner@nexus.test',
       password: 'hashed-password',
       roleId: role.id,
     });
-    otherBuyer = await dataSource.getRepository(BuyerAccount).save({
+    otherCustomer = await dataSource.getRepository(CustomerAccount).save({
       email: 'other@nexus.test',
       password: 'hashed-password',
       roleId: role.id,
@@ -135,7 +135,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
     expect(created).toMatchObject({
       id: expect.any(String) as string,
-      buyerId: owner.id,
+      customerId: owner.id,
       title: 'Riverside apartment',
       provinceId: province.id,
       wardId: ward.id,
@@ -149,7 +149,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
     expect(found).toMatchObject({
       id: created.id,
-      buyer: { id: owner.id, email: owner.email },
+      customer: { id: owner.id, email: owner.email },
       province: { id: province.id },
       ward: { id: ward.id, provinceId: province.id },
     });
@@ -165,15 +165,15 @@ describe('EstateRepo (PostgreSQL integration)', () => {
     });
     await estateRepository.createEstate({
       ...createData(),
-      buyerId: otherBuyer.id,
+      customerId: otherCustomer.id,
       title: 'Other owner estate',
     });
     await dataSource.getRepository(Estate).softDelete(deleted.id);
 
-    const found = await estateRepository.findByBuyerId(owner.id);
+    const found = await estateRepository.findByCustomerId(owner.id);
 
     expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ id: visible.id, buyerId: owner.id });
+    expect(found[0]).toMatchObject({ id: visible.id, customerId: owner.id });
   });
 
   it('updates an existing estate and returns null for a missing id', async () => {

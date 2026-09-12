@@ -17,25 +17,31 @@ function createContext(user?: { role: string }): ExecutionContext {
 describe('RoleGuard', () => {
   it('allows a principal with one required role', () => {
     const reflector = {
-      getAllAndOverride: jest.fn().mockReturnValue([ROLES.SELLER]),
+      getAllAndOverride: jest.fn().mockReturnValue([ROLES.PROVIDER]),
     } as unknown as Reflector;
     const guard = new RoleGuard(reflector);
 
-    expect(guard.canActivate(createContext({ role: ROLES.SELLER }))).toBe(true);
-    expect(guard.canActivate(createContext({ role: ROLES.BUYER }))).toBe(false);
+    expect(guard.canActivate(createContext({ role: ROLES.PROVIDER }))).toBe(
+      true,
+    );
+    expect(guard.canActivate(createContext({ role: ROLES.CUSTOMER }))).toBe(
+      false,
+    );
   });
 
   it('allows any role in a multi-role requirement', () => {
     const reflector = {
       getAllAndOverride: jest
         .fn()
-        .mockReturnValue([ROLES.ADMINISTRATOR, ROLES.SELLER]),
+        .mockReturnValue([ROLES.ADMINISTRATOR, ROLES.PROVIDER]),
     } as unknown as Reflector;
     const guard = new RoleGuard(reflector);
 
     expect(
       guard.canActivate(createContext({ role: ROLES.ADMINISTRATOR })),
     ).toBe(true);
-    expect(guard.canActivate(createContext({ role: ROLES.BUYER }))).toBe(false);
+    expect(guard.canActivate(createContext({ role: ROLES.CUSTOMER }))).toBe(
+      false,
+    );
   });
 });

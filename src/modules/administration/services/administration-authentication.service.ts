@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
+import { type JwtSignOptions } from '@nestjs/jwt';
 
 import { BusinessException } from '../../../common/exceptions/business.exception';
 import type {
@@ -7,7 +7,8 @@ import type {
   JwtPayload,
   TokenPair,
 } from '../../../common/security/auth.types';
-import { HashHelper } from '../../../utils/helpers/hash.helper';
+import { BcryptService } from '../../../common/security/bcrypt.service';
+import { TokenService } from '../../../common/security/token.service';
 import { AdminLoginDto } from '../dto/admin-login.dto';
 import { AdministrationErrorCodes } from '../errors/administration-error-codes';
 import { AdministrationAccountRepository } from '../repositories/administration-account.repository';
@@ -20,7 +21,8 @@ type JwtExpiresIn = JwtSignOptions['expiresIn'];
 export class AdministrationAuthenticationService {
   constructor(
     private readonly accountRepository: AdministrationAccountRepository,
-    private readonly jwtService: JwtService,
+    private readonly tokenService: TokenService,
+    private readonly bcryptService: BcryptService,
   ) {}
 
   /** Authenticates an administrator against the administration credential store. */
@@ -31,7 +33,7 @@ export class AdministrationAuthenticationService {
 
     if (
       !account ||
-      !(await HashHelper.compare(dto.password, account.password))
+      !(await this.bcryptService.compare(dto.password, account.password))
     ) {
       throw new BusinessException(AdministrationErrorCodes.INVALID_CREDENTIALS);
     }
@@ -46,7 +48,7 @@ export class AdministrationAuthenticationService {
   async refresh(refreshToken: string): Promise<TokenPair> {
     let payload: JwtPayload;
     try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken);
+      payload = await this.tokenService.verifyToken<JwtPayload>(refreshToken);
       if (payload.type !== 'refresh' || payload.aud !== 'administration') {
         throw new Error('Invalid administration token context');
       }
@@ -90,12 +92,14 @@ export class AdministrationAuthenticationService {
       '7d') as JwtExpiresIn;
 
     return {
-      accessToken: await this.jwtService.signAsync(accessPayload, {
-        expiresIn: accessExpiresIn,
-      }),
-      refreshToken: await this.jwtService.signAsync(refreshPayload, {
-        expiresIn: refreshExpiresIn,
-      }),
+      accessToken: await this.tokenService.signAccessToken(
+        accessPayload,
+        accessExpiresIn,
+      ),
+      refreshToken: await this.tokenService.signRefreshToken(
+        refreshPayload,
+        refreshExpiresIn,
+      ),
     };
   }
 

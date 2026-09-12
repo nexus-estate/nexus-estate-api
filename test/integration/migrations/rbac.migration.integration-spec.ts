@@ -53,19 +53,19 @@ describe('RBAC base roles and permissions migration (PostgreSQL integration)', (
     );
 
     expect(rows.map(({ name }) => name)).toEqual(
-      [ROLES.ADMINISTRATOR, ROLES.BUYER, ROLES.SELLER].sort(),
+      [ROLES.ADMINISTRATOR, ROLES.CUSTOMER, ROLES.PROVIDER].sort(),
     );
     expect(rows.some(({ name }) => name === 'anonymous')).toBe(false);
   });
 
-  it('assigns buyer and seller permissions without leaking administrator access', async () => {
+  it('assigns customer and provider permissions without leaking administrator access', async () => {
     const rows: RolePermissionRow[] = await dataSource.query(`
       SELECT role.name AS role_name, permission.name AS permission_name
       FROM tbl_role_permissions AS role_permission
       INNER JOIN tbl_role AS role ON role.id = role_permission.role_id
       INNER JOIN tbl_permission AS permission
         ON permission.id = role_permission.permission_id
-      WHERE role.name IN ('${ROLES.BUYER}', '${ROLES.SELLER}', '${ROLES.ADMINISTRATOR}')
+      WHERE role.name IN ('${ROLES.CUSTOMER}', '${ROLES.PROVIDER}', '${ROLES.ADMINISTRATOR}')
     `);
     const permissionsByRole = new Map<string, Set<string>>();
     for (const row of rows) {
@@ -74,28 +74,34 @@ describe('RBAC base roles and permissions migration (PostgreSQL integration)', (
       permissionsByRole.set(row.role_name, permissions);
     }
 
-    expect(permissionsByRole.get(ROLES.BUYER)).toEqual(expect.any(Set));
+    expect(permissionsByRole.get(ROLES.CUSTOMER)).toEqual(expect.any(Set));
     expect(
       permissionsByRole
-        .get(ROLES.BUYER)
-        ?.has(PERMISSIONS.SELLER_ACCOUNT_REGISTER),
-    ).toBe(true);
-    expect(
-      permissionsByRole.get(ROLES.BUYER)?.has(PERMISSIONS.SELLER_ACCOUNT_READ),
-    ).toBe(true);
-    expect(
-      permissionsByRole.get(ROLES.BUYER)?.has(PERMISSIONS.BUYER_PROFILE_READ),
-    ).toBe(true);
-    expect(
-      permissionsByRole.get(ROLES.SELLER)?.has(PERMISSIONS.ESTATE_CREATE),
+        .get(ROLES.CUSTOMER)
+        ?.has(PERMISSIONS.PROVIDER_ACCOUNT_REGISTER),
     ).toBe(true);
     expect(
       permissionsByRole
-        .get(ROLES.SELLER)
-        ?.has(PERMISSIONS.SELLER_ACCOUNT_APPROVE),
+        .get(ROLES.CUSTOMER)
+        ?.has(PERMISSIONS.PROVIDER_ACCOUNT_READ),
+    ).toBe(true);
+    expect(
+      permissionsByRole
+        .get(ROLES.CUSTOMER)
+        ?.has(PERMISSIONS.CUSTOMER_PROFILE_READ),
+    ).toBe(true);
+    expect(
+      permissionsByRole.get(ROLES.PROVIDER)?.has(PERMISSIONS.ESTATE_CREATE),
+    ).toBe(true);
+    expect(
+      permissionsByRole
+        .get(ROLES.PROVIDER)
+        ?.has(PERMISSIONS.PROVIDER_ACCOUNT_APPROVE),
     ).toBe(false);
     expect(
-      permissionsByRole.get(ROLES.BUYER)?.has(PERMISSIONS.ADMIN_PORTAL_ACCESS),
+      permissionsByRole
+        .get(ROLES.CUSTOMER)
+        ?.has(PERMISSIONS.ADMIN_PORTAL_ACCESS),
     ).toBe(false);
     expect(
       permissionsByRole
@@ -108,7 +114,7 @@ describe('RBAC base roles and permissions migration (PostgreSQL integration)', (
     expect(
       permissionsByRole
         .get(ROLES.ADMINISTRATOR)
-        ?.has(PERMISSIONS.BUYER_PROFILE_READ),
+        ?.has(PERMISSIONS.CUSTOMER_PROFILE_READ),
     ).toBe(true);
   });
 });

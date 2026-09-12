@@ -5,7 +5,7 @@ import { BaseRepository } from '../../../services/abstraction-services';
 import { AdministratorAccount } from '../models/administrator-account.entity';
 import type { AdministrationAuthenticationAccount } from '../types/administration-account.type';
 
-/** Reads administrator credentials without depending on the buyer account module. */
+/** Reads administrator credentials without depending on the customer account module. */
 @Injectable()
 export class AdministrationAccountRepository extends BaseRepository<AdministratorAccount> {
   constructor(dataSource: DataSource) {

@@ -5,10 +5,12 @@ import { BusinessExceptionFilter } from './filters/business-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { RequestContextMiddleware } from './middleware/request-context.middleware';
+import { BcryptService } from './security/bcrypt.service';
 
 @Global()
 @Module({
   providers: [
+    BcryptService,
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
@@ -26,7 +28,7 @@ import { RequestContextMiddleware } from './middleware/request-context.middlewar
       useClass: LoggingInterceptor,
     },
   ],
-  exports: [],
+  exports: [BcryptService],
 })
 export class CommonModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

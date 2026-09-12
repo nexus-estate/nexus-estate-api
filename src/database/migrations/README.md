@@ -8,7 +8,7 @@
 
 New aggregate-owned schema migrations belong in the owning module's `migrations/`
 directory, for example
-`src/modules/seller-platform/account/migrations/`. Cross-module or
+`src/modules/provider/migrations/`. Cross-module or
 platform changes belong in `src/database/migrations/platform/`. The configured
 TypeORM globs discover both locations and TypeORM orders migrations globally by
 the timestamp suffix in each class name.
@@ -22,7 +22,7 @@ The current ownership layout is:
 | Estate | `src/modules/estate/migrations/` |
 | Location | `src/modules/location/migrations/` |
 | Media | `src/modules/media/migrations/` |
-| SellerAccount | `src/modules/seller-platform/account/migrations/` |
+| ProviderAccount | `src/modules/provider/migrations/` |
 
 The platform directory is reserved for future shared or cross-module
 migrations; it currently contains only its README. The historical DataPool
@@ -35,7 +35,7 @@ migration identities while the directory tree reflects ownership.
 
 Business-data transformations are data migrations, not seeds. Keep them in the
 owning module's `data-migrations/` directory and run them through an explicit
-script such as `npm run backfill:seller-account`. Use `src/database/seed/` only
+script such as `npm run backfill:provider-account`. Use `src/database/seed/` only
 for reference/bootstrap data.
 
 Production uses the compiled artifact: run `npm run migration:run:prod` (or
