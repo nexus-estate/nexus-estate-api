@@ -6,7 +6,7 @@ This directory is the **single source of truth** for all project documentation.
 
 | File | Description |
 |------|-------------|
-| [developer.rules.md](./developer.rules.md) | **Architecture, conventions, shared contracts, and development rules** |
+| [developer.rules.md](./developer.rules.md) | **Architecture, conventions, and development rules** |
 | [local-development.md](./local-development.md) | Local development environment setup guide |
 | [ci-pipeline.md](./ci-pipeline.md) | CI pipeline with GitHub Actions (build, lint, test) |
 
@@ -29,20 +29,13 @@ Client Apps ──▶ API Gateway (NestJS) ──▶ PostgreSQL
                      └── Common Layer (filters, interceptors, guards, helpers)
 ```
 
-## Shared Contracts
+## API Contract
 
-The `shared-contracts` repository (`../shared-contracts`) defines API contracts shared across all services and frontend:
-
-- **OpenAPI specs** — Public, Broker, and Admin API definitions
-- **Schemas** — User, Property, Listing, Lead, Media, Payment
-- **Error codes** — Standardized error codes with i18n (EN/VI)
-- **Events** — 10 domain event schemas (JSON Schema)
-- **Proto** — gRPC definitions (Search, Recommendation, Media)
-- **TypeScript SDK** — `@nexus-estate/typescript-sdk` for frontend integration
-- **Go clients** — For microservice consumers
-- **Mock server** — Express.js on port 4010 for frontend development
-
-See [developer.rules.md § Shared Contracts](./developer.rules.md#13-shared-contracts) for full details and usage examples.
+The NestJS application is the source of truth for its REST API implementation.
+Use `@nestjs/swagger` decorators and the generated Swagger document to expose
+and review the current OpenAPI contract. Cross-service search communication is
+owned by the engine repository's local proto definitions, not by a runtime
+package dependency in this API.
 
 ## CI/CD Strategy
 
@@ -53,12 +46,14 @@ See [developer.rules.md § Shared Contracts](./developer.rules.md#13-shared-cont
 
 ```bash
 # Local development
-npm run start:dev       # Start with hot-reload
-npm run build           # Build project
-npm run lint            # Lint with auto-fix
-npm test                # Run unit tests
-npm run test:e2e        # Run integration tests
-npm run test:all        # Full pipeline: build + lint + unit + integration
+npm ci                    # Install the locked dependency graph
+npm run start:dev         # Start with hot-reload
+npm run build             # Build project
+npm run lint:check        # Read-only lint check
+npm run lint:fix          # Apply ESLint fixes locally
+npm test                  # Run unit tests
+npm run test:e2e          # Run integration tests
+npm run test:all          # Full pipeline: build + lint + unit + integration
 
 # Database
 npm run migration:run     # Run pending migrations

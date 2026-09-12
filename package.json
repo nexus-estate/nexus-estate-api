@@ -22,16 +22,19 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
+    "migration:check": "npm run migration:show",
     "seed:location": "ts-node src/database/seed/locations/run-location-seed.ts",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint": "npm run lint:check",
+    "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:all": "npm run build && npm run lint && npm run test && npm run test:e2e",
-    "prepare": "husky",
-    "generate:contracts": "openapi-generator-cli generate"
+    "test:all": "npm run build && npm run lint:check && npm run test && npm run test:e2e",
+    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') require('child_process').execFileSync('husky', { stdio: 'inherit' })\""
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -43,7 +46,6 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.5",
     "@nestjs/typeorm": "^11.0.3",
-    "@nexus-estate/typescript-sdk": "latest",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
@@ -58,7 +60,6 @@
     "typeorm-naming-strategies": "^4.1.0"
   },
   "devDependencies": {
-    "@openapitools/openapi-generator-cli": "^2.39.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",
