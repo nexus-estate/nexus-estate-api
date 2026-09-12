@@ -33,6 +33,10 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+    # Keep watch-mode build output writable by the container user without
+    # changing ownership of the host workspace bind mount.
+    tmpfs:
+      - /app/dist:uid=1001,gid=1001,mode=755
     depends_on:
       postgres:
         condition: service_healthy
