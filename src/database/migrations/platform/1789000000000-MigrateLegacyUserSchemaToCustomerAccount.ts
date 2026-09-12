@@ -8,7 +8,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class MigrateLegacyUserSchemaToCustomerAccount1789000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasLegacyUser = await queryRunner.hasTable('tbl_user');
-    const hasCustomerAccount = await queryRunner.hasTable('tbl_customer_account');
+    const hasCustomerAccount = await queryRunner.hasTable(
+      'tbl_customer_account',
+    );
 
     if (hasLegacyUser && hasCustomerAccount) {
       throw new Error(
@@ -64,9 +66,11 @@ export class MigrateLegacyUserSchemaToCustomerAccount1789000000000 implements Mi
     }
   }
 
-  public async down(): Promise<void> {
-    throw new Error(
-      'MigrateLegacyUserSchemaToCustomerAccount is forward-only because reverting it could corrupt databases created directly with the CustomerAccount schema',
+  public down(): Promise<void> {
+    return Promise.reject(
+      new Error(
+        'MigrateLegacyUserSchemaToCustomerAccount is forward-only because reverting it could corrupt databases created directly with the CustomerAccount schema',
+      ),
     );
   }
 }

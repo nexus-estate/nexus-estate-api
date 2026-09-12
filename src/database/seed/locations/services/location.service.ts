@@ -4,7 +4,7 @@ import { WardRepository } from '../repositories/ward.repo';
 import {
   Province,
   Ward,
-} from '../../../../modules/location/entities/location.entity';
+} from '../../../../modules/location/administrative-division/entities/location.entity';
 
 @Injectable()
 export class locationService {

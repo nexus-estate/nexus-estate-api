@@ -1,4 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   PostgreSqlContainer,
@@ -7,24 +8,25 @@ import {
 import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
-import { Estate } from '../../src/modules/estate/entities';
+import { Estate } from '../../src/modules/estate/property/entities';
 import { EstateModule } from '../../src/modules/estate/estate.module';
-import { EstateRepo } from '../../src/modules/estate/repositories/estate.repo';
+import { EstateRepo } from '../../src/modules/estate/property/repositories/estate.repo';
 import {
   EstatePurpose,
   EstateType,
   type CreateEstateData,
-} from '../../src/modules/estate/type/estate.type';
+} from '../../src/modules/estate/property/types/estate.type';
 import {
   PROVINCE_TYPES,
   Province,
   WARD_TYPES,
   Ward,
-} from '../../src/modules/location/entities/location.entity';
-import { Permission } from '../../src/modules/rbac/entities/permission.entity';
-import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
-import { Role } from '../../src/modules/rbac/entities/role.entity';
-import { CustomerAccount } from '../../src/modules/customer/models/customer-account.entity';
+} from '../../src/modules/location/administrative-division/entities/location.entity';
+import { Permission } from '../../src/modules/rbac/legacy-global/entities/permission.entity';
+import { RolePermission } from '../../src/modules/rbac/legacy-global/entities/role-permission.entity';
+import { Role } from '../../src/modules/rbac/legacy-global/entities/role.entity';
+import { CustomerAccount } from '../../src/modules/customer/account/entities/customer-account.entity';
+import { ProviderAccount } from '../../src/modules/provider/account/entities/provider-account.entity';
 
 jest.setTimeout(120_000);
 
@@ -65,6 +67,11 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
     module = await Test.createTestingModule({
       imports: [
+        ConfigModule.forRoot({
+          isGlobal: true,
+          ignoreEnvFile: true,
+          load: [() => ({ JWT_SECRET: 'estate-integration-secret' })],
+        }),
         TypeOrmModule.forRoot({
           type: 'postgres',
           host: container.getHost(),
@@ -75,6 +82,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
           entities: [
             Estate,
             CustomerAccount,
+            ProviderAccount,
             Role,
             Permission,
             RolePermission,
@@ -94,7 +102,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_estate, tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE',
+      'TRUNCATE TABLE tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({

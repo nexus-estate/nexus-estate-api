@@ -8,18 +8,18 @@ import {
 import { DataSource, QueryFailedError } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
-import { Permission } from '../../src/modules/rbac/entities/permission.entity';
-import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
-import { Role } from '../../src/modules/rbac/entities/role.entity';
-import { CustomerAccount } from '../../src/modules/customer/models/customer-account.entity';
-import { ProviderAccount } from '../../src/modules/provider/models/provider-account.entity';
+import { Permission } from '../../src/modules/rbac/legacy-global/entities/permission.entity';
+import { RolePermission } from '../../src/modules/rbac/legacy-global/entities/role-permission.entity';
+import { Role } from '../../src/modules/rbac/legacy-global/entities/role.entity';
+import { CustomerAccount } from '../../src/modules/customer/account/entities/customer-account.entity';
+import { ProviderAccount } from '../../src/modules/provider/account/entities/provider-account.entity';
 import { ProviderModule } from '../../src/modules/provider/provider.module';
-import { ProviderAccountRepository } from '../../src/modules/provider/repositories/provider-account.repository';
+import { ProviderAccountRepository } from '../../src/modules/provider/account/repositories/provider-account.repository';
 import {
   ProviderStatus,
   ProviderType,
   ProviderVerificationStatus,
-} from '../../src/modules/provider/enums/account.enums';
+} from '../../src/modules/provider/account/enums/account.enums';
 
 jest.setTimeout(120_000);
 

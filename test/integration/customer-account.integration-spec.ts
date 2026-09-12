@@ -8,12 +8,12 @@ import {
 import { DataSource, QueryFailedError } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
-import { Permission } from '../../src/modules/rbac/entities/permission.entity';
-import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
-import { Role } from '../../src/modules/rbac/entities/role.entity';
-import { CustomerAccount } from '../../src/modules/customer/models/customer-account.entity';
-import { CustomerAccountRepository } from '../../src/modules/customer/repositories/customer-account.repository';
-import { CustomerAccountService } from '../../src/modules/customer/services/customer-account.service';
+import { Permission } from '../../src/modules/rbac/legacy-global/entities/permission.entity';
+import { RolePermission } from '../../src/modules/rbac/legacy-global/entities/role-permission.entity';
+import { Role } from '../../src/modules/rbac/legacy-global/entities/role.entity';
+import { CustomerAccount } from '../../src/modules/customer/account/entities/customer-account.entity';
+import { CustomerAccountRepository } from '../../src/modules/customer/account/repositories/customer-account.repository';
+import { CustomerAccountService } from '../../src/modules/customer/account/services/customer-account.service';
 import { CustomerModule } from '../../src/modules/customer/customer.module';
 
 jest.setTimeout(120_000);

@@ -5,23 +5,32 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { CommonModule } from '../../common/common.module';
 import { TokenService } from '../../common/security/token.service';
-import { RbacModule } from '../rbac/rbac.module';
-import { CustomerController } from './controllers/customer.controller';
-import { CustomerAuthenticationController } from './controllers/customer-authentication.controller';
-import { CustomerAccount } from './models/customer-account.entity';
-import { CustomerAccountRepository } from './repositories/customer-account.repository';
-import { CustomerAuthenticationService } from './services/customer-authentication.service';
-import { CustomerAccountService } from './services/customer-account.service';
-import { CustomerService } from './services/customer.service';
-import { CustomerJwtAuthGuard } from './guards/customer-jwt-auth.guard';
-import { CustomerJwtStrategy } from './strategies/customer-jwt.strategy';
+import { CustomerController } from './account/controllers/customer.controller';
+import { CustomerAuthenticationController } from './authentication/controllers/customer-authentication.controller';
+import { CustomerAccount } from './account/entities/customer-account.entity';
+import { CustomerAccountRepository } from './account/repositories/customer-account.repository';
+import { CustomerAuthenticationService } from './authentication/services/customer-authentication.service';
+import { CustomerAccountService } from './account/services/customer-account.service';
+import { CustomerService } from './account/services/customer.service';
+import { CustomerJwtAuthGuard } from './authentication/guards/customer-jwt-auth.guard';
+import { CustomerJwtStrategy } from './authentication/strategies/customer-jwt.strategy';
+import { MarketplaceRole } from './authorization/entities/marketplace-role.entity';
+import { MarketplacePermission } from './authorization/entities/marketplace-permission.entity';
+import { MarketplaceRolePermission } from './authorization/entities/marketplace-role-permission.entity';
+import { CustomerRoleAssignment } from './authorization/entities/customer-role-assignment.entity';
+import { CustomerAuthorizationService } from './authorization/services/customer-authorization.service';
 
 /** Owns the customer API boundary and customer onboarding use cases. */
 @Module({
   imports: [
     CommonModule,
-    RbacModule,
-    TypeOrmModule.forFeature([CustomerAccount]),
+    TypeOrmModule.forFeature([
+      CustomerAccount,
+      MarketplaceRole,
+      MarketplacePermission,
+      MarketplaceRolePermission,
+      CustomerRoleAssignment,
+    ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -38,6 +47,7 @@ import { CustomerJwtStrategy } from './strategies/customer-jwt.strategy';
     CustomerJwtStrategy,
     CustomerJwtAuthGuard,
     TokenService,
+    CustomerAuthorizationService,
   ],
   exports: [CustomerService, CustomerAccountService, CustomerJwtAuthGuard],
 })

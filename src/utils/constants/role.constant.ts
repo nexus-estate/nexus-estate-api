@@ -1,7 +1,4 @@
-/**
- * Persisted RBAC roles. Anonymous access is intentionally not persisted;
- * public endpoints use the @Public decorator instead.
- */
+/** @deprecated Legacy global roles retained for migration compatibility only. */
 export const ROLES = {
   ADMINISTRATOR: 'administrator',
   PROVIDER: 'provider',

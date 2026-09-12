@@ -1,3 +1,4 @@
+/** @deprecated Legacy global permission catalogue retained for migrations only. */
 export const PERMISSIONS = {
   // Customer profile
   CUSTOMER_PROFILE_READ: 'customer:profile:read',

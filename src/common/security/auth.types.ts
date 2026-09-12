@@ -1,14 +1,32 @@
+/** Principal authenticated by the public customer realm. */
+export type CustomerPrincipal = {
+  id: string;
+  email: string;
+  realm: 'customer';
+};
+
+/** Principal authenticated by the internal administration realm. */
+export type AdministrationPrincipal = {
+  id: string;
+  email: string;
+  realm: 'administration';
+};
+
 /**
- * The authenticated identity shared by authorization infrastructure.
+ * Compatibility request shape for code that has not yet adopted a realm
+ * specific principal type. New runtime authorization must use one of the
+ * explicit principal types above.
  *
- * Domain modules own how a principal is authenticated. They only expose this
- * small transport contract to the common role and permission guards.
+ * @deprecated Use CustomerPrincipal or AdministrationPrincipal.
  */
 export type AuthenticatedPrincipal = {
   id: string;
   email: string;
-  roleId: string;
-  role: string;
+  realm?: AuthenticationContext;
+  /** @deprecated Global roles are no longer runtime authorization state. */
+  roleId?: string;
+  /** @deprecated Global roles are no longer runtime authorization state. */
+  role?: string;
 };
 
 /** Identifies the authentication boundary that issued a JWT. */

@@ -1,5 +1,5 @@
 import { CommonErrorCodes } from '../errors/common-error-codes';
-import { CustomerAccountErrorCodes } from '../../modules/customer/errors/customer-account-error-codes';
+import { CustomerAccountErrorCodes } from '../../modules/customer/account/errors/customer-account-error-codes';
 import { localizeBusinessError } from './business-error-message';
 import { resolveApiLanguage } from './language';
 

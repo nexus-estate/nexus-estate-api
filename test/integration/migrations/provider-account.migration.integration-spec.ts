@@ -6,7 +6,7 @@ import { DataSource } from 'typeorm';
 import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
 import { typeOrmConfig } from '../../../src/database/type.config';
-import { backfillLegacyEstateProviders } from '../../../src/modules/provider/data-migrations/backfill-legacy-estate-providers';
+import { backfillLegacyEstateProviders } from '../../../src/modules/provider/registration/data-migrations/backfill-legacy-estate-providers';
 
 jest.setTimeout(120_000);
 

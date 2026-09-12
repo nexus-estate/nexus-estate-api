@@ -2,7 +2,7 @@ import type { ArgumentsHost } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { CustomerAccountErrorCodes } from '../../modules/customer/errors/customer-account-error-codes';
+import { CustomerAccountErrorCodes } from '../../modules/customer/account/errors/customer-account-error-codes';
 import { BusinessException } from '../exceptions/business.exception';
 import { BusinessExceptionFilter } from './business-exception.filter';
 

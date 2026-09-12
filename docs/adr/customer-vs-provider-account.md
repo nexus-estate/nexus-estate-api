@@ -27,6 +27,21 @@ Future Property and Listing entities should reference `provider_id`; services
 should resolve the reusable `CurrentProviderContext` rather than repeatedly
 reimplementing CustomerAccount-to-ProviderAccount lookup.
 
+Provider platform writes must not require `ROLES.PROVIDER`. The authenticated
+principal remains a `CustomerAccount`; supply capability is resolved through
+`CurrentProviderContext` and enforced by `ProviderAccountPolicy`, which
+requires `status = ACTIVE` and `verification_status = VERIFIED` before
+returning the canonical `providerId` for ownership.
+
+For example, a future Property command should follow this boundary:
+
+```text
+authenticated CustomerAccount
+  -> ProviderAccountService.requireActiveProvider(customerId)
+  -> providerId
+  -> Property.provider_id
+```
+
 ## Consequences
 
 - A CustomerAccount can create at most one ProviderAccount in the current phase.

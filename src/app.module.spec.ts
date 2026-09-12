@@ -32,7 +32,7 @@ describe('AppModule', () => {
       .map((imp: unknown) => (imp as { name: string }).name);
 
     expect(moduleNames).toContain('CommonModule');
-    expect(moduleNames).toContain('RbacModule');
+    expect(moduleNames).not.toContain('RbacModule');
     const controllers = Reflect.getMetadata('controllers', CustomerModule) as
       unknown[] | undefined;
     expect(
