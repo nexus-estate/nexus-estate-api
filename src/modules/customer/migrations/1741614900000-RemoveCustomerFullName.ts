@@ -1,6 +1,9 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
 export class RemoveCustomerFullName1741614900000 implements MigrationInterface {
+  /** Preserve the deployed TypeORM migration identity from the legacy User model. */
+  readonly name = 'RemoveFullNameFromUserTable1741614900000';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.dropColumn('tbl_customer_account', 'full_name');
   }

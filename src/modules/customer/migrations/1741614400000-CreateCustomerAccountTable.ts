@@ -1,6 +1,9 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
 export class CreateCustomerAccountTable1741614400000 implements MigrationInterface {
+  /** Preserve the deployed TypeORM migration identity from the legacy User model. */
+  readonly name = 'CreateUserTable1741614400000';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({

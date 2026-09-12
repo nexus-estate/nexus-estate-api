@@ -6,6 +6,9 @@ import {
 } from 'typeorm';
 
 export class AddCustomerUsername1741614700000 implements MigrationInterface {
+  /** Preserve the deployed TypeORM migration identity from the legacy User model. */
+  readonly name = 'AddUsernameToUserTable1741614700000';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.addColumn(
       'tbl_customer_account',
