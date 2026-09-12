@@ -1,21 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsUUID,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 import { ProviderType } from '../enums/account.enums';
 
 /** Authenticated customer payload for submitting a provider-registration request. */
 export class RegisterProviderFromCustomerDto {
-  /** Existing customer identifier submitting the request. */
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  customerId: string;
-
   /** Provider operating model required for the new provider account. */
   @ApiProperty({ enum: ProviderType, example: ProviderType.INDIVIDUAL })
   @IsEnum(ProviderType)

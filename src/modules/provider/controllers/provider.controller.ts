@@ -29,7 +29,7 @@ export class ProviderController {
     private readonly providerRegistrationService: ProviderRegistrationService,
   ) {}
 
-  /** Registers a provider independently from an existing customer account. */
+  /** Registers a customer identity and submits a provider request. */
   @Public()
   @Post('register')
   register(
@@ -46,14 +46,10 @@ export class ProviderController {
     @CurrentUser() customer: AuthenticatedPrincipal,
     @Body() dto: RegisterProviderFromCustomerDto,
   ): Promise<ProviderRegistrationResponse> {
-    return this.providerRegistrationService.requestFromCustomer(
-      customer.id,
-      dto,
-    );
+    return this.providerRegistrationService.requestFromCustomer(customer.id, dto);
   }
 
-  /** Returns the current provider account after provider authorization. */
-  @RoleRequire(ROLES.PROVIDER)
+  /** Returns the owned provider account, including pending onboarding state. */
   @PermissionRequire(PERMISSIONS.PROVIDER_ACCOUNT_READ)
   @Get('me')
   getCurrent(

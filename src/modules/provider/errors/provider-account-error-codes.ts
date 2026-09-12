@@ -33,6 +33,14 @@ export const ProviderAccountErrorCodes = {
     },
     HttpCodes.FORBIDDEN,
   ),
+  PROVIDER_ACCOUNT_NOT_VERIFIED: defineBusinessErrorCode(
+    'PROVIDER_ACCOUNT_NOT_VERIFIED',
+    {
+      en: providerAccountMessages.en.PROVIDER_ACCOUNT_NOT_VERIFIED,
+      vi: providerAccountMessages.vi.PROVIDER_ACCOUNT_NOT_VERIFIED,
+    },
+    HttpCodes.FORBIDDEN,
+  ),
   PROVIDER_ACCOUNT_INVALID_TYPE: defineBusinessErrorCode(
     'PROVIDER_ACCOUNT_INVALID_TYPE',
     {

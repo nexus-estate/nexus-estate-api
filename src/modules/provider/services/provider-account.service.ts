@@ -20,12 +20,7 @@ import {
   ProviderVerificationStatus,
 } from '../enums/account.enums';
 
-/**
- * Application service for provider-account lifecycle and provider context rules.
- *
- * BaseService supplies generic entity CRUD; the methods in this class add
- * authenticated-customer scoping, validation, response mapping, and domain errors.
- */
+/** Application service for provider-account lifecycle and provider context rules. */
 @Injectable()
 export class ProviderAccountService extends BaseService<
   ProviderAccount,
@@ -40,12 +35,7 @@ export class ProviderAccountService extends BaseService<
     super(providerAccountRepository, 'ProviderAccount');
   }
 
-  /**
-   * Creates the authenticated customer's provider account.
-   *
-   * The base service owns persistence mechanics; this method owns the
-   * provider-specific validation, defaults, and conflict translation.
-   */
+  /** Creates a provider request for the authenticated customer. */
   async createForCustomer(
     customerId: string,
     dto: CreateProviderAccountDto,
@@ -53,7 +43,7 @@ export class ProviderAccountService extends BaseService<
     return this.createForCustomerWithVerification(
       customerId,
       dto,
-      ProviderVerificationStatus.UNVERIFIED,
+      ProviderVerificationStatus.PENDING,
     );
   }
 
@@ -106,6 +96,7 @@ export class ProviderAccountService extends BaseService<
           operation: 'provider_account.created',
           customer_id: customerId,
           provider_id: account.id,
+          verification_status: account.verificationStatus,
         }),
       );
 
@@ -156,7 +147,6 @@ export class ProviderAccountService extends BaseService<
       );
     }
 
-    // Profile editing is allowed while suspended; supply mutations use the policy.
     const updated = await super.update(context.providerId, {
       displayName: this.validateDisplayName(dto.displayName),
     });
@@ -170,14 +160,13 @@ export class ProviderAccountService extends BaseService<
     return ProviderAccountMapper.toResponse(updated);
   }
 
-  /** Resolves the reusable provider context used by downstream supply features. */
   resolveCurrentProvider(
     customerId: string,
   ): Promise<CurrentProviderContextValue> {
     return this.currentProviderContext.resolve(customerId);
   }
 
-  /** Rejects supply mutations when the current provider is suspended. */
+  /** Rejects supply mutations unless the provider is active and verified. */
   requireActiveProvider(
     customerId: string,
   ): Promise<CurrentProviderContextValue> {
@@ -187,7 +176,6 @@ export class ProviderAccountService extends BaseService<
     });
   }
 
-  /** Ensures the request uses a value supported by the database check constraint. */
   private validateType(
     type: ProviderType | undefined,
   ): asserts type is ProviderType {
@@ -198,7 +186,6 @@ export class ProviderAccountService extends BaseService<
     }
   }
 
-  /** Trims and validates the display name before it reaches persistence. */
   private validateDisplayName(displayName: string | undefined): string {
     const normalized = displayName?.trim();
     if (!normalized) {
@@ -210,11 +197,9 @@ export class ProviderAccountService extends BaseService<
   }
 }
 
-/** Fields accepted by the inherited generic BaseService.create operation. */
 type ProviderAccountCreateData = Pick<
   ProviderAccount,
   'ownerCustomerId' | 'type' | 'displayName' | 'status' | 'verificationStatus'
 >;
 
-/** Fields accepted by the inherited generic BaseService.update operation. */
 type ProviderAccountUpdateData = Pick<ProviderAccount, 'displayName'>;

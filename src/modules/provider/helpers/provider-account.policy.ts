@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { BusinessException } from '../../../common/exceptions/business.exception';
 import { CurrentProviderContextValue } from '../services/current-provider-context.service';
-import { ProviderStatus } from '../enums/account.enums';
+import {
+  ProviderStatus,
+  ProviderVerificationStatus,
+} from '../enums/account.enums';
 import { ProviderAccountErrorCodes } from '../errors/provider-account-error-codes';
 
 /** Encapsulates provider-state and ownership checks shared by supply features. */
@@ -10,18 +13,34 @@ import { ProviderAccountErrorCodes } from '../errors/provider-account-error-code
 export class ProviderAccountPolicy {
   private readonly logger = new Logger(ProviderAccountPolicy.name);
 
-  /** Throws when a provider is suspended and cannot mutate supply data. */
+  /** Throws unless the provider is active and approved for supply mutations. */
   requireActiveProvider(context: CurrentProviderContextValue): void {
     if (context.providerStatus === ProviderStatus.SUSPENDED) {
       this.logger.warn(
         JSON.stringify({
           operation: 'provider_account.supply_mutation_denied',
+          reason: 'suspended',
           customer_id: context.customerId,
           provider_id: context.providerId,
         }),
       );
       throw new BusinessException(
         ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED,
+      );
+    }
+
+    if (context.verificationStatus !== ProviderVerificationStatus.VERIFIED) {
+      this.logger.warn(
+        JSON.stringify({
+          operation: 'provider_account.supply_mutation_denied',
+          reason: 'not_verified',
+          customer_id: context.customerId,
+          provider_id: context.providerId,
+          verification_status: context.verificationStatus,
+        }),
+      );
+      throw new BusinessException(
+        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_VERIFIED,
       );
     }
   }

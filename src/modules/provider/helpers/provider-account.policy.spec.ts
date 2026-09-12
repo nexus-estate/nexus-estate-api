@@ -1,11 +1,11 @@
 import { ProviderAccountErrorCodes } from '../errors/provider-account-error-codes';
-import { ProviderAccountPolicy as ProviderAccountPolicy } from '../helpers/provider-account.policy';
+import { ProviderAccountPolicy } from './provider-account.policy';
 import {
   ProviderStatus,
   ProviderType,
   ProviderVerificationStatus,
 } from '../enums/account.enums';
-import { CurrentProviderContextValue as CurrentProviderContextValue } from '../services/current-provider-context.service';
+import { CurrentProviderContextValue } from '../services/current-provider-context.service';
 
 describe('ProviderAccountPolicy', () => {
   const policy = new ProviderAccountPolicy();
@@ -14,40 +14,50 @@ describe('ProviderAccountPolicy', () => {
     providerId: '20000000-0000-4000-8000-000000000001',
     providerType: ProviderType.INDIVIDUAL,
     providerStatus: ProviderStatus.ACTIVE,
-    verificationStatus: ProviderVerificationStatus.UNVERIFIED,
+    verificationStatus: ProviderVerificationStatus.VERIFIED,
   };
 
-  it('allows active providers to perform supply mutations', () => {
+  it('allows active verified providers to perform supply mutations', () => {
     expect(() => policy.requireActiveProvider(context)).not.toThrow();
   });
 
   it('blocks suspended providers', () => {
-    let error: unknown;
-    try {
+    expect(() =>
       policy.requireActiveProvider({
         ...context,
         providerStatus: ProviderStatus.SUSPENDED,
-      });
-    } catch (candidate: unknown) {
-      error = candidate;
-    }
-    expect(error).toMatchObject({
-      errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED.code,
-    });
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED.code,
+      }),
+    );
+  });
+
+  it.each([
+    ProviderVerificationStatus.UNVERIFIED,
+    ProviderVerificationStatus.PENDING,
+    ProviderVerificationStatus.REJECTED,
+  ])('blocks %s providers from supply mutations', (verificationStatus) => {
+    expect(() =>
+      policy.requireActiveProvider({ ...context, verificationStatus }),
+    ).toThrow(
+      expect.objectContaining({
+        errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_VERIFIED.code,
+      }),
+    );
   });
 
   it('requires the current provider to own a resource', () => {
-    let error: unknown;
-    try {
+    expect(() =>
       policy.requireProviderOwnership(
         context,
         '20000000-0000-4000-8000-000000000002',
-      );
-    } catch (candidate: unknown) {
-      error = candidate;
-    }
-    expect(error).toMatchObject({
-      errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
-    });
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
+      }),
+    );
   });
 });
