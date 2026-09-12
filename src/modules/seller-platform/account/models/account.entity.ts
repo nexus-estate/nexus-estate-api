@@ -22,10 +22,13 @@ import {
 @Index('uq_seller_account_owner_user_id', ['ownerUserId'], { unique: true })
 @Index('idx_seller_account_status', ['status'])
 @Index('idx_seller_account_type', ['type'])
+/** TypeORM model for the seller-account persistence contract. */
 export class SellerAccount extends BaseEntity {
+  /** User who owns this account; one user may own at most one account. */
   @Column({ name: 'owner_user_id', type: 'uuid', nullable: false })
   ownerUserId: string;
 
+  /** Relation used when a use case needs the owning user record. */
   @OneToOne(() => User, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({
     name: 'owner_user_id',
@@ -34,9 +37,11 @@ export class SellerAccount extends BaseEntity {
   })
   owner: Relation<User>;
 
+  /** Operating model selected by the seller. */
   @Column({ type: 'varchar', length: 32, nullable: false })
   type: SellerType;
 
+  /** Name visible to marketplace consumers. */
   @Column({
     name: 'display_name',
     type: 'varchar',
@@ -45,9 +50,11 @@ export class SellerAccount extends BaseEntity {
   })
   displayName: string;
 
+  /** Lifecycle state used by seller policy checks. */
   @Column({ type: 'varchar', length: 32, default: SellerStatus.ACTIVE })
   status: SellerStatus;
 
+  /** Compliance/onboarding state for future verification workflows. */
   @Column({
     name: 'verification_status',
     type: 'varchar',

@@ -79,7 +79,7 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
   });
 
   it('inserts and finds an account by owner', async () => {
-    const created = await repository.save({
+    const created = await repository.create({
       ownerUserId: user.id,
       type: SellerType.INDIVIDUAL,
       displayName: 'Seller',
@@ -98,14 +98,14 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
   });
 
   it('enforces one account per owner and the owner foreign key', async () => {
-    await repository.save({
+    await repository.create({
       ownerUserId: user.id,
       type: SellerType.BROKER,
       displayName: 'Broker',
     });
 
     await expect(
-      repository.save({
+      repository.create({
         ownerUserId: user.id,
         type: SellerType.AGENCY,
         displayName: 'Agency',
@@ -113,7 +113,7 @@ describe('SellerAccountRepository (PostgreSQL integration)', () => {
     ).rejects.toBeInstanceOf(QueryFailedError);
 
     await expect(
-      repository.save({
+      repository.create({
         ownerUserId: '00000000-0000-4000-8000-000000000099',
         type: SellerType.INDIVIDUAL,
         displayName: 'Orphan',

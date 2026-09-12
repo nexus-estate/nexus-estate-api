@@ -2,6 +2,7 @@ import dataSource from '../../../../database/type.config';
 
 import { backfillLegacyEstateSellers } from './backfill-legacy-estate-sellers';
 
+/** Executes the seller-account backfill as an explicit CLI operation. */
 async function main(): Promise<void> {
   await dataSource.initialize();
   try {

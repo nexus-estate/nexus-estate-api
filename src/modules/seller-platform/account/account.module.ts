@@ -8,6 +8,10 @@ import { SellerAccountPolicy } from './helpers/account.policy';
 import { SellerAccountRepository } from './repositories/account.repository';
 import { SellerAccountService } from './services/account.service';
 
+/**
+ * Nest module that owns seller-account HTTP, application, and persistence
+ * components.
+ */
 @Module({
   imports: [TypeOrmModule.forFeature([SellerAccount])],
   controllers: [SellerAccountController],

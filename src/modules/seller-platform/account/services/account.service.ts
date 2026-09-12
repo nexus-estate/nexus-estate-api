@@ -1,13 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
-import { CurrentSellerContext } from './current-seller-context.service';
+import { BaseService } from '../../../../services/abstraction-services';
+import {
+  CurrentSellerContext,
+  type CurrentSellerContextValue,
+} from './current-seller-context.service';
 import { CreateSellerAccountDto, UpdateSellerAccountDto } from '../dto';
 import { SellerAccountResponse } from '../dto/account.response';
 import { SellerAccountErrorCodes } from '../helpers/errors';
 import { SellerAccountMapper } from '../helpers/account.mapper';
 import { SellerAccountPolicy } from '../helpers/account.policy';
+import { SellerAccount } from '../models/account.entity';
 import { SellerAccountRepository } from '../repositories/account.repository';
 import {
   SellerStatus,
@@ -15,17 +20,33 @@ import {
   SellerVerificationStatus,
 } from '../enums/account.enums';
 
+/**
+ * Application service for seller-account lifecycle and seller context rules.
+ *
+ * BaseService supplies generic entity CRUD; the methods in this class add
+ * authenticated-user scoping, validation, response mapping, and domain errors.
+ */
 @Injectable()
-export class SellerAccountService {
-  private readonly logger = new Logger(SellerAccountService.name);
-
+export class SellerAccountService extends BaseService<
+  SellerAccount,
+  SellerAccountCreateData,
+  SellerAccountUpdateData
+> {
   constructor(
     private readonly sellerAccountRepository: SellerAccountRepository,
     private readonly currentSellerContext: CurrentSellerContext,
     private readonly sellerAccountPolicy: SellerAccountPolicy,
-  ) {}
+  ) {
+    super(sellerAccountRepository, 'SellerAccount');
+  }
 
-  async create(
+  /**
+   * Creates the authenticated user's seller account.
+   *
+   * The base service owns persistence mechanics; this method owns the
+   * seller-specific validation, defaults, and conflict translation.
+   */
+  async createForUser(
     userId: string,
     dto: CreateSellerAccountDto,
   ): Promise<SellerAccountResponse> {
@@ -45,7 +66,7 @@ export class SellerAccountService {
     }
 
     try {
-      const account = await this.sellerAccountRepository.save({
+      const account = await super.create({
         ownerUserId: userId,
         type: dto.type,
         displayName,
@@ -76,6 +97,7 @@ export class SellerAccountService {
     }
   }
 
+  /** Returns the current user's account without creating one implicitly. */
   async getCurrent(userId: string): Promise<SellerAccountResponse> {
     const context = await this.currentSellerContext.resolve(userId);
     const account = await this.sellerAccountRepository.findById(
@@ -91,6 +113,7 @@ export class SellerAccountService {
     return SellerAccountMapper.toResponse(account);
   }
 
+  /** Updates only fields that are editable through the seller profile API. */
   async updateCurrent(
     userId: string,
     dto: UpdateSellerAccountDto,
@@ -107,8 +130,9 @@ export class SellerAccountService {
     }
 
     // Profile editing is allowed while suspended; supply mutations use the policy.
-    account.displayName = this.validateDisplayName(dto.displayName);
-    const updated = await this.sellerAccountRepository.save(account);
+    const updated = await super.update(context.sellerId, {
+      displayName: this.validateDisplayName(dto.displayName),
+    });
     this.logger.log(
       JSON.stringify({
         operation: 'seller_account.profile_updated',
@@ -119,17 +143,20 @@ export class SellerAccountService {
     return SellerAccountMapper.toResponse(updated);
   }
 
-  resolveCurrentSeller(userId: string) {
+  /** Resolves the reusable seller context used by downstream supply features. */
+  resolveCurrentSeller(userId: string): Promise<CurrentSellerContextValue> {
     return this.currentSellerContext.resolve(userId);
   }
 
-  requireActiveSeller(userId: string) {
+  /** Rejects supply mutations when the current seller is suspended. */
+  requireActiveSeller(userId: string): Promise<CurrentSellerContextValue> {
     return this.resolveCurrentSeller(userId).then((context) => {
       this.sellerAccountPolicy.requireActiveSeller(context);
       return context;
     });
   }
 
+  /** Ensures the request uses a value supported by the database check constraint. */
   private validateType(
     type: SellerType | undefined,
   ): asserts type is SellerType {
@@ -140,6 +167,7 @@ export class SellerAccountService {
     }
   }
 
+  /** Trims and validates the display name before it reaches persistence. */
   private validateDisplayName(displayName: string | undefined): string {
     const normalized = displayName?.trim();
     if (!normalized) {
@@ -150,3 +178,12 @@ export class SellerAccountService {
     return normalized;
   }
 }
+
+/** Fields accepted by the inherited generic BaseService.create operation. */
+type SellerAccountCreateData = Pick<
+  SellerAccount,
+  'ownerUserId' | 'type' | 'displayName' | 'status' | 'verificationStatus'
+>;
+
+/** Fields accepted by the inherited generic BaseService.update operation. */
+type SellerAccountUpdateData = Pick<SellerAccount, 'displayName'>;

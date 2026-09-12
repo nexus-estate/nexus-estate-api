@@ -3,6 +3,7 @@ import {
   type ErrorCode,
 } from '../../../../utils/constants/error.constant';
 
+/** Stable error-code mapping used by seller-account application services. */
 export const SellerAccountErrorCodes = {
   SELLER_ACCOUNT_ALREADY_EXISTS: ErrorCodes.SELLER_ACCOUNT_ALREADY_EXISTS,
   SELLER_ACCOUNT_NOT_FOUND: ErrorCodes.SELLER_ACCOUNT_NOT_FOUND,

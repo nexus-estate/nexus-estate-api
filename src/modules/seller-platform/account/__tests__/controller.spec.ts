@@ -6,7 +6,7 @@ import { SellerAccountService } from '../services/account.service';
 import { SellerType } from '../enums/account.enums';
 
 type ServiceMock = {
-  create: jest.MockedFunction<SellerAccountService['create']>;
+  createForUser: jest.MockedFunction<SellerAccountService['createForUser']>;
   getCurrent: jest.MockedFunction<SellerAccountService['getCurrent']>;
   updateCurrent: jest.MockedFunction<SellerAccountService['updateCurrent']>;
 };
@@ -26,7 +26,7 @@ describe('SellerAccountController', () => {
 
   beforeEach(() => {
     service = {
-      create: jest.fn(),
+      createForUser: jest.fn(),
       getCurrent: jest.fn(),
       updateCurrent: jest.fn(),
     };
@@ -40,10 +40,10 @@ describe('SellerAccountController', () => {
       type: SellerType.INDIVIDUAL,
       displayName: 'Seller',
     };
-    service.create.mockResolvedValue(account);
+    service.createForUser.mockResolvedValue(account);
 
     await expect(controller.create(user, dto)).resolves.toBe(account);
-    expect(service.create).toHaveBeenCalledWith(user.id, dto);
+    expect(service.createForUser).toHaveBeenCalledWith(user.id, dto);
   });
 
   it('gets the current seller', async () => {

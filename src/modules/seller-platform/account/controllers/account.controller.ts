@@ -20,6 +20,7 @@ import {
 } from '../dto';
 import { SellerAccountService } from '../services/account.service';
 
+/** HTTP endpoints for the authenticated user's seller account. */
 @ApiTags('Seller Account')
 @ApiBearerAuth()
 @Controller('seller/account')
@@ -35,11 +36,12 @@ export class SellerAccountController {
   })
   @ApiConflictResponse({ description: 'SELLER_ACCOUNT_ALREADY_EXISTS' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  /** Creates the seller account for the authenticated user. */
   create(
     @CurrentUser() user: AuthenticatedPrincipal,
     @Body() dto: CreateSellerAccountDto,
   ): Promise<SellerAccountResponse> {
-    return this.sellerAccountService.create(user.id, dto);
+    return this.sellerAccountService.createForUser(user.id, dto);
   }
 
   @Get()
@@ -47,6 +49,7 @@ export class SellerAccountController {
   @ApiOkResponse({ type: SellerAccountResponse })
   @ApiNotFoundResponse({ description: 'SELLER_ACCOUNT_NOT_FOUND' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  /** Returns the seller account owned by the authenticated user. */
   getCurrent(
     @CurrentUser() user: AuthenticatedPrincipal,
   ): Promise<SellerAccountResponse> {
@@ -59,6 +62,7 @@ export class SellerAccountController {
   @ApiBadRequestResponse({ description: 'SELLER_ACCOUNT_INVALID_DISPLAY_NAME' })
   @ApiNotFoundResponse({ description: 'SELLER_ACCOUNT_NOT_FOUND' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
+  /** Updates the editable profile fields of the authenticated user's account. */
   updateCurrent(
     @CurrentUser() user: AuthenticatedPrincipal,
     @Body() dto: UpdateSellerAccountDto,

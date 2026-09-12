@@ -5,10 +5,12 @@ import { CurrentSellerContextValue } from '../services/current-seller-context.se
 import { SellerStatus } from '../enums/account.enums';
 import { SellerAccountErrorCodes } from './errors';
 
+/** Encapsulates seller-state and ownership checks shared by supply features. */
 @Injectable()
 export class SellerAccountPolicy {
   private readonly logger = new Logger(SellerAccountPolicy.name);
 
+  /** Throws when a seller is suspended and cannot mutate supply data. */
   requireActiveSeller(context: CurrentSellerContextValue): void {
     if (context.sellerStatus === SellerStatus.SUSPENDED) {
       this.logger.warn(
@@ -24,6 +26,7 @@ export class SellerAccountPolicy {
     }
   }
 
+  /** Throws when a seller attempts to mutate another seller's resource. */
   requireSellerOwnership(
     context: CurrentSellerContextValue,
     resourceSellerId: string,

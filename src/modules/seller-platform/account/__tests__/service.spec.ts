@@ -19,7 +19,8 @@ type RepositoryMock = {
   existsByOwnerUserId: jest.MockedFunction<
     SellerAccountRepository['existsByOwnerUserId']
   >;
-  save: jest.MockedFunction<SellerAccountRepository['save']>;
+  create: jest.MockedFunction<SellerAccountRepository['create']>;
+  update: jest.MockedFunction<SellerAccountRepository['update']>;
 };
 
 describe('SellerAccountService', () => {
@@ -46,7 +47,8 @@ describe('SellerAccountService', () => {
       findById: jest.fn(),
       findByOwnerUserId: jest.fn(),
       existsByOwnerUserId: jest.fn(),
-      save: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     };
     currentSellerContext = new CurrentSellerContext(
       repository as unknown as SellerAccountRepository,
@@ -61,21 +63,21 @@ describe('SellerAccountService', () => {
 
   it('creates an account with server-controlled defaults', async () => {
     repository.existsByOwnerUserId.mockResolvedValue(false);
-    repository.save.mockResolvedValue(account);
+    repository.create.mockResolvedValue(account);
 
     const dto: CreateSellerAccountDto = {
       type: SellerType.INDIVIDUAL,
       displayName: '  Nguyen Van A  ',
     };
 
-    await expect(service.create(userId, dto)).resolves.toMatchObject({
+    await expect(service.createForUser(userId, dto)).resolves.toMatchObject({
       id: sellerId,
       type: SellerType.INDIVIDUAL,
       displayName: 'Nguyen Van A',
       status: SellerStatus.ACTIVE,
       verificationStatus: SellerVerificationStatus.UNVERIFIED,
     });
-    expect(repository.save).toHaveBeenCalledWith({
+    expect(repository.create).toHaveBeenCalledWith({
       ownerUserId: userId,
       type: SellerType.INDIVIDUAL,
       displayName: 'Nguyen Van A',
@@ -88,14 +90,14 @@ describe('SellerAccountService', () => {
     repository.existsByOwnerUserId.mockResolvedValue(true);
 
     await expect(
-      service.create(userId, {
+      service.createForUser(userId, {
         type: SellerType.BROKER,
         displayName: 'Broker',
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCodes.SELLER_ACCOUNT_ALREADY_EXISTS.code,
     });
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.create).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -103,7 +105,7 @@ describe('SellerAccountService', () => {
     ['   ', ErrorCodes.SELLER_ACCOUNT_INVALID_DISPLAY_NAME.code],
   ])('rejects a blank display name', async (displayName, errorCode) => {
     await expect(
-      service.create(userId, {
+      service.createForUser(userId, {
         type: SellerType.INDIVIDUAL,
         displayName,
       }),
@@ -112,7 +114,7 @@ describe('SellerAccountService', () => {
 
   it('rejects an invalid seller type', async () => {
     await expect(
-      service.create(userId, {
+      service.createForUser(userId, {
         type: 'NOT_A_SELLER_TYPE' as SellerType,
         displayName: 'Seller',
       }),
@@ -128,7 +130,7 @@ describe('SellerAccountService', () => {
     await expect(service.getCurrent(userId)).resolves.toMatchObject({
       id: sellerId,
     });
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.create).not.toHaveBeenCalled();
   });
 
   it('returns not found when the current account is missing', async () => {
@@ -142,7 +144,7 @@ describe('SellerAccountService', () => {
   it('updates only the display name', async () => {
     repository.findByOwnerUserId.mockResolvedValue(account);
     repository.findById.mockResolvedValue(account);
-    repository.save.mockResolvedValue({
+    repository.update.mockResolvedValue({
       ...account,
       displayName: 'Updated Name',
     });
@@ -153,15 +155,9 @@ describe('SellerAccountService', () => {
       status: SellerStatus.ACTIVE,
       verificationStatus: SellerVerificationStatus.UNVERIFIED,
     });
-    expect(repository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ownerUserId: userId,
-        displayName: 'Updated Name',
-        type: SellerType.INDIVIDUAL,
-        status: SellerStatus.ACTIVE,
-        verificationStatus: SellerVerificationStatus.UNVERIFIED,
-      }),
-    );
+    expect(repository.update).toHaveBeenCalledWith(sellerId, {
+      displayName: 'Updated Name',
+    });
   });
 
   it('resolves a reusable current seller context', async () => {

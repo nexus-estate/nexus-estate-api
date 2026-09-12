@@ -6,7 +6,9 @@ import {
   TableIndex,
 } from 'typeorm';
 
+/** Creates the seller-account table and its persistence-level invariants. */
 export class CreateSellerAccountTable1789202344037 implements MigrationInterface {
+  /** Applies the seller-account schema. */
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
@@ -104,6 +106,7 @@ export class CreateSellerAccountTable1789202344037 implements MigrationInterface
     `);
   }
 
+  /** Removes the seller-account schema during a controlled rollback. */
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.dropTable('tbl_seller_account', true, true, true);
   }
