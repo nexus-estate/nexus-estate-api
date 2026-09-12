@@ -99,6 +99,43 @@ export const ErrorCodes = {
     httpStatus: 400,
   },
 
+  // ─── Seller Account ─────────────────────────────────────────────
+  SELLER_ACCOUNT_ALREADY_EXISTS: {
+    code: 'SELLER_ACCOUNT_ALREADY_EXISTS',
+    message: 'Seller account already exists.',
+    httpStatus: 409,
+  },
+
+  SELLER_ACCOUNT_NOT_FOUND: {
+    code: 'SELLER_ACCOUNT_NOT_FOUND',
+    message: 'Seller account not found.',
+    httpStatus: 404,
+  },
+
+  SELLER_ACCOUNT_SUSPENDED: {
+    code: 'SELLER_ACCOUNT_SUSPENDED',
+    message: 'Seller account is suspended.',
+    httpStatus: 403,
+  },
+
+  SELLER_ACCOUNT_INVALID_TYPE: {
+    code: 'SELLER_ACCOUNT_INVALID_TYPE',
+    message: 'Seller account type is invalid.',
+    httpStatus: 400,
+  },
+
+  SELLER_ACCOUNT_INVALID_DISPLAY_NAME: {
+    code: 'SELLER_ACCOUNT_INVALID_DISPLAY_NAME',
+    message: 'Seller account display name cannot be blank.',
+    httpStatus: 400,
+  },
+
+  SELLER_ACCOUNT_FORBIDDEN: {
+    code: 'SELLER_ACCOUNT_FORBIDDEN',
+    message: 'Seller account access is forbidden.',
+    httpStatus: 403,
+  },
+
   // ─── Role & Permission ───────────────────────────────────────────
   ROLE_NOT_FOUND: {
     code: 'RLE_001',

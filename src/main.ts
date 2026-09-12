@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 const logger = new Logger('Bootstrap');
 
@@ -28,6 +29,15 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api/v1', {
     exclude: ['healthz'],
   });
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Nexus Estate API')
+    .setDescription('Nexus Estate API contract')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('swagger', app, swaggerDocument);
 
   // Global validation pipe for DTO validation
   app.useGlobalPipes(

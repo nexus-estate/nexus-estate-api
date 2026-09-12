@@ -10,6 +10,7 @@ import { LocationModule } from './database/seed/locations/location.module';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EstateModule } from './modules/estate/estate.module';
+import { SellerPlatformModule } from './modules/seller-platform/seller-platform.module';
 @Controller({
   path: 'healthz',
   version: VERSION_NEUTRAL,
@@ -45,6 +46,7 @@ export class HealthController {
     UserModule,
     AuthModule,
     EstateModule,
+    SellerPlatformModule,
   ],
   controllers: [HealthController],
 })

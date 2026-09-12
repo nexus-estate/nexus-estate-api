@@ -23,6 +23,7 @@
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
     "migration:check": "npm run migration:show",
+    "backfill:seller-account": "ts-node src/database/seed/seller-account-backfill.ts",
     "seed:location": "ts-node src/database/seed/locations/run-location-seed.ts",
     "lint": "npm run lint:check",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
