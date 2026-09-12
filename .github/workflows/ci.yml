@@ -76,7 +76,7 @@ jobs:
         run: npm run test:e2e -- --no-coverage
 
       - name: Run and verify migrations
-        run: npm run migration:verify
+        run: npm run migration:verify:prod
 
   docker-build:
     name: Validate production Docker image

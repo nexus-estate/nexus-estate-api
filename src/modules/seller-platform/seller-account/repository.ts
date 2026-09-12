@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { DeepPartial, Repository } from 'typeorm';
 
-import { SellerAccount } from './entity';
+import { SellerAccount } from './seller-account.entity';
 
 @Injectable()
 export class SellerAccountRepository {

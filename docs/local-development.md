@@ -129,12 +129,17 @@ npm run test:e2e
 ```bash
 # Generate a module-owned migration (use the owning module's migrations folder)
 npm run typeorm -- migration:create src/modules/seller-platform/property/migrations/CreateProperty
+npm run typeorm -- migration:generate src/modules/seller-platform/property/migrations/AddPropertyField
 
 # Generate a platform migration when the change is cross-module
 npm run typeorm -- migration:create src/database/migrations/platform/NormalizeCrossDomainLocationReferences
 
 # Run migrations
 npx typeorm migration:run
+
+# Run migrations from the compiled production artifact
+npm run migration:run:prod
+npm run migration:show:prod
 
 # Revert the last migration (only for a deliberate local rollback)
 npx typeorm migration:revert

@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
+import { Check, Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 
 import { BaseEntity } from '../../../services/abstraction-services';
@@ -6,6 +6,15 @@ import { User } from '../../../modules/user/entities/user.entity';
 import { SellerStatus, SellerType, SellerVerificationStatus } from './enums';
 
 @Entity('tbl_seller_account')
+@Check(
+  'chk_seller_account_type',
+  `"type" IN ('INDIVIDUAL', 'BROKER', 'AGENCY')`,
+)
+@Check('chk_seller_account_status', `"status" IN ('ACTIVE', 'SUSPENDED')`)
+@Check(
+  'chk_seller_account_verification_status',
+  `"verification_status" IN ('UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED')`,
+)
 @Index('uq_seller_account_owner_user_id', ['ownerUserId'], { unique: true })
 @Index('idx_seller_account_status', ['status'])
 @Index('idx_seller_account_type', ['type'])

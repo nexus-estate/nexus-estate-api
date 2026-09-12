@@ -1,6 +1,6 @@
 import { ErrorCodes } from '../../../../utils/constants/error.constant';
 import { CreateSellerAccountDto, UpdateSellerAccountDto } from '../dto';
-import { SellerAccount } from '../entity';
+import { SellerAccount } from '../seller-account.entity';
 import { CurrentSellerContext } from '../current-seller-context';
 import { SellerAccountPolicy } from '../policy';
 import { SellerAccountRepository } from '../repository';

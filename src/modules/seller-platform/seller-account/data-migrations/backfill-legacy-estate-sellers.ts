@@ -1,11 +1,13 @@
-import dataSource from '../../../../database/type.config';
+import type { DataSource } from 'typeorm';
 
 /**
  * Creates seller accounts only for users who already own Estate records.
  * The INSERT is idempotent and deliberately remains a controlled operation;
  * ordinary users are not silently promoted to sellers.
  */
-export async function backfillSellerAccounts(): Promise<number> {
+export async function backfillLegacyEstateSellers(
+  dataSource: DataSource,
+): Promise<number> {
   const result = await dataSource.query<{ id: string }[]>(`
     INSERT INTO tbl_seller_account (
       owner_user_id,
@@ -30,20 +32,3 @@ export async function backfillSellerAccounts(): Promise<number> {
 
   return result.length;
 }
-
-async function main(): Promise<void> {
-  await dataSource.initialize();
-  const created = await backfillSellerAccounts();
-  console.log(
-    `Seller account backfill complete: ${created} account(s) created.`,
-  );
-  await dataSource.destroy();
-}
-
-void main().catch(async (error: unknown) => {
-  console.error('Seller account backfill failed.', error);
-  if (dataSource.isInitialized) {
-    await dataSource.destroy();
-  }
-  process.exitCode = 1;
-});

@@ -18,4 +18,8 @@ owning module's `data-migrations/` directory and run them through an explicit
 script such as `npm run backfill:seller-account`. Use `src/database/seed/` only
 for reference/bootstrap data.
 
+Production uses the compiled artifact: run `npm run migration:run:prod` (or
+`npm run migration:show:prod`) from the immutable image. CI verifies this same
+compiled path with `npm run migration:verify:prod`.
+
 The legacy migration set contains historical timestamp collisions. They are intentionally left unchanged because migration identity is part of the database history; all new migrations must use unique timestamps.

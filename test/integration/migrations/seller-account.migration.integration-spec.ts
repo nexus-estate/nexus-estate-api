@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
 import { typeOrmConfig } from '../../../src/database/type.config';
+import { backfillLegacyEstateSellers } from '../../../src/modules/seller-platform/seller-account/data-migrations/backfill-legacy-estate-sellers';
 
 jest.setTimeout(120_000);
 
@@ -148,5 +149,61 @@ describe('SellerAccount migration (PostgreSQL integration)', () => {
     expect(checksByName.get('chk_seller_account_verification_status')).toEqual(
       expect.stringContaining('REJECTED'),
     );
+  });
+
+  it('backfills legacy Estate sellers idempotently', async () => {
+    const roleRows: CatalogRow[] = await dataSource.query(
+      `SELECT id FROM tbl_role WHERE name = 'buyer'`,
+    );
+    const userRows: CatalogRow[] = await dataSource.query(
+      `
+        INSERT INTO tbl_user (email, password, role_id)
+        VALUES ('backfill-seller@nexus.test', 'not-used', $1)
+        RETURNING id
+      `,
+      [roleRows[0].id],
+    );
+    const provinceRows: CatalogRow[] = await dataSource.query(
+      `
+        INSERT INTO tbl_province (name, code, type)
+        VALUES ('Backfill Province', '98', 'province')
+        RETURNING id
+      `,
+    );
+    const wardRows: CatalogRow[] = await dataSource.query(
+      `
+        INSERT INTO tbl_ward (name, code, type, fk_province_id)
+        VALUES ('Backfill Ward', '98001', 'ward', $1)
+        RETURNING id
+      `,
+      [provinceRows[0].id],
+    );
+    await dataSource.query(
+      `
+        INSERT INTO tbl_estate (
+          fk_user_id,
+          address_line,
+          title,
+          price,
+          type,
+          purpose,
+          fk_province_id,
+          fk_ward_id
+        )
+        VALUES ($1, 'Backfill address', 'Backfill estate', 100000, 'HOUSE', 'SALE', $2, $3)
+      `,
+      [userRows[0].id, provinceRows[0].id, wardRows[0].id],
+    );
+
+    const firstRun = await backfillLegacyEstateSellers(dataSource);
+    const secondRun = await backfillLegacyEstateSellers(dataSource);
+    const accountRows: CatalogRow[] = await dataSource.query(
+      `SELECT id FROM tbl_seller_account WHERE owner_user_id = $1`,
+      [userRows[0].id],
+    );
+
+    expect(firstRun).toBe(1);
+    expect(secondRun).toBe(0);
+    expect(accountRows).toHaveLength(1);
   });
 });

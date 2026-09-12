@@ -1,5 +1,5 @@
 import { SellerAccountResponse } from './dto/seller-account.response';
-import { SellerAccount } from './entity';
+import { SellerAccount } from './seller-account.entity';
 
 export class SellerAccountMapper {
   static toResponse(account: SellerAccount): SellerAccountResponse {
