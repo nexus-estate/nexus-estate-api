@@ -4,6 +4,7 @@ import { Province } from '../../../modules/location/administrative-division/enti
 import { Public } from '../../../common/decorators/public.decorator';
 
 @Controller('locations')
+/** Serves reference location data used by address selection flows. */
 export class locationController {
   constructor(private readonly locationService: locationService) {}
 

@@ -12,6 +12,7 @@ export class RoleGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   /** Returns true when the authenticated principal has one required role. */
+  /** Enforces legacy role metadata for quarantined compatibility routes. */
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<RoleMetadata>(
       ROLE_KEY,

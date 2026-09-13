@@ -121,4 +121,12 @@ export const AuthorizationErrorCodes = {
     },
     HttpCodes.CONFLICT,
   ),
+  PROVIDER_OWNER_PROTECTION: defineBusinessErrorCode(
+    'PROVIDER_OWNER_PROTECTION',
+    {
+      en: authorizationMessages.en.PROVIDER_OWNER_PROTECTION,
+      vi: authorizationMessages.vi.PROVIDER_OWNER_PROTECTION,
+    },
+    HttpCodes.CONFLICT,
+  ),
 } as const satisfies Record<string, BusinessErrorCode>;

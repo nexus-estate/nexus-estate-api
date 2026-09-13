@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { CommonModule } from '../../common/common.module';
-import { TokenService } from '../../common/security/token.service';
+import { CustomerTokenService } from '../../common/security/realm-token.service';
 import { CustomerController } from './account/controllers/customer.controller';
 import { CustomerAuthenticationController } from './authentication/controllers/customer-authentication.controller';
 import { CustomerAccount } from './account/entities/customer-account.entity';
@@ -19,6 +18,7 @@ import { MarketplacePermission } from './authorization/entities/marketplace-perm
 import { MarketplaceRolePermission } from './authorization/entities/marketplace-role-permission.entity';
 import { CustomerRoleAssignment } from './authorization/entities/customer-role-assignment.entity';
 import { CustomerAuthorizationService } from './authorization/services/customer-authorization.service';
+import { AuthSession } from '../../common/security/entities/auth-session.entity';
 
 /** Owns the customer API boundary and customer onboarding use cases. */
 @Module({
@@ -30,13 +30,9 @@ import { CustomerAuthorizationService } from './authorization/services/customer-
       MarketplacePermission,
       MarketplaceRolePermission,
       CustomerRoleAssignment,
+      AuthSession,
     ]),
-    JwtModule.registerAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow<string>('JWT_SECRET'),
-      }),
-    }),
+    JwtModule.register({}),
   ],
   controllers: [CustomerController, CustomerAuthenticationController],
   providers: [
@@ -46,7 +42,7 @@ import { CustomerAuthorizationService } from './authorization/services/customer-
     CustomerAuthenticationService,
     CustomerJwtStrategy,
     CustomerJwtAuthGuard,
-    TokenService,
+    CustomerTokenService,
     CustomerAuthorizationService,
   ],
   exports: [CustomerService, CustomerAccountService, CustomerJwtAuthGuard],

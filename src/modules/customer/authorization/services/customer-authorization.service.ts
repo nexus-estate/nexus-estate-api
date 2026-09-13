@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 export class CustomerAuthorizationService {
   constructor(private readonly dataSource: DataSource) {}
 
+  /** Returns the current marketplace roles and non-deprecated permissions for a customer. */
   async effective(customerId: string) {
     const roles = await this.dataSource.query<
       { id: string; code: string; name: string }[]

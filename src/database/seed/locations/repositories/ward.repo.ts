@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
+/** Reads seeded ward reference rows scoped to a province. */
 export class WardRepository {
   constructor(
     @InjectRepository(Ward)

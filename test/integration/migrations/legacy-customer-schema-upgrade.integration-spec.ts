@@ -7,7 +7,7 @@ import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/Postgres
 
 import { assertAllMigrationsApplied } from '../../../src/database/migration-runner/helpers';
 import { typeOrmConfig } from '../../../src/database/type.config';
-import { MigrateLegacyUserSchemaToCustomerAccount1789000000000 } from '../../../src/database/migrations/platform/1789000000000-MigrateLegacyUserSchemaToCustomerAccount';
+import { MigrateLegacyUserSchemaToCustomerAccount1789307935990 } from '../../../src/modules/customer/account/migrations/1789307935990-MigrateLegacyUserSchemaToCustomerAccount';
 import { backfillLegacyEstateProviders } from '../../../src/modules/provider/registration/data-migrations/backfill-legacy-estate-providers';
 
 jest.setTimeout(120_000);
@@ -257,7 +257,7 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
     const upgradeDataSource = new DataSource(migrationOptions);
     await upgradeDataSource.initialize();
     try {
-      const bridgeTimestamp = 1789000000000;
+      const bridgeTimestamp = 1789307935990;
       const discoveredMigrations: DiscoveredMigration[] =
         upgradeDataSource.migrations.map((migration) => {
           const name = migrationName(migration);
@@ -271,10 +271,10 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
 
       expect(legacyNames).toEqual(
         expect.arrayContaining([
-          'CreateUserTable1741614400000',
-          'AddUsernameToUserTable1741614700000',
-          'AddFullNameToUserTable1741614800000',
-          'RemoveFullNameFromUserTable1741614900000',
+          'CreateUserTable1789307935973',
+          'AddUsernameToUserTable1789307935976',
+          'AddFullNameToUserTable1789307935977',
+          'RemoveFullNameFromUserTable1789307935979',
         ]),
       );
 
@@ -287,10 +287,10 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
 
       const executedMigrations = await upgradeDataSource.runMigrations();
       expect(executedMigrations.map(migrationName)).toContain(
-        'MigrateLegacyUserSchemaToCustomerAccount1789000000000',
+        'MigrateLegacyUserSchemaToCustomerAccount1789307935990',
       );
       expect(executedMigrations.map(migrationName)).not.toContain(
-        'CreateUserTable1741614400000',
+        'CreateUserTable1789307935973',
       );
       await expect(upgradeDataSource.showMigrations()).resolves.toBe(false);
       await assertAllMigrationsApplied(upgradeDataSource);
@@ -377,7 +377,7 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      await new MigrateLegacyUserSchemaToCustomerAccount1789000000000().up(
+      await new MigrateLegacyUserSchemaToCustomerAccount1789307935990().up(
         queryRunner,
       );
     } finally {
@@ -442,7 +442,7 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
     await queryRunner.connect();
     try {
       await expect(
-        new MigrateLegacyUserSchemaToCustomerAccount1789000000000().up(
+        new MigrateLegacyUserSchemaToCustomerAccount1789307935990().up(
           queryRunner,
         ),
       ).resolves.toBeUndefined();

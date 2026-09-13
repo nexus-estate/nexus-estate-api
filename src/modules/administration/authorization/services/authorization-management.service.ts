@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { PaginationHelper } from '../../../../utils/helpers/pagination.helper';
 import { AuthorizationErrorCodes } from '../errors/authorization-error-codes';
-import { ADMINISTRATION_PERMISSIONS } from '../constants/administration-permission.constant';
+import { AUTHORIZATION_RECOVERY_PERMISSIONS } from '../constants/administration-permission.constant';
+import { AuthorizationAuditService } from '../audit/authorization-audit.service';
+import type { AuthorizationAuditEvent } from '../audit/authorization-audit.repository';
 import {
   AuthorizationPlatform,
   AuthorizationRoleStatus,
@@ -94,8 +96,21 @@ const PERMISSION_SORT_COLUMNS: Record<string, string> = {
 };
 
 @Injectable()
-export class AuthorizationManagementService {
-  constructor(private readonly dataSource: DataSource) {}
+/**
+ * Platform SQL kernel used by the management adapters.
+ *
+ * The HTTP-facing facade lives under management/; keeping this class injectable
+ * separately makes the platform boundary explicit while preserving the
+ * existing transaction and error behavior during the RC-02 extraction. Use it
+ * only through the platform adapters/facade so trusted table configuration,
+ * cross-platform mismatch classification, invariant locks, and audit writes
+ * remain centralized and consistent.
+ */
+export class AuthorizationManagementCoreService {
+  constructor(
+    private readonly dataSource: DataSource,
+    @Optional() private readonly auditService?: AuthorizationAuditService,
+  ) {}
 
   platforms() {
     return {
@@ -125,6 +140,7 @@ export class AuthorizationManagementService {
     };
   }
 
+  /** Lists roles for one platform with bounded filtering, sorting, and usage metadata. */
   async listRoles(
     platform: AuthorizationPlatform,
     query: AuthorizationRoleListQueryDto,
@@ -182,12 +198,13 @@ export class AuthorizationManagementService {
     );
     const total = Number(countRows[0]?.total ?? 0);
     return PaginationHelper.buildMeta(
-      rows.map((row) => this.roleSummary(row)),
+      rows.map((row) => this.roleSummary(row, platform)),
       total,
       pagination,
     );
   }
 
+  /** Loads one exact platform role and its non-deleted permission catalogue entries. */
   async getRole(platform: AuthorizationPlatform, roleId: string) {
     const config = this.config(platform);
     const role = await this.findRole(config, roleId);
@@ -213,13 +230,14 @@ export class AuthorizationManagementService {
       [roleId],
     );
     return {
-      ...this.roleSummary(role),
+      ...this.roleSummary(role, platform),
       permissions: permissions.map((permission) =>
         this.permissionSummary(permission, platform),
       ),
     };
   }
 
+  /** Creates a custom role, validates platform ownership, and records one atomic audit event. */
   async createRole(
     platform: AuthorizationPlatform,
     dto: CreateAuthorizationRoleDto,
@@ -274,6 +292,7 @@ export class AuthorizationManagementService {
     }
   }
 
+  /** Updates role metadata with optimistic locking and post-mutation safety validation. */
   async updateRole(
     platform: AuthorizationPlatform,
     roleId: string,
@@ -283,6 +302,11 @@ export class AuthorizationManagementService {
   ) {
     const config = this.config(platform);
     await this.dataSource.transaction(async (manager) => {
+      // Serialize recovery-capability changes so two administrators cannot both
+      // observe a safe state and then remove the final recovery path.
+      if (platform === AuthorizationPlatform.ADMINISTRATION) {
+        await this.lockAdministrationRecovery(manager);
+      }
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
         `role:${platform}:${roleId}`,
       ]);
@@ -293,24 +317,57 @@ export class AuthorizationManagementService {
           platform,
         });
       }
-      const rows = await manager.query<RoleRow[]>(
+      if (
+        current.is_system &&
+        dto.status !== undefined &&
+        dto.status !== current.status
+      ) {
+        throw new BusinessException(
+          AuthorizationErrorCodes.SYSTEM_ROLE_IMMUTABLE,
+          { roleId },
+        );
+      }
+      if (
+        platform === AuthorizationPlatform.PROVIDER &&
+        current.code === 'OWNER' &&
+        dto.status === AuthorizationRoleStatus.DISABLED
+      ) {
+        throw new BusinessException(
+          AuthorizationErrorCodes.SYSTEM_ROLE_IMMUTABLE,
+          { roleId },
+        );
+      }
+      if (
+        platform === AuthorizationPlatform.PROVIDER &&
+        current.code === 'OWNER'
+      ) {
+        await this.lockProviderOwner(manager, roleId);
+      }
+      const descriptionIsUnchanged = dto.description === undefined;
+      const updateResult = (await manager.query<RoleRow[]>(
         `UPDATE ${config.roleTable}
-         SET name = COALESCE($2, name), description = ${dto.description === undefined ? 'description' : '$3'},
-             status = COALESCE($4, status), version = version + 1, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND version = $5 AND deleted_at IS NULL
+         SET name = COALESCE($2::varchar, name),
+             description = CASE WHEN $3::boolean THEN description ELSE $4::text END,
+             status = COALESCE($5::varchar, status), version = version + 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND version = $6 AND deleted_at IS NULL
          RETURNING id, code, name, description, is_system, status, version, created_at, updated_at,
            0::bigint AS permission_count, 0::bigint AS assignment_count`,
         [
           roleId,
           dto.name?.trim() ?? null,
-          dto.description === undefined
-            ? null
-            : dto.description?.trim() || null,
+          descriptionIsUnchanged,
+          dto.description?.trim() || null,
           dto.status ?? null,
           dto.expectedVersion,
         ],
-      );
-      if (!rows[0]) {
+      )) as unknown;
+      const rows =
+        Array.isArray(updateResult) && Array.isArray(updateResult[0])
+          ? (updateResult[0] as RoleRow[])
+          : [];
+      const updatedRole = rows[0];
+      if (!updatedRole) {
         throw new BusinessException(
           AuthorizationErrorCodes.ROLE_VERSION_CONFLICT,
           {
@@ -330,14 +387,18 @@ export class AuthorizationManagementService {
         targetType: 'ROLE',
         targetId: roleId,
         requestId,
-        beforeState: this.roleSummary(current),
-        afterState: this.roleSummary(rows[0]),
+        beforeState: this.roleSummary(current, platform),
+        afterState: this.roleSummary(updatedRole, platform),
         reason: null,
       });
+      if (platform === AuthorizationPlatform.ADMINISTRATION) {
+        await this.assertRecoveryCapability(manager);
+      }
     });
     return this.getRole(platform, roleId);
   }
 
+  /** Soft-deletes an unused non-system role after checking platform invariants. */
   async deleteRole(
     platform: AuthorizationPlatform,
     roleId: string,
@@ -346,6 +407,9 @@ export class AuthorizationManagementService {
   ) {
     const config = this.config(platform);
     await this.dataSource.transaction(async (manager) => {
+      if (platform === AuthorizationPlatform.ADMINISTRATION) {
+        await this.lockAdministrationRecovery(manager);
+      }
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
         `role:${platform}:${roleId}`,
       ]);
@@ -356,7 +420,7 @@ export class AuthorizationManagementService {
           platform,
         });
       }
-      if (role.is_system) {
+      if (role.is_system || role.code === 'OWNER') {
         throw new BusinessException(
           AuthorizationErrorCodes.SYSTEM_ROLE_IMMUTABLE,
           { roleId },
@@ -384,14 +448,18 @@ export class AuthorizationManagementService {
         targetType: 'ROLE',
         targetId: roleId,
         requestId,
-        beforeState: this.roleSummary(role),
+        beforeState: this.roleSummary(role, platform),
         afterState: { deletedAt: new Date().toISOString() },
         reason: null,
       });
+      if (platform === AuthorizationPlatform.ADMINISTRATION) {
+        await this.assertRecoveryCapability(manager);
+      }
     });
     return { id: roleId, deleted: true };
   }
 
+  /** Replaces a role's complete permission set and validates effective authority before commit. */
   async replaceRolePermissions(
     platform: AuthorizationPlatform,
     roleId: string,
@@ -402,6 +470,9 @@ export class AuthorizationManagementService {
     const config = this.config(platform);
     const permissionIds = [...new Set(dto.permissionIds)];
     await this.dataSource.transaction(async (manager) => {
+      if (platform === AuthorizationPlatform.ADMINISTRATION) {
+        await this.lockAdministrationRecovery(manager);
+      }
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
         `role:${platform}:${roleId}`,
       ]);
@@ -413,12 +484,28 @@ export class AuthorizationManagementService {
         });
       }
       const beforeRows = await this.rolePermissionIds(config, roleId, manager);
-      await this.validatePermissions(manager, config, platform, permissionIds);
-      const updated = await manager.query<{ id: string }[]>(
+      const permissionRows = await this.validatePermissions(
+        manager,
+        config,
+        platform,
+        permissionIds,
+      );
+      if (
+        platform === AuthorizationPlatform.PROVIDER &&
+        role.code === 'OWNER'
+      ) {
+        this.assertOwnerPermissions(permissionRows, roleId);
+        await this.lockProviderOwner(manager, roleId);
+      }
+      const updateResult = (await manager.query<{ id: string }[]>(
         `UPDATE ${config.roleTable} SET version = version + 1, updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 AND version = $2 AND deleted_at IS NULL RETURNING id`,
         [roleId, dto.expectedVersion],
-      );
+      )) as unknown;
+      const updated =
+        Array.isArray(updateResult) && Array.isArray(updateResult[0])
+          ? (updateResult[0] as { id: string }[])
+          : [];
       if (!updated[0]) {
         throw new BusinessException(
           AuthorizationErrorCodes.ROLE_VERSION_CONFLICT,
@@ -450,10 +537,20 @@ export class AuthorizationManagementService {
         afterState: { permissionIds },
         reason: null,
       });
+      if (platform === AuthorizationPlatform.ADMINISTRATION) {
+        await this.assertRecoveryCapability(manager);
+      }
+      if (
+        platform === AuthorizationPlatform.PROVIDER &&
+        role.code === 'OWNER'
+      ) {
+        await this.assertProviderOwnerRole(manager, roleId);
+      }
     });
     return this.getRole(platform, roleId);
   }
 
+  /** Lists the platform-owned permission catalogue, excluding deleted entries. */
   async listPermissions(
     platform: AuthorizationPlatform,
     query: AuthorizationPermissionListQueryDto,
@@ -513,6 +610,7 @@ export class AuthorizationManagementService {
     );
   }
 
+  /** Retrieves one exact permission and its platform-local usage information. */
   async getPermission(platform: AuthorizationPlatform, permissionId: string) {
     const config = this.config(platform);
     const rows = await this.dataSource.query<PermissionRow[]>(
@@ -543,11 +641,13 @@ export class AuthorizationManagementService {
     };
   }
 
+  /** Lists roles using an exact platform permission identifier. */
   async permissionRoles(platform: AuthorizationPlatform, permissionId: string) {
     const permission = await this.getPermission(platform, permissionId);
     return { items: permission.rolesUsing };
   }
 
+  /** Lists subjects assigned to one exact role, using platform-specific subject joins. */
   async roleSubjects(
     platform: AuthorizationPlatform,
     roleId: string,
@@ -558,6 +658,7 @@ export class AuthorizationManagementService {
     return { role, ...subjects };
   }
 
+  /** Builds the normalized role-permission matrix with deterministic ordering. */
   async matrix(platform: AuthorizationPlatform) {
     const config = this.config(platform);
     const roles = await this.dataSource.query<
@@ -601,6 +702,7 @@ export class AuthorizationManagementService {
     };
   }
 
+  /** Lists authorization subjects without allowing searchable text to replace exact identity lookup. */
   async listSubjects(
     platform: AuthorizationPlatform,
     query: AuthorizationSubjectListQueryDto,
@@ -682,21 +784,58 @@ export class AuthorizationManagementService {
     );
   }
 
+  /** Loads one exact subject from the platform-owned identity table. */
   async getSubject(platform: AuthorizationPlatform, subjectId: string) {
     const config = this.config(platform);
-    const query: AuthorizationSubjectListQueryDto = {
-      page: 1,
-      limit: 1,
-      q: subjectId,
-    };
-    const subjects = await this.listSubjects(platform, query);
-    const subject = subjects.items.find((item) => item.id === subjectId);
-    if (!subject) {
+    const subjectStatus =
+      platform === AuthorizationPlatform.MARKETPLACE
+        ? "'ACTIVE'"
+        : platform === AuthorizationPlatform.PROVIDER
+          ? 'subject.status'
+          : "CASE WHEN subject.is_active THEN 'ACTIVE' ELSE 'DISABLED' END";
+    let displayName = 'subject.id::text';
+    let secondaryText = 'NULL::text';
+    if (platform === AuthorizationPlatform.MARKETPLACE) {
+      displayName = 'subject.email';
+      secondaryText = 'subject.email';
+    } else if (platform === AuthorizationPlatform.PROVIDER) {
+      displayName = 'provider.display_name';
+      secondaryText = 'customer.email';
+    } else {
+      displayName = 'subject.email';
+      secondaryText = 'subject.email';
+    }
+    const joinSql =
+      platform === AuthorizationPlatform.PROVIDER
+        ? `INNER JOIN tbl_provider_account provider ON provider.id = subject.provider_id
+           INNER JOIN tbl_customer_account customer ON customer.id = subject.customer_id`
+        : '';
+    const subjectRows = await this.dataSource.query<SubjectRow[]>(
+      `SELECT subject.id, ${displayName} AS display_name, ${secondaryText} AS secondary_text,
+              ${subjectStatus} AS status, COUNT(assignment.role_id)::int AS role_count,
+              COALESCE(array_agg(assignment.role_id) FILTER (WHERE assignment.role_id IS NOT NULL), ARRAY[]::uuid[]) AS role_ids
+       FROM ${config.subjectTable} subject ${joinSql}
+       LEFT JOIN ${config.assignmentTable} assignment ON assignment.${config.assignmentSubjectColumn} = subject.id
+       WHERE subject.id = $1 AND subject.deleted_at IS NULL
+       GROUP BY subject.id, ${displayName}, ${secondaryText}, ${subjectStatus}`,
+      [subjectId],
+    );
+    const subjectRow = subjectRows[0];
+    if (!subjectRow) {
       throw new BusinessException(AuthorizationErrorCodes.SUBJECT_NOT_FOUND, {
         subjectId,
         platform,
       });
     }
+    const subject = {
+      id: subjectRow.id,
+      subjectType: config.subjectType,
+      displayName: subjectRow.display_name,
+      secondaryText: subjectRow.secondary_text,
+      status: subjectRow.status,
+      roleCount: subjectRow.role_count,
+      roleIds: subjectRow.role_ids,
+    };
     const roleIds = await this.roleIds(config, subjectId);
     const roles = roleIds.length
       ? await this.dataSource.query<
@@ -742,6 +881,7 @@ export class AuthorizationManagementService {
     return detail;
   }
 
+  /** Replaces one subject's complete role set and protects affected recovery/owner invariants. */
   async replaceSubjectRoles(
     platform: AuthorizationPlatform,
     subjectId: string,
@@ -752,6 +892,9 @@ export class AuthorizationManagementService {
     const config = this.config(platform);
     const roleIds = [...new Set(dto.roleIds)];
     await this.dataSource.transaction(async (manager) => {
+      if (platform === AuthorizationPlatform.ADMINISTRATION) {
+        await this.lockAdministrationRecovery(manager);
+      }
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
         `subject:${platform}:${subjectId}`,
       ]);
@@ -776,6 +919,20 @@ export class AuthorizationManagementService {
           { reason: 'disabled_role', roleIds },
         );
       }
+      let providerId: string | undefined;
+      if (platform === AuthorizationPlatform.PROVIDER) {
+        const membershipRows = await manager.query<{ provider_id: string }[]>(
+          `SELECT provider_id FROM tbl_provider_membership
+           WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+          [subjectId],
+        );
+        providerId = membershipRows[0]?.provider_id;
+        if (providerId) {
+          await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+            `provider:last-owner-protection:${providerId}`,
+          ]);
+        }
+      }
       const beforeRoleIds = await this.roleIds(config, subjectId, manager);
       await manager.query(
         `DELETE FROM ${config.assignmentTable} WHERE ${config.assignmentSubjectColumn} = $1`,
@@ -792,50 +949,15 @@ export class AuthorizationManagementService {
         );
       }
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
-        await manager.query(
-          `SELECT pg_advisory_xact_lock(hashtext('authorization:last-admin-protection'))`,
-        );
-        const admins = await this.countAdminsWithPermission(
-          manager,
-          ADMINISTRATION_PERMISSIONS.AUTHORIZATION_ROLE_WRITE,
-        );
-        if (admins === 0) {
-          throw new BusinessException(
-            AuthorizationErrorCodes.LAST_ADMIN_PROTECTION,
-          );
-        }
+        await this.assertRecoveryCapability(manager);
       }
       if (platform === AuthorizationPlatform.PROVIDER) {
-        const ownerRows = await manager.query<{ id: string }[]>(
-          `SELECT id FROM tbl_provider_role WHERE code = 'OWNER' AND deleted_at IS NULL`,
+        await this.assertProviderOwnerMembership(
+          manager,
+          providerId,
+          roleIds,
+          subjectId,
         );
-        const ownerRoleId = ownerRows[0]?.id;
-        if (ownerRoleId && !roleIds.includes(ownerRoleId)) {
-          const membershipRows = await manager.query<{ provider_id: string }[]>(
-            `SELECT provider_id FROM tbl_provider_membership WHERE id = $1`,
-            [subjectId],
-          );
-          const providerId = membershipRows[0]?.provider_id;
-          if (providerId) {
-            await manager.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
-              `provider:last-owner-protection:${providerId}`,
-            ]);
-          }
-          const ownerCount = providerId
-            ? await manager.query<{ count: string }[]>(
-                `SELECT COUNT(*)::text AS count FROM tbl_provider_membership_role assignment
-                 INNER JOIN tbl_provider_membership membership ON membership.id = assignment.membership_id
-                 WHERE membership.provider_id = $1 AND membership.status = 'ACTIVE' AND assignment.role_id = $2`,
-                [providerId, ownerRoleId],
-              )
-            : [{ count: '0' }];
-          if (Number(ownerCount[0]?.count ?? 0) === 0) {
-            throw new BusinessException(
-              AuthorizationErrorCodes.PROVIDER_LAST_OWNER_PROTECTION,
-              { providerId },
-            );
-          }
-        }
       }
       await this.writeAudit(manager, {
         actorAdministratorId,
@@ -852,6 +974,7 @@ export class AuthorizationManagementService {
     return this.getSubject(platform, subjectId);
   }
 
+  /** Returns paginated authorization audit records with bounded, safe filters. */
   async audit(query: AuthorizationAuditQueryDto) {
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['1 = 1'];
@@ -887,12 +1010,25 @@ export class AuthorizationManagementService {
       parameters,
     );
     return PaginationHelper.buildMeta(
-      rows,
+      rows.map((row) => ({
+        id: row.id,
+        actorAdministratorId: row.actor_administrator_id,
+        platform: row.platform,
+        action: row.action,
+        targetType: row.target_type,
+        targetId: row.target_id,
+        reason: row.reason,
+        beforeState: row.before_state,
+        afterState: row.after_state,
+        requestId: row.request_id,
+        createdAt: row.created_at,
+      })),
       Number(countRows[0]?.total ?? 0),
       pagination,
     );
   }
 
+  /** Lists provider memberships with explicit provider context and role usage data. */
   async providerMembers(
     providerId: string,
     query: AuthorizationSubjectListQueryDto,
@@ -1033,10 +1169,14 @@ export class AuthorizationManagementService {
           (candidate) => candidate.permissionTable !== config.permissionTable,
         )
         .map((candidate) => candidate.permissionTable);
-      const crossRows = await manager.query<{ id: string }[]>(
-        `SELECT id FROM ${otherTables.map((table) => `SELECT id FROM ${table} WHERE id = ANY($1::uuid[])`).join(' UNION ALL ')}`,
-        [ids],
-      );
+      const crossRows: { id: string }[] = [];
+      for (const table of otherTables) {
+        const matches = await manager.query<{ id: string }[]>(
+          `SELECT id FROM ${table} WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+          [ids],
+        );
+        crossRows.push(...matches);
+      }
       if (crossRows.length > 0) {
         throw new BusinessException(
           AuthorizationErrorCodes.PERMISSION_PLATFORM_MISMATCH,
@@ -1077,12 +1217,14 @@ export class AuthorizationManagementService {
       const otherTables = Object.values(CONFIGS)
         .filter((candidate) => candidate.roleTable !== config.roleTable)
         .map((candidate) => candidate.roleTable);
-      const crossRows = await manager.query<{ id: string }[]>(
-        `SELECT id FROM ${otherTables
-          .map((table) => `SELECT id FROM ${table} WHERE id = ANY($1::uuid[])`)
-          .join(' UNION ALL ')}`,
-        [ids],
-      );
+      const crossRows: { id: string }[] = [];
+      for (const table of otherTables) {
+        const matches = await manager.query<{ id: string }[]>(
+          `SELECT id FROM ${table} WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+          [ids],
+        );
+        crossRows.push(...matches);
+      }
       if (crossRows.length > 0) {
         throw new BusinessException(
           AuthorizationErrorCodes.ROLE_PLATFORM_MISMATCH,
@@ -1097,29 +1239,140 @@ export class AuthorizationManagementService {
     return rows;
   }
 
-  private async countAdminsWithPermission(
-    manager: EntityManager,
-    code: string,
-  ): Promise<number> {
-    const rows = await manager.query<{ count: string }[]>(
-      `SELECT COUNT(DISTINCT assignment.administrator_id)::text AS count
-       FROM tbl_administrator_role_assignment assignment
-       INNER JOIN tbl_administration_role role ON role.id = assignment.role_id
-       INNER JOIN tbl_administration_role_permission mapping ON mapping.role_id = role.id
-       INNER JOIN tbl_administration_permission permission ON permission.id = mapping.permission_id
-       INNER JOIN tbl_administrator_account administrator ON administrator.id = assignment.administrator_id
-       WHERE administrator.is_active = true AND administrator.deleted_at IS NULL
-         AND role.status = 'ACTIVE' AND role.deleted_at IS NULL
-         AND permission.code = $1 AND permission.deleted_at IS NULL`,
-      [code],
+  private async lockAdministrationRecovery(manager: EntityManager) {
+    await manager.query(
+      `SELECT pg_advisory_xact_lock(hashtext('authorization:last-admin-protection'))`,
     );
-    return Number(rows[0]?.count ?? 0);
+  }
+
+  private async assertRecoveryCapability(
+    manager: EntityManager,
+  ): Promise<void> {
+    const rows = await manager.query<{ count: string }[]>(
+      `SELECT COUNT(*)::text AS count
+       FROM (
+         SELECT assignment.administrator_id
+         FROM tbl_administrator_role_assignment assignment
+         INNER JOIN tbl_administration_role role ON role.id = assignment.role_id
+         INNER JOIN tbl_administration_role_permission mapping ON mapping.role_id = role.id
+         INNER JOIN tbl_administration_permission permission ON permission.id = mapping.permission_id
+         INNER JOIN tbl_administrator_account administrator ON administrator.id = assignment.administrator_id
+         WHERE administrator.is_active = true
+           AND administrator.deleted_at IS NULL
+           AND role.status = 'ACTIVE'
+           AND role.deleted_at IS NULL
+           AND permission.deleted_at IS NULL
+           AND permission.deprecated_at IS NULL
+           AND permission.code = ANY($1::text[])
+         GROUP BY assignment.administrator_id
+         HAVING COUNT(DISTINCT permission.code) = $2
+       ) recovery_admins`,
+      [
+        AUTHORIZATION_RECOVERY_PERMISSIONS,
+        AUTHORIZATION_RECOVERY_PERMISSIONS.length,
+      ],
+    );
+    if (Number(rows[0]?.count ?? 0) === 0) {
+      throw new BusinessException(
+        AuthorizationErrorCodes.LAST_ADMIN_PROTECTION,
+      );
+    }
+  }
+
+  private async lockProviderOwner(
+    manager: EntityManager,
+    roleId: string,
+  ): Promise<void> {
+    const rows = await manager.query<{ provider_id: string }[]>(
+      `SELECT provider_id FROM tbl_provider_membership_role assignment
+       INNER JOIN tbl_provider_membership membership ON membership.id = assignment.membership_id
+       WHERE assignment.role_id = $1
+       GROUP BY membership.provider_id
+       ORDER BY membership.provider_id`,
+      [roleId],
+    );
+    for (const row of rows) {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `provider:last-owner-protection:${row.provider_id}`,
+      ]);
+    }
+  }
+
+  private assertOwnerPermissions(
+    permissionRows: PermissionRow[],
+    roleId: string,
+  ): void {
+    const codes = new Set(permissionRows.map((permission) => permission.code));
+    const required = ['provider-account:read', 'provider-account:update'];
+    if (required.some((code) => !codes.has(code))) {
+      throw new BusinessException(
+        AuthorizationErrorCodes.PROVIDER_OWNER_PROTECTION,
+        { roleId, requiredPermissions: required },
+      );
+    }
+  }
+
+  private async assertProviderOwnerRole(
+    manager: EntityManager,
+    roleId: string,
+  ): Promise<void> {
+    const rows = await manager.query<{ code: string; status: string }[]>(
+      `SELECT code, status FROM tbl_provider_role
+       WHERE id = $1 AND deleted_at IS NULL`,
+      [roleId],
+    );
+    const role = rows[0];
+    if (!role || role.code !== 'OWNER' || role.status !== 'ACTIVE') {
+      throw new BusinessException(
+        AuthorizationErrorCodes.PROVIDER_OWNER_PROTECTION,
+        { roleId },
+      );
+    }
+  }
+
+  private async assertProviderOwnerMembership(
+    manager: EntityManager,
+    providerId: string | undefined,
+    roleIds: string[],
+    subjectId: string,
+  ): Promise<void> {
+    if (!providerId) return;
+    const ownerRows = await manager.query<{ id: string }[]>(
+      `SELECT id FROM tbl_provider_role
+       WHERE code = 'OWNER' AND status = 'ACTIVE' AND deleted_at IS NULL`,
+    );
+    const ownerRoleId = ownerRows[0]?.id;
+    if (!ownerRoleId || roleIds.includes(ownerRoleId)) return;
+
+    const countRows = await manager.query<{ count: string }[]>(
+      `SELECT COUNT(DISTINCT assignment.membership_id)::text AS count
+       FROM tbl_provider_membership_role assignment
+       INNER JOIN tbl_provider_membership membership ON membership.id = assignment.membership_id
+       INNER JOIN tbl_provider_role role ON role.id = assignment.role_id
+       WHERE membership.provider_id = $1
+         AND membership.status = 'ACTIVE'
+         AND membership.deleted_at IS NULL
+         AND role.id = $2
+         AND role.status = 'ACTIVE'
+         AND role.deleted_at IS NULL`,
+      [providerId, ownerRoleId],
+    );
+    if (Number(countRows[0]?.count ?? 0) === 0) {
+      throw new BusinessException(
+        AuthorizationErrorCodes.PROVIDER_LAST_OWNER_PROTECTION,
+        { providerId, subjectId },
+      );
+    }
   }
 
   private async writeAudit(
     manager: EntityManager | DataSource,
-    event: AuditEvent,
+    event: AuthorizationAuditEvent,
   ): Promise<void> {
+    if (this.auditService) {
+      await this.auditService.record(manager, event);
+      return;
+    }
     await manager.query(
       `INSERT INTO tbl_authorization_audit_log
         (actor_administrator_id, platform, action, target_type, target_id, reason, before_state, after_state, request_id)
@@ -1138,7 +1391,18 @@ export class AuthorizationManagementService {
     );
   }
 
-  private roleSummary(row: RoleRow) {
+  private roleSummary(row: RoleRow, platform?: AuthorizationPlatform) {
+    const isProviderOwner =
+      platform === AuthorizationPlatform.PROVIDER && row.code === 'OWNER';
+    const allowedActions = {
+      updateMetadata: true,
+      updateStatus: !row.is_system && !isProviderOwner,
+      updatePermissions: true,
+      delete:
+        !row.is_system &&
+        !isProviderOwner &&
+        Number(row.assignment_count ?? 0) === 0,
+    };
     return {
       id: row.id,
       code: row.code,
@@ -1149,8 +1413,9 @@ export class AuthorizationManagementService {
       version: row.version,
       permissionCount: Number(row.permission_count ?? 0),
       assignmentCount: Number(row.assignment_count ?? 0),
-      isEditable: true,
-      isDeletable: !row.is_system,
+      allowedActions,
+      isEditable: allowedActions.updateMetadata,
+      isDeletable: allowedActions.delete,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -1238,6 +1503,9 @@ type ProviderMemberRow = {
   role_codes: string[];
 };
 
+/** Backward-compatible export for direct service consumers during extraction. */
+export { AuthorizationManagementCoreService as AuthorizationManagementService };
+
 type SubjectRow = {
   id: string;
   display_name: string;
@@ -1245,16 +1513,4 @@ type SubjectRow = {
   status: string;
   role_count: number;
   role_ids: string[];
-};
-
-type AuditEvent = {
-  actorAdministratorId: string;
-  platform: AuthorizationPlatform;
-  action: string;
-  targetType: string;
-  targetId: string | null;
-  reason: string | null;
-  beforeState: Record<string, unknown> | null;
-  afterState: Record<string, unknown> | null;
-  requestId: string | null;
 };

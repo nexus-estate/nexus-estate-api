@@ -7,6 +7,7 @@ import type { DataSource } from 'typeorm';
  * ordinary customers are not silently promoted to providers. Keeping the data
  * source injected makes the transformation independently integration-testable.
  */
+/** Idempotently links legacy estate ownership to provider accounts during controlled backfill. */
 export async function backfillLegacyEstateProviders(
   dataSource: DataSource,
 ): Promise<number> {

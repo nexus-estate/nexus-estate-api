@@ -8,23 +8,32 @@ Accepted for the ProviderAccount foundation and future modules.
 
 Schema migrations are owned by the aggregate or module whose persistence
 contract they change. They live in that module's `migrations/` directory. A
-change that spans modules or belongs to shared database infrastructure lives in
-`src/database/migrations/platform/`. The current module-owned directories are
+change that spans modules or belongs to shared database infrastructure still
+gets an explicit owning module; there is no shared migration directory. The
+current module-owned directories are
 Customer account, RBAC, Estate, Location, Media, and Provider Platform account.
 DataPool and the former DataPool lifecycle are now represented by Customer
 account-owned migrations. The cross-module index cleanup is owned by RBAC
 because it cleans up Customer/RBAC
 unique indexes together with the RBAC schema history.
 
-Historical files were physically reorganized without changing their class
-names, timestamps, or SQL behavior, so the recorded TypeORM migration
-identities remain unchanged.
+Historical migration files were physically moved into their owning modules and
+their timestamp/class identities were normalized for a fresh database. Their
+SQL behavior and file contents were preserved. This normalization is not to be
+repeated against a shared or already deployed database.
 
-TypeORM discovers both central and module-owned schema migration directories.
-Folder hierarchy does not define execution order: the timestamp suffix in the
-migration class name controls global ordering. Migration files and classes are
-append-only after they are shared or deployed; later schema changes use new
-migrations.
+TypeORM discovers module-owned schema migration directories recursively. Folder
+hierarchy does not define execution order: a 13-digit Unix-millisecond
+timestamp obtained from `date +%s%3N` in the migration class name controls
+global ordering. Relative sequence numbers and directory order are forbidden.
+Migration files and classes are append-only after they are shared or deployed;
+later schema changes use new migrations.
+
+The current fresh-database baseline contains no timestamp collision. The
+timestamp checker rejects every new collision; an exact-name allowlist exists
+only for a future deployed legacy collision that cannot be renamed without
+breaking migration metadata. Run `npm run migration:check-timestamps` before
+merging a migration.
 
 ## Schema migrations, data migrations, and seeds
 

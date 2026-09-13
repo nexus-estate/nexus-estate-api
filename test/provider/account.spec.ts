@@ -12,6 +12,7 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CommonModule } from '../../src/common/common.module';
+import { AuthSession } from '../../src/common/security/entities/auth-session.entity';
 import { CustomerModule } from '../../src/modules/customer/customer.module';
 import { Permission } from '../../src/modules/rbac/legacy-global/entities/permission.entity';
 import { RolePermission } from '../../src/modules/rbac/legacy-global/entities/role-permission.entity';
@@ -81,6 +82,7 @@ describe('ProviderAccount API (e2e)', () => {
             ProviderPermission,
             ProviderRole,
             ProviderRolePermission,
+            AuthSession,
           ],
           namingStrategy: new SnakeNamingStrategy(),
           synchronize: true,

@@ -11,6 +11,7 @@ export class EstateRepo extends BaseRepository<Estate> {
     super(dataSource, Estate, 'Estate');
   }
 
+  /** Finds one non-deleted estate by exact identifier. */
   async findById(id: string): Promise<Estate | null> {
     return this.repository
       .createQueryBuilder('estate')
@@ -22,6 +23,7 @@ export class EstateRepo extends BaseRepository<Estate> {
       .getOne();
   }
 
+  /** Lists non-deleted estates owned by one exact customer identifier. */
   async findByCustomerId(customerId: string): Promise<Estate[]> {
     return this.repository
       .createQueryBuilder('estate')
@@ -33,10 +35,12 @@ export class EstateRepo extends BaseRepository<Estate> {
       .getMany();
   }
 
+  /** Persists a new estate with the caller-provided ownership fields. */
   async createEstate(data: CreateEstateData): Promise<Estate> {
     const estate = this.repository.create(data);
     return this.repository.save(estate);
   }
+  /** Updates one exact estate and returns the refreshed persisted entity. */
   async updateEstate(
     id: string,
     data: UpdateEstateDto,
@@ -47,6 +51,7 @@ export class EstateRepo extends BaseRepository<Estate> {
     }
     return this.repository.save(estate);
   }
+  /** Marks one exact estate deleted and reports whether a row changed. */
   async softDeleteEstate(id: string): Promise<boolean> {
     const result = await this.repository
       .createQueryBuilder()

@@ -26,12 +26,14 @@ export class ProviderRegistrationAdministrationService {
     private readonly providerAccountService: ProviderAccountService,
   ) {}
 
+  /** Lists provider registrations awaiting administrator review. */
   async findPending(): Promise<ProviderRegistrationReviewResponse[]> {
     const accounts =
       await this.providerAccountRepository.findPendingForReview();
     return accounts.map((account) => this.toReviewResponse(account));
   }
 
+  /** Loads one exact pending provider registration for an administrator review screen. */
   async findPendingById(
     accountId: string,
   ): Promise<ProviderRegistrationReviewResponse> {
@@ -47,6 +49,7 @@ export class ProviderRegistrationAdministrationService {
   }
 
   /** Approves a pending ProviderAccount without replacing customer identity. */
+  /** Approves one pending provider account and records the resulting active state. */
   async approve(accountId: string): Promise<ProviderRegistrationResponse> {
     let ownerCustomerId = '';
     await this.dataSource.transaction(async (manager) => {

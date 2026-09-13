@@ -1,10 +1,14 @@
-import { Column, Entity, Index, OneToMany } from 'typeorm';
+import { Check, Column, Entity, Index, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../../services/abstraction-services';
 import { ProviderRolePermission } from './provider-role-permission.entity';
 import type { Relation } from 'typeorm';
 
 @Entity('tbl_provider_permission')
 @Index('uq_provider_permission_code', ['code'], { unique: true })
+@Check(
+  'chk_provider_permission_risk_level',
+  `"risk_level" IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')`,
+)
 export class ProviderPermission extends BaseEntity {
   @Column({ type: 'varchar', length: 150 })
   code: string;

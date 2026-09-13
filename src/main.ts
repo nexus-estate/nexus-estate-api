@@ -1,48 +1,60 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import type { Application, NextFunction, Request, Response } from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { ValidationError } from 'class-validator';
 import { CommonErrorCodes } from './common/errors/common-error-codes';
 import { BusinessException } from './common/exceptions/business.exception';
+import { AppModule } from './app.module';
 
 const logger = new Logger('Bootstrap');
 
-/**
- * Bootstraps the NestJS application.
- *
- * Creates the NestJS application instance from the root AppModule,
- * sets global configuration, and starts listening on the configured port.
- * The port is read from the `PORT` environment variable, defaulting to 50001.
- *
- * @returns {Promise<void>} A promise that resolves once the server is listening.
- */
+/** Boots the API with validated configuration, safe HTTP exposure, and shutdown hooks. */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  // Enable CORS for development (configure origins properly in production)
+  app.enableShutdownHooks();
+  const httpServer = app.getHttpAdapter().getInstance() as Application;
+  httpServer.set(
+    'trust proxy',
+    configService.get<number>('TRUST_PROXY_HOPS', 0),
+  );
+  app.use((_request: Request, response: Response, next: NextFunction): void => {
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=()',
+    );
+    next();
+  });
+
+  const corsOrigins = configService.get<string[]>('CORS_ORIGINS', []);
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: corsOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
 
-  // Global prefix for all API routes
   app.setGlobalPrefix('api/v1', {
-    exclude: ['healthz'],
+    exclude: ['healthz', 'health/(.*)'],
   });
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Nexus Estate API')
-    .setDescription('Nexus Estate API contract')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('swagger', app, swaggerDocument);
+  if (configService.get<boolean>('SWAGGER_ENABLED')) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Nexus Estate API')
+      .setDescription('Nexus Estate API contract')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('swagger', app, swaggerDocument);
+  }
 
-  // Global validation pipe for DTO validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -60,11 +72,11 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const port = parseInt(process.env.PORT || '50001', 10);
+  const port = configService.getOrThrow<number>('PORT');
   await app.listen(port);
 
-  logger.log(`🚀 Application is running on: http://localhost:${port}`);
-  logger.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.log(`Application is running on http://localhost:${port}`);
+  logger.log(`Environment: ${configService.get<string>('NODE_ENV')}`);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises

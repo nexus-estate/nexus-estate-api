@@ -41,4 +41,12 @@ export const CustomerAuthErrorCodes = {
     },
     HttpCodes.UNAUTHORIZED,
   ),
+  REFRESH_TOKEN_REUSED: defineBusinessErrorCode(
+    'AUTH_REFRESH_TOKEN_REUSED',
+    {
+      en: customerAuthMessages.en.REFRESH_TOKEN_REUSED,
+      vi: customerAuthMessages.vi.REFRESH_TOKEN_REUSED,
+    },
+    HttpCodes.UNAUTHORIZED,
+  ),
 } as const satisfies Record<string, BusinessErrorCode>;

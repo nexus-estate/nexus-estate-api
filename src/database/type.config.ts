@@ -20,13 +20,13 @@ export const typeOrmConfig: DataSourceOptions = {
   ...commonConfig,
   entities: [path.join(__dirname, '../modules/**/*.entity{.ts,.js}')],
   migrations: [
-    path.join(__dirname, 'migrations/**/!(*.spec|*.d).{ts,js}'),
     path.join(__dirname, '../modules/**/migrations/!(*.spec|*.d).{ts,js}'),
   ],
   synchronize: false,
   migrationsTransactionMode: 'each',
 };
 
+/** Creates a TypeORM data source using module-owned entities and migrations. */
 export function createTypeOrmDataSource(database?: string): DataSource {
   const dataSourceOptions = { ...typeOrmConfig };
   if (database) {

@@ -13,8 +13,9 @@ Every pull request targeting `main` or `develop` runs:
 4. `npm run lint:check`
 5. `npm test -- --no-coverage`
 6. `npm run test:e2e -- --no-coverage` with PostgreSQL/Testcontainers
-7. `npm run migration:check`
-8. A production Docker build
+7. `npm run migration:check-timestamps`
+8. `npm run migration:check`
+9. A production Docker build
 
 The API has no private npm dependency or registry credential on this path, so
 the Docker validation also runs for fork pull requests.
@@ -30,14 +31,19 @@ branches.
 
 The workflow provisions PostgreSQL with these values:
 
-| Variable | CI value |
-|----------|----------|
-| `DB_POSTGRES_HOST` | `localhost` |
-| `DB_POSTGRES_PORT` | `5432` |
-| `DB_POSTGRES_USER` | `test` |
-| `DB_POSTGRES_PASS` | `test` |
-| `DB_POSTGRES_NAME` | `nexus_estate_test` |
-| `JWT_SECRET` | `ci-test-secret` |
+| Variable                      | CI value                           |
+| ----------------------------- | ---------------------------------- |
+| `DB_POSTGRES_HOST`            | `localhost`                        |
+| `DB_POSTGRES_PORT`            | `5432`                             |
+| `DB_POSTGRES_USER`            | `test`                             |
+| `DB_POSTGRES_PASS`            | `test`                             |
+| `DB_POSTGRES_NAME`            | `nexus_estate_test`                |
+| `CUSTOMER_JWT_ACCESS_SECRET`  | CI-only customer access key        |
+| `CUSTOMER_JWT_REFRESH_SECRET` | CI-only customer refresh key       |
+| `ADMIN_JWT_ACCESS_SECRET`     | CI-only administration access key  |
+| `ADMIN_JWT_REFRESH_SECRET`    | CI-only administration refresh key |
+| `CORS_ORIGINS`                | `http://localhost:3000`            |
+| `SWAGGER_ENABLED`             | `false`                            |
 
 ## Local verification
 
@@ -48,6 +54,7 @@ npm run typecheck
 npm run lint:check
 npm test -- --no-coverage
 npm run test:e2e -- --no-coverage
+npm run migration:check-timestamps
 npm run migration:check
 docker build --target production .
 ```

@@ -3,9 +3,10 @@ import { DataSource } from 'typeorm';
 
 /** Resolves current administration roles and permissions for /me/authorization. */
 @Injectable()
-export class AuthorizationEffectiveService {
+export class AdministrationAuthorizationService {
   constructor(private readonly dataSource: DataSource) {}
 
+  /** Returns current administration authority from active, non-deleted assignments and permissions. */
   async effective(administratorId: string) {
     const state = await this.dataSource.query<{ is_active: boolean }[]>(
       `SELECT is_active FROM tbl_administrator_account WHERE id = $1 AND deleted_at IS NULL`,
@@ -57,3 +58,6 @@ export class AuthorizationEffectiveService {
     return rows[0]?.version ?? new Date(0).toISOString();
   }
 }
+
+/** Backward-compatible name retained for existing controller consumers. */
+export { AdministrationAuthorizationService as AuthorizationEffectiveService };

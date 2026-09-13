@@ -9,6 +9,7 @@ This directory is the **single source of truth** for all project documentation.
 | [developer.rules.md](./developer.rules.md) | **Architecture, conventions, and development rules** |
 | [local-development.md](./local-development.md) | Local development environment setup guide |
 | [ci-pipeline.md](./ci-pipeline.md) | CI pipeline with GitHub Actions (build, lint, test) |
+| [security-runtime.md](./security-runtime.md) | Authentication and production runtime operations |
 
 ## Architecture Overview
 

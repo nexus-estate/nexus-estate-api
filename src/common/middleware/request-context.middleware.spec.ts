@@ -66,4 +66,24 @@ describe('RequestContextMiddleware', () => {
     expect(setHeader).toHaveBeenCalledWith(REQUEST_ID_HEADER, requestId);
     expect(next).toHaveBeenCalledTimes(1);
   });
+
+  it('replaces unsafe or oversized client request ids with a server id', () => {
+    const request = {
+      headers: { [REQUEST_ID_HEADER]: '<script>' + 'x'.repeat(200) },
+    } as unknown as Request;
+    const setHeader = jest.fn();
+    const next = jest.fn() as NextFunction;
+
+    new RequestContextMiddleware().use(
+      request,
+      { setHeader } as unknown as Response,
+      next,
+    );
+
+    const requestId = (request as RequestWithContext).requestId;
+    expect(requestId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(setHeader).toHaveBeenCalledWith(REQUEST_ID_HEADER, requestId);
+  });
 });

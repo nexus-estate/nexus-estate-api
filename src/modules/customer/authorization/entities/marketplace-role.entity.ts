@@ -1,10 +1,12 @@
-import { Column, Entity, Index, OneToMany } from 'typeorm';
+import { Check, Column, Entity, Index, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../../services/abstraction-services';
 import { MarketplaceRolePermission } from './marketplace-role-permission.entity';
 import type { Relation } from 'typeorm';
 
 @Entity('tbl_marketplace_role')
 @Index('uq_marketplace_role_code', ['code'], { unique: true })
+@Check('chk_marketplace_role_status', `"status" IN ('ACTIVE', 'DISABLED')`)
+@Check('chk_marketplace_role_version_positive', '"version" >= 1')
 export class MarketplaceRole extends BaseEntity {
   @Column({ type: 'varchar', length: 100 })
   code: string;

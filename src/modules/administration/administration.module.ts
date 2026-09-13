@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { CustomerModule } from '../customer/customer.module';
 import { ProviderModule } from '../provider/provider.module';
 import { AdministrationAuthorizationModule } from './authorization/authorization.module';
-import { TokenService } from '../../common/security/token.service';
+import { AdministrationTokenService } from '../../common/security/realm-token.service';
 import { AdministrationAuthenticationController } from './authentication/controllers/administration-authentication.controller';
 import { ProviderRegistrationAdministrationController } from './provider-review/controllers/provider-registration-administration.controller';
 import { AdministrationJwtAuthGuard } from './authentication/guards/administration-jwt-auth.guard';
@@ -23,14 +22,7 @@ import { AdministratorAccount } from './authentication/entities/administrator-ac
     CustomerModule,
     AdministrationAuthorizationModule,
     ProviderModule,
-    JwtModule.registerAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret:
-          configService.get<string>('ADMIN_JWT_SECRET') ??
-          configService.getOrThrow<string>('JWT_SECRET'),
-      }),
-    }),
+    JwtModule.register({}),
   ],
   controllers: [
     AdministrationAuthenticationController,
@@ -42,7 +34,7 @@ import { AdministratorAccount } from './authentication/entities/administrator-ac
     AdministrationJwtStrategy,
     AdministrationJwtAuthGuard,
     ProviderRegistrationAdministrationService,
-    TokenService,
+    AdministrationTokenService,
   ],
   exports: [AdministrationAuthenticationService],
 })

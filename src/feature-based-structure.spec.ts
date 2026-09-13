@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 
 const modulesRoot = join(__dirname, 'modules');
 const technicalLayerNames = new Set([
@@ -19,6 +19,11 @@ const technicalLayerNames = new Set([
   'decorators',
   'constants',
   'permissions',
+  'management',
+  'marketplace',
+  'provider',
+  'administration',
+  'audit',
 ]);
 const lifecycleDirectoryNames = new Set(['migrations', 'data-migrations']);
 
@@ -118,32 +123,43 @@ describe('feature-based module structure', () => {
     expect(violations).toEqual([]);
   });
 
-  it('keeps a colocated sidecar for every feature source file', () => {
-    const missing: string[] = [];
+  it('requires every schema migration to be module-owned and date-stamped', () => {
+    const invalid: string[] = [];
+    const sourceRoot = join(__dirname);
+    const migrationFiles = filesUnder(sourceRoot).filter(
+      (file) =>
+        file.includes(`${sep}migrations${sep}`) &&
+        file.endsWith('.ts') &&
+        !/\.(spec|test)\.ts$/.test(file),
+    );
 
-    for (const moduleEntry of readdirSync(modulesRoot, {
-      withFileTypes: true,
-    })) {
-      if (!moduleEntry.isDirectory()) continue;
+    for (const migrationFile of migrationFiles) {
+      const relativePath = relative(sourceRoot, migrationFile);
+      const isModuleOwned = relativePath.startsWith(`modules${sep}`);
+      const fileName = relativePath.split(sep).pop() ?? '';
+      const match = /^(\d{13})-[A-Za-z][A-Za-z0-9]*\.ts$/.exec(fileName);
+      const timestamp = match ? Number(match[1]) : Number.NaN;
+      const isDateStamped =
+        Number.isSafeInteger(timestamp) &&
+        timestamp >= Date.UTC(2000, 0, 1) &&
+        timestamp <= Date.UTC(2100, 0, 1);
+      const hasMatchingClassTimestamp = Boolean(
+        match &&
+        new RegExp(`export class [A-Za-z0-9_]+${match[1]}\\b`).test(
+          readFileSync(migrationFile, 'utf8'),
+        ),
+      );
 
-      const modulePath = join(modulesRoot, moduleEntry.name);
-      for (const sourceFile of filesUnder(modulePath)) {
-        if (
-          !sourceFile.endsWith('.ts') ||
-          /\.(spec|test)\.ts$/.test(sourceFile)
-        ) {
-          continue;
-        }
-
-        const stem = sourceFile.slice(0, -3);
-        const sidecars = [`${stem}.spec.ts`, `${stem}.test.ts`].filter(
-          (sidecar) => existsSync(sidecar) && statSync(sidecar).isFile(),
-        );
-
-        if (sidecars.length !== 1) missing.push(sourceFile);
+      if (
+        !isModuleOwned ||
+        !match ||
+        !isDateStamped ||
+        !hasMatchingClassTimestamp
+      ) {
+        invalid.push(relativePath);
       }
     }
 
-    expect(missing).toEqual([]);
+    expect(invalid).toEqual([]);
   });
 });

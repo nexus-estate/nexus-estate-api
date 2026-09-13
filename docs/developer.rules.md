@@ -51,7 +51,7 @@ src/modules/<module>/
 │   ├── guards/ / strategies/         # feature-owned security adapters
 │   ├── helpers/                      # mappers and feature-owned policies
 │   ├── errors/ / constants/ / types/
-│   ├── *.spec.ts                    # sidecars inside each layer
+│   ├── *.spec.ts                    # behavior-focused tests beside logic
 │   ├── migrations/                  # only when owned by this feature
 │   └── data-migrations/             # only for explicit data backfills
 └── <feature-b>/
@@ -66,16 +66,16 @@ belongs in `customer/account/repositories/`, not in
 
 ### 2.1 Current module-to-feature map
 
-| Module | Features and responsibility |
-| --- | --- |
-| `customer` | `account/` for profile/registration/account persistence; `authentication/` for public login, JWT, and realm guards; `authorization/` for Marketplace role data and effective permissions. |
-| `provider` | `account/` for ProviderAccount lifecycle and capability state; `registration/` for provider onboarding and compatibility backfills; `authorization/` for ProviderMembership and Provider-scoped roles/permissions. |
-| `administration` | `authentication/` for the internal realm; `provider-review/` for provider approval workflows; `authorization/` for Administration RBAC, management API, audit, and migrations. |
-| `estate` | `property/` for the current property/estate supply feature. |
-| `location` | `administrative-division/` for province/ward/address data. |
-| `lead` | `lead/` for lead persistence and lead behavior. |
-| `media` | `asset/` for media persistence and media behavior. |
-| `rbac` | `legacy-global/` only for historical global RBAC compatibility and migrations. No new runtime feature may depend on it. |
+| Module           | Features and responsibility                                                                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `customer`       | `account/` for profile/registration/account persistence; `authentication/` for public login, JWT, and realm guards; `authorization/` for Marketplace role data and effective permissions.                          |
+| `provider`       | `account/` for ProviderAccount lifecycle and capability state; `registration/` for provider onboarding and compatibility backfills; `authorization/` for ProviderMembership and Provider-scoped roles/permissions. |
+| `administration` | `authentication/` for the internal realm; `provider-review/` for provider approval workflows; `authorization/` for Administration RBAC, management API, audit, and migrations.                                     |
+| `estate`         | `property/` for the current property/estate supply feature.                                                                                                                                                        |
+| `location`       | `administrative-division/` for province/ward/address data.                                                                                                                                                         |
+| `lead`           | `lead/` for lead persistence and lead behavior.                                                                                                                                                                    |
+| `media`          | `asset/` for media persistence and media behavior.                                                                                                                                                                 |
+| `rbac`           | `legacy-global/` only for historical global RBAC compatibility and migrations. No new runtime feature may depend on it.                                                                                            |
 
 The feature name answers “which business capability owns this code?” Names such
 as `controllers`, `services`, `models`, `entities`, `dto`, `repositories`,
@@ -231,12 +231,25 @@ itself the business requirement.
   approved base entity where appropriate.
 - Repositories belong beside their entity and feature service.
 - Table names use `tbl_`; database columns use `snake_case`.
-- Every migration has deterministic `up()` and `down()` methods and a colocated
-  sidecar test.
+- Every migration has deterministic `up()` and `down()` methods. Migration
+  behavior is covered by focused migration/integration tests; a same-directory
+  sidecar is optional when the migration suite already provides that coverage.
 - Never rewrite a migration already applied to an environment. Add a new
   migration.
-- Feature migrations live in `<feature>/migrations/`; cross-module migrations
-  live under `src/database/migrations/platform/`.
+- Every schema migration MUST live in the `migrations/` directory of a concrete
+  owning module/feature. Shared or cross-module changes must have an explicit
+  owning module; `src/database/migrations/` is not a valid migration location.
+- Before creating a migration, run `date +%s%3N` for TypeORM's 13-digit
+  Unix-millisecond migration identity, and use it followed by a descriptive
+  name:
+  `<timestamp>-<Description>.ts`. Do not use relative sequence numbers such as
+  `001`, `002`, or directory order to determine execution order. TypeORM uses
+  the timestamp embedded in the migration class identity for global ordering.
+- Migration timestamps must be unique for all new identities. Run
+  `npm run migration:check-timestamps` before review; it rejects new
+  collisions. Historical collisions, if a deployed history ever requires one,
+  must be documented by exact migration name in the explicit allowlist and
+  must never be renamed retroactively.
 - Data backfills live in `<feature>/data-migrations/`, are idempotent, and have
   integration coverage.
 - Use expand → cutover → verify → contract for destructive changes. Do not drop
@@ -273,21 +286,18 @@ cross-platform, deprecated, or non-assignable permissions with stable errors.
 
 ## 9. Testing rules — hard requirements
 
-### 9.1 Colocated TypeScript sidecar
+### 9.1 Behavioral coverage
 
-Every production `src/**/*.ts` file MUST have exactly one sidecar beside it:
-`<name>.spec.ts` or `<name>.test.ts`, never both. Test artifacts are exempt
-from recursively requiring another sidecar.
+Tests are required for behavior and risk, not for file presence. Normally add
+direct focused tests for services, policies, guards, strategies, repositories
+with custom queries, logic-bearing mappers, middleware/interceptors,
+authorization evaluators, and migration helpers. DTO declarations, enums,
+constants, barrel files, pure interfaces/types, simple entities, and wiring
+files with no logic may be covered indirectly or exempted.
 
-The sidecar must import the file under test and verify its public behavior,
-exported contract, metadata, or invariants. An existence-only test is not
-enough. Cover normal behavior, invalid input/error behavior, boundary values,
-and security/domain invariants applicable to that artifact. This applies to
-entities, DTOs, constants, registries, guards, controllers, repositories,
-services, migrations, scripts, barrels, and module composition files.
-
-`src/source-sidecar-coverage.spec.ts` is a hard gate. A missing or duplicate
-sidecar blocks completion.
+Do not create or retain a trivial “module loads” or “export exists” test merely
+to satisfy a filename pairing rule. Critical-path changes must have behavioral
+unit or integration coverage plus the relevant full-flow feature coverage.
 
 ### 9.2 Full-flow feature tests
 
@@ -314,12 +324,13 @@ module/feature path. Do not create a parallel top-level `tests/` directory.
 
 ### 9.3 Test naming and execution
 
-- Colocated unit sidecars use the production basename.
+- Focused unit tests may be colocated with the production basename, but
+  colocated-file pairing is not a repository-wide requirement.
 - Full-flow specs use `test/<module>/<feature>.spec.ts`.
 - Migration/infrastructure integration specs may use
   `test/integration/**/*.integration-spec.ts`.
-- Run the sidecar inventory and relevant unit, integration, and E2E suites
-  before reporting completion.
+- Run relevant unit, integration, migration, and E2E suites before reporting
+  completion.
 - Never weaken an assertion to make a suite pass; fix the implementation or
   test fixture.
 
@@ -337,7 +348,35 @@ module/feature path. Do not create a parallel top-level `tests/` directory.
 - Do not reintroduce `ROLES.CUSTOMER`, `ROLES.PROVIDER`, or
   `ROLES.ADMINISTRATOR` as platform identity semantics.
 
-## 11. Legacy RBAC quarantine
+## 11. JSDoc and inline documentation rules
+
+Documentation must explain behavior, intent, and safe usage rather than
+repeat a symbol's name. Apply the smallest level of detail that still makes
+the behavior unambiguous:
+
+- Every public service and behavior-bearing class must have a JSDoc comment
+  explaining what it represents in the system, the responsibility it owns,
+  why callers should use it, and any important boundary, side effect, or
+  invariant. Include a short usage or input/output description when the
+  service is an integration point or has non-obvious lifecycle behavior.
+- Every public method/function in a service, controller, repository, guard,
+  strategy, policy, middleware, interceptor, migration helper, or evaluator
+  must explain what it does for the system. State the relevant authorization,
+  transaction, error, context-selection, or persistence behavior when
+  applicable. Use `@param`, `@returns`, and `@throws` when they add clarity;
+  do not invent types or duplicate obvious TypeScript declarations.
+- Private helpers need concise JSDoc when their name or signature does not
+  fully communicate the business meaning, especially for SQL construction,
+  locking, fallback compatibility, token/session rotation, invariant checks,
+  or mapping logic.
+- Add short inline JSDoc comments immediately above complex branches or
+  expressions when a future maintainer needs to know why the code is shaped
+  that way. Explain the decision and invariant, not the syntax. Do not use
+  comments to preserve dead code or restate a simple assignment.
+- Keep documentation truthful and update it with behavior changes. A JSDoc
+  comment must not claim stronger guarantees than the implementation provides.
+
+## 12. Legacy RBAC quarantine
 
 `src/modules/rbac/legacy-global/` is retained only for historical migrations,
 rollback compatibility, and explicitly classified legacy code. It must not be
@@ -346,14 +385,15 @@ Before contract removal, audit and eliminate runtime uses of `RoleService`,
 `PermissionService`, `RoleGuard`, `PermissionsGuard`, and global role/permission
 entities. Do not delete historical migrations just to make the tree look clean.
 
-## 12. Adding or splitting a feature
+## 13. Adding or splitting a feature
 
 Before adding a file, answer:
 
 1. Which bounded context owns this behavior?
 2. Which named business feature owns the use case?
 3. Which feature contract may other modules consume?
-4. Which sidecar and `test/<module>/<feature>.spec.ts` protect it?
+4. Which focused behavioral tests and `test/<module>/<feature>.spec.ts` protect
+   it?
 5. Does the change need a migration, and can it roll through expand/cutover/
    contract safely?
 
@@ -362,14 +402,17 @@ one feature contains two independent business lifecycles, split it into two
 named features. Do not solve growth by adding a module-root `services/`,
 `repositories/`, or `utils/` directory.
 
-## 13. Review checklist
+## 14. Review checklist
 
 - [ ] Code is inside the owning module and named feature.
 - [ ] No technical layer directory was added directly under a module.
 - [ ] Module root contains only composition files.
 - [ ] Cross-feature and cross-module dependencies obey ownership rules.
 - [ ] Realm and platform authorization semantics are explicit.
-- [ ] New/changed production TypeScript has exactly one colocated sidecar.
+- [ ] Changed behavior has focused tests; no trivial file-presence tests were
+      added.
+- [ ] Public behavior-bearing classes and functions have behavior-oriented
+      JSDoc, with concise inline rationale for complex logic.
 - [ ] Full-flow business coverage is in `test/<module>/<feature>.spec.ts`.
 - [ ] DTOs, Swagger, errors, and pagination follow existing contracts.
 - [ ] Migrations are additive, deterministic, and tested.
@@ -379,7 +422,7 @@ named features. Do not solve growth by adding a module-root `services/`,
 - [ ] No Jobtik repository, service, container, database, or worktree was
       inspected or used for this project.
 
-## 14. Commands
+## 15. Commands
 
 ```bash
 npm ci

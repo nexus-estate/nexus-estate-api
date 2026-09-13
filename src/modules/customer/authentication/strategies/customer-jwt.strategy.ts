@@ -24,12 +24,19 @@ export class CustomerJwtStrategy extends PassportStrategy(
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
+      secretOrKey:
+        configService.get<string>('CUSTOMER_JWT_ACCESS_SECRET') ??
+        configService.getOrThrow<string>('JWT_SECRET'),
     });
   }
 
+  /** Validates customer realm/type claims and resolves the current account from the database. */
   async validate(payload: JwtPayload): Promise<CustomerPrincipal> {
-    if (payload.type !== 'access' || payload.aud !== 'customer') {
+    if (
+      payload.tokenType !== 'access' ||
+      payload.realm !== 'customer' ||
+      !payload.sessionId
+    ) {
       throw new BusinessException(CustomerAuthErrorCodes.TOKEN_INVALID);
     }
 

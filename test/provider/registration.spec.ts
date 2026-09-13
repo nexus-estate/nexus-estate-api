@@ -12,6 +12,7 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CommonModule } from '../../src/common/common.module';
+import { AuthSession } from '../../src/common/security/entities/auth-session.entity';
 import { CustomerModule } from '../../src/modules/customer/customer.module';
 import { AdministrationModule } from '../../src/modules/administration/administration.module';
 import { AdministratorAccount } from '../../src/modules/administration/authentication/entities/administrator-account.entity';
@@ -106,6 +107,7 @@ describe('Customer and Provider APIs (e2e)', () => {
             AdministrationPermission,
             AdministrationRolePermission,
             AdministratorRoleAssignment,
+            AuthSession,
           ],
           namingStrategy: new SnakeNamingStrategy(),
           synchronize: true,

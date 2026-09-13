@@ -13,6 +13,7 @@ export class AdministrationAccountRepository extends BaseRepository<Administrato
   }
 
   /** Finds an active or inactive administrator by normalized email. */
+  /** Loads one exact administrator email projection with password for login. */
   findByEmailForAuthentication(
     email: string,
   ): Promise<AdministrationAuthenticationAccount | null> {
@@ -23,12 +24,24 @@ export class AdministrationAccountRepository extends BaseRepository<Administrato
   }
 
   /** Finds an administrator by identifier for JWT validation. */
+  /** Loads one exact active-check projection for JWT validation and refresh. */
   findByIdForAuthentication(
     id: string,
   ): Promise<AdministrationAuthenticationAccount | null> {
     return this.findAuthenticationAccount(
       `WHERE a.id = $1 AND a.deleted_at IS NULL`,
       [id],
+    );
+  }
+
+  /** Records the last successful administrator login. */
+  /** Records the latest successful administrator login. */
+  async updateLastLogin(id: string, lastLogin: Date): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE tbl_administrator_account
+       SET last_login = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND deleted_at IS NULL`,
+      [id, lastLogin],
     );
   }
 

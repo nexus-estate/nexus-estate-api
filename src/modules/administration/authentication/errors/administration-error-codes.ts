@@ -41,4 +41,12 @@ export const AdministrationErrorCodes = {
     },
     HttpCodes.UNAUTHORIZED,
   ),
+  REFRESH_TOKEN_REUSED: defineBusinessErrorCode(
+    'AUTH_REFRESH_TOKEN_REUSED',
+    {
+      en: administrationMessages.en.REFRESH_TOKEN_REUSED,
+      vi: administrationMessages.vi.REFRESH_TOKEN_REUSED,
+    },
+    HttpCodes.UNAUTHORIZED,
+  ),
 } as const satisfies Record<string, BusinessErrorCode>;

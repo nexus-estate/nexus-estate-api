@@ -9,10 +9,12 @@ import type { JwtPayload } from './auth.types';
  * isolated while login and refresh logic use one stable application API.
  */
 @Injectable()
+/** Legacy token adapter retained for compatibility while realm services own new signing. */
 export class TokenService {
   constructor(private readonly jwtService: JwtService) {}
 
   /** Signs a short-lived access token for an authenticated principal. */
+  /** Legacy access-token signer retained only for compatibility call sites. */
   signAccessToken(
     payload: JwtPayload,
     expiresIn: JwtSignOptions['expiresIn'],
@@ -21,6 +23,7 @@ export class TokenService {
   }
 
   /** Signs a long-lived refresh token for an authenticated principal. */
+  /** Legacy refresh-token signer retained only for compatibility call sites. */
   signRefreshToken(
     payload: JwtPayload,
     expiresIn: JwtSignOptions['expiresIn'],

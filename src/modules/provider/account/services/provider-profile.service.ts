@@ -11,7 +11,11 @@ export class ProviderProfileService {
   ) {}
 
   /** Returns the provider account owned by the authenticated customer. */
-  getCurrent(customerId: string): Promise<ProviderAccountResponse> {
-    return this.providerAccountService.getCurrent(customerId);
+  /** Returns the authenticated customer's provider profile in the selected context. */
+  getCurrent(
+    customerId: string,
+    providerId?: string,
+  ): Promise<ProviderAccountResponse> {
+    return this.providerAccountService.getCurrent(customerId, providerId);
   }
 }

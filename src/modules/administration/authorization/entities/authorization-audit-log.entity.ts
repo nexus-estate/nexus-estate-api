@@ -3,7 +3,17 @@ import { BaseEntity } from '../../../../services/abstraction-services';
 
 @Entity('tbl_authorization_audit_log')
 @Index('idx_authorization_audit_platform_created_at', ['platform', 'createdAt'])
+@Index('idx_authorization_audit_actor_created_at', [
+  'actorAdministratorId',
+  'createdAt',
+])
+@Index('idx_authorization_audit_action_created_at', ['action', 'createdAt'])
 @Index('idx_authorization_audit_target', ['targetType', 'targetId'])
+@Index('idx_authorization_audit_target_created_at', [
+  'targetType',
+  'targetId',
+  'createdAt',
+])
 export class AuthorizationAuditLog extends BaseEntity {
   @Column({ name: 'actor_administrator_id', type: 'uuid' })
   actorAdministratorId: string;

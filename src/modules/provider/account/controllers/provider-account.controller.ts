@@ -7,11 +7,13 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiHeader,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
+import { ProviderId } from '../../../../common/decorators/provider-id.decorator';
 import type { CustomerPrincipal } from '../../../../common/security/auth.types';
 import {
   CreateProviderAccountDto,
@@ -51,6 +53,12 @@ export class ProviderAccountController {
   }
 
   @Get()
+  @ApiHeader({
+    name: 'X-Provider-Id',
+    required: false,
+    description:
+      'Required when the customer has multiple active provider memberships.',
+  })
   @ApiOperation({ summary: 'Get the authenticated customer provider account' })
   @ApiOkResponse({ type: ProviderAccountResponse })
   @ApiNotFoundResponse({ description: 'PROVIDER_ACCOUNT_NOT_FOUND' })
@@ -58,11 +66,20 @@ export class ProviderAccountController {
   /** Returns the provider account owned by the authenticated customer. */
   getCurrent(
     @CurrentUser() customer: CustomerPrincipal,
+    @ProviderId() providerId?: string,
   ): Promise<ProviderAccountResponse> {
-    return this.providerAccountService.getCurrent(customer.id);
+    return providerId
+      ? this.providerAccountService.getCurrent(customer.id, providerId)
+      : this.providerAccountService.getCurrent(customer.id);
   }
 
   @Patch()
+  @ApiHeader({
+    name: 'X-Provider-Id',
+    required: false,
+    description:
+      'Required when the customer has multiple active provider memberships.',
+  })
   @ApiOperation({ summary: 'Update the provider account display name' })
   @ApiOkResponse({ type: ProviderAccountResponse })
   @ApiBadRequestResponse({
@@ -74,7 +91,10 @@ export class ProviderAccountController {
   updateCurrent(
     @CurrentUser() customer: CustomerPrincipal,
     @Body() dto: UpdateProviderAccountDto,
+    @ProviderId() providerId?: string,
   ): Promise<ProviderAccountResponse> {
-    return this.providerAccountService.updateCurrent(customer.id, dto);
+    return providerId
+      ? this.providerAccountService.updateCurrent(customer.id, dto, providerId)
+      : this.providerAccountService.updateCurrent(customer.id, dto);
   }
 }

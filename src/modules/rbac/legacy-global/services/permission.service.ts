@@ -14,6 +14,7 @@ interface CreatePermissionData {
 export class PermissionService {
   constructor(private readonly permissionRepo: PermissionRepository) {}
 
+  /** Loads one legacy permission by exact identifier for compatibility callers. */
   async findById(id: string): Promise<Permission> {
     const permission = await this.permissionRepo.findById(id);
     if (!permission)
@@ -21,11 +22,13 @@ export class PermissionService {
     return permission;
   }
 
+  /** Finds one legacy permission by its exact name. */
   async findByName(name: string): Promise<Permission | null> {
     const normalizedName = name.trim().toLowerCase();
     return this.permissionRepo.findByName(normalizedName);
   }
 
+  /** Creates a legacy permission for compatibility; new domains use code-owned catalogues. */
   async create(data: CreatePermissionData): Promise<Permission> {
     const { name, description } = data;
     const normalizedName = name.trim().toLowerCase();

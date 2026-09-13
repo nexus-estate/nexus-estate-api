@@ -11,6 +11,7 @@ export class CustomerJwtAuthGuard extends AuthGuard('customer-jwt') {
     super();
   }
 
+  /** Bypasses only explicitly public routes; all other routes require customer JWT validation. */
   canActivate(context: ExecutionContext) {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),

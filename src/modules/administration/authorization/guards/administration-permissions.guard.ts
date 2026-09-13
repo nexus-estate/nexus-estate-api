@@ -21,6 +21,7 @@ export class AdministrationPermissionsGuard implements CanActivate {
     private readonly authorizationRepository: AdministrationAuthorizationRepository,
   ) {}
 
+  /** Loads current database-backed permissions and enforces the route capability metadata. */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requirement =
       this.reflector.getAllAndOverride<AdministrationPermissionRequirement>(

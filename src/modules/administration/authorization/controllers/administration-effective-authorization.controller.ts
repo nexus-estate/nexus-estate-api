@@ -16,6 +16,7 @@ export class AdministrationEffectiveAuthorizationController {
 
   @Get('authorization')
   @ApiOperation({ summary: 'Get current administrator effective permissions' })
+  /** Returns the current administrator's effective, database-backed authority. */
   effective(@CurrentUser() principal: AdministrationPrincipal) {
     return this.service.effective(principal.id);
   }

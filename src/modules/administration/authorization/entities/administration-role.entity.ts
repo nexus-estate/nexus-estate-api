@@ -1,4 +1,4 @@
-import { Column, Entity, Index, OneToMany } from 'typeorm';
+import { Check, Column, Entity, Index, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../../services/abstraction-services';
 import { AdministrationRolePermission } from './administration-role-permission.entity';
 import { AdministratorRoleAssignment } from './administrator-role-assignment.entity';
@@ -7,6 +7,8 @@ import { AuthorizationRoleStatus } from '../enums/authorization-platform.enum';
 
 @Entity('tbl_administration_role')
 @Index('uq_administration_role_code', ['code'], { unique: true })
+@Check('chk_administration_role_status', `"status" IN ('ACTIVE', 'DISABLED')`)
+@Check('chk_administration_role_version_positive', '"version" >= 1')
 export class AdministrationRole extends BaseEntity {
   @Column({ type: 'varchar', length: 100, nullable: false })
   code: string;

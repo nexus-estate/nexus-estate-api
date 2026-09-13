@@ -7,11 +7,18 @@ import { AdministrationRole } from './entities/administration-role.entity';
 import { AdministratorRoleAssignment } from './entities/administrator-role-assignment.entity';
 import { AdministrationPermissionsGuard } from './guards/administration-permissions.guard';
 import { AdministrationAuthorizationRepository } from './repositories/administration-authorization.repository';
-import { AuthorizationManagementService } from './services/authorization-management.service';
+import { AuthorizationManagementCoreService } from './services/authorization-management.service';
+import { AuthorizationManagementService } from './management/authorization-management.service';
+import { PlatformAuthorizationAdapterRegistry } from './management/platform-adapter.registry';
+import { MarketplaceAuthorizationManagementAdapter } from './marketplace/marketplace-authorization-management.adapter';
+import { ProviderAuthorizationManagementAdapter } from './provider/provider-authorization-management.adapter';
+import { AdministrationAuthorizationManagementAdapter } from './administration/administration-authorization-management.adapter';
 import { AuthorizationManagementController } from './controllers/authorization-management.controller';
-import { AuthorizationEffectiveService } from './services/authorization-effective.service';
+import { AdministrationAuthorizationService } from './services/authorization-effective.service';
 import { AdministrationEffectiveAuthorizationController } from './controllers/administration-effective-authorization.controller';
 import { ProviderMembershipAuthorizationController } from './controllers/provider-membership-authorization.controller';
+import { AuthorizationAuditRepository } from './audit/authorization-audit.repository';
+import { AuthorizationAuditService } from './audit/authorization-audit.service';
 
 /** Owns internal administration roles, permissions, and assignments. */
 @Module({
@@ -26,8 +33,15 @@ import { ProviderMembershipAuthorizationController } from './controllers/provide
   providers: [
     AdministrationAuthorizationRepository,
     AdministrationPermissionsGuard,
+    AuthorizationManagementCoreService,
+    AuthorizationAuditRepository,
+    AuthorizationAuditService,
+    MarketplaceAuthorizationManagementAdapter,
+    ProviderAuthorizationManagementAdapter,
+    AdministrationAuthorizationManagementAdapter,
+    PlatformAuthorizationAdapterRegistry,
     AuthorizationManagementService,
-    AuthorizationEffectiveService,
+    AdministrationAuthorizationService,
   ],
   controllers: [
     AuthorizationManagementController,
@@ -38,7 +52,7 @@ import { ProviderMembershipAuthorizationController } from './controllers/provide
     AdministrationAuthorizationRepository,
     AdministrationPermissionsGuard,
     AuthorizationManagementService,
-    AuthorizationEffectiveService,
+    AdministrationAuthorizationService,
   ],
 })
 export class AdministrationAuthorizationModule {}

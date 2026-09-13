@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator';
@@ -24,6 +25,7 @@ export class CustomerController {
   /** Registers a customer without requiring an existing access token. */
   @Public()
   @Post('register')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   register(@Body() dto: RegisterCustomerDto): Promise<SafeCustomerAccount> {
     return this.customerService.register(dto);
   }

@@ -1,16 +1,13 @@
 import { ProviderAuthorizationService } from './provider-authorization.service';
+import { ProviderAccountErrorCodes } from '../../account/errors/provider-account-error-codes';
 
 describe('ProviderAuthorizationService', () => {
-  it('returns no effective permissions for a customer without membership', async () => {
+  it('rejects a customer without provider membership', async () => {
     const query = jest.fn().mockResolvedValue([]);
     const service = new ProviderAuthorizationService({ query } as never);
 
-    await expect(service.effective('customer-1')).resolves.toMatchObject({
-      platform: 'PROVIDER',
-      providerId: null,
-      membershipId: null,
-      roles: [],
-      permissions: [],
+    await expect(service.effective('customer-1')).rejects.toMatchObject({
+      errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_FOUND.code,
     });
   });
 
@@ -70,6 +67,26 @@ describe('ProviderAuthorizationService', () => {
       membershipStatus: 'SUSPENDED',
       roles: [],
       permissions: [],
+    });
+  });
+
+  it('rejects an ambiguous active provider context instead of selecting one', async () => {
+    const query = jest.fn().mockResolvedValue([
+      {
+        membership_id: 'membership-1',
+        provider_id: 'provider-1',
+        membership_status: 'ACTIVE',
+      },
+      {
+        membership_id: 'membership-2',
+        provider_id: 'provider-2',
+        membership_status: 'ACTIVE',
+      },
+    ]);
+    const service = new ProviderAuthorizationService({ query } as never);
+
+    await expect(service.effective('customer-1')).rejects.toMatchObject({
+      errorCode: ProviderAccountErrorCodes.PROVIDER_CONTEXT_REQUIRED.code,
     });
   });
 });

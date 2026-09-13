@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   Entity,
   Index,
@@ -19,6 +20,15 @@ import type { Relation } from 'typeorm';
   {
     unique: true,
   },
+)
+@Index('idx_provider_membership_customer_provider_status', [
+  'customerId',
+  'providerId',
+  'status',
+])
+@Check(
+  'chk_provider_membership_status',
+  `"status" IN ('ACTIVE', 'SUSPENDED', 'REMOVED')`,
 )
 export class ProviderMembership extends BaseEntity {
   @Column({ name: 'provider_id', type: 'uuid' })

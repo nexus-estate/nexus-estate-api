@@ -12,6 +12,7 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CommonModule } from '../../src/common/common.module';
+import { AuthSession } from '../../src/common/security/entities/auth-session.entity';
 import { CustomerModule } from '../../src/modules/customer/customer.module';
 import { Estate } from '../../src/modules/estate/property/entities';
 import { EstateModule } from '../../src/modules/estate/estate.module';
@@ -159,6 +160,7 @@ describe('Estate API (e2e)', () => {
             ProviderRolePermission,
             Province,
             Ward,
+            AuthSession,
           ],
           namingStrategy: new SnakeNamingStrategy(),
           synchronize: true,
@@ -214,7 +216,7 @@ describe('Estate API (e2e)', () => {
       password: passwordHash,
       roleId: role.id,
     });
-    await dataSource.getRepository(ProviderAccount).save([
+    const providers = await dataSource.getRepository(ProviderAccount).save([
       {
         ownerCustomerId: owner.id,
         type: ProviderType.INDIVIDUAL,
@@ -230,6 +232,24 @@ describe('Estate API (e2e)', () => {
         verificationStatus: ProviderVerificationStatus.VERIFIED,
       },
     ]);
+    const ownerRole = await dataSource
+      .getRepository(ProviderRole)
+      .findOneByOrFail({
+        code: 'OWNER',
+      });
+    const memberships = await dataSource.getRepository(ProviderMembership).save(
+      providers.map((provider) => ({
+        providerId: provider.id,
+        customerId: provider.ownerCustomerId,
+        status: 'ACTIVE' as const,
+      })),
+    );
+    await dataSource.getRepository(ProviderMembershipRole).save(
+      memberships.map((membership) => ({
+        membershipId: membership.id,
+        roleId: ownerRole.id,
+      })),
+    );
     province = await dataSource.getRepository(Province).save({
       code: '79',
       name: 'Ho Chi Minh City',

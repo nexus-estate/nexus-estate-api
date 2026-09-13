@@ -47,6 +47,7 @@ export class CustomerAccountService extends BaseService<
   }
 
   /** Returns a customer account without exposing its password hash. */
+  /** Returns a safe customer projection by exact identifier without exposing credentials. */
   async findById(id: string): Promise<SafeCustomerAccount> {
     const customerAccount =
       await this.customerAccountRepository.findSafeById(id);
@@ -62,6 +63,7 @@ export class CustomerAccountService extends BaseService<
   }
 
   /** Finds a customer account by its normalized email address. */
+  /** Finds a safe customer projection by normalized email for public account flows. */
   async findByEmail(email: string): Promise<SafeCustomerAccount | null> {
     const normalizedEmail = this.prepareEmail(email);
 
@@ -69,6 +71,7 @@ export class CustomerAccountService extends BaseService<
   }
 
   /** Loads the credential projection required by customer authentication. */
+  /** Loads the password-bearing authentication projection for credential verification only. */
   async findByEmailForAuthentication(
     email: string,
   ): Promise<CustomerAuthenticationAccount | null> {
@@ -80,6 +83,7 @@ export class CustomerAccountService extends BaseService<
   }
 
   /** Creates a customer account; legacy role input is compatibility-only. */
+  /** Creates a customer account and translates persistence conflicts to stable business errors. */
   async handleCreate(
     input: CreateCustomerAccountInput,
   ): Promise<SafeCustomerAccount> {
@@ -134,6 +138,7 @@ export class CustomerAccountService extends BaseService<
   }
 
   /** Stores the latest successful customer authentication timestamp. */
+  /** Records the latest successful login without changing customer authorization state. */
   async updateLastLogin(customerId: string, lastLogin: Date): Promise<void> {
     const updated = await this.customerAccountRepository.updateLastLogin(
       customerId,

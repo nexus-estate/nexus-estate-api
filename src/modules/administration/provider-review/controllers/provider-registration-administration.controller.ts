@@ -38,6 +38,7 @@ export class ProviderRegistrationAdministrationController {
   @Get()
   @ApiOperation({ summary: 'List pending provider-registration requests' })
   @ApiOkResponse({ type: ProviderRegistrationReviewResponse, isArray: true })
+  /** Returns all pending provider registrations for review. */
   findPending(): Promise<ProviderRegistrationReviewResponse[]> {
     return this.providerApprovalService.findPending();
   }
@@ -46,6 +47,7 @@ export class ProviderRegistrationAdministrationController {
   @Get(':accountId')
   @ApiOperation({ summary: 'Get a pending provider-registration request' })
   @ApiOkResponse({ type: ProviderRegistrationReviewResponse })
+  /** Returns one exact pending registration for review. */
   findPendingById(
     @Param('accountId', new ParseUUIDPipe()) accountId: string,
   ): Promise<ProviderRegistrationReviewResponse> {
@@ -56,6 +58,7 @@ export class ProviderRegistrationAdministrationController {
   @Post(':accountId/approve')
   @ApiOperation({ summary: 'Approve a provider-registration request' })
   @ApiOkResponse({ type: ProviderRegistrationResponse })
+  /** Approves one exact pending provider registration. */
   approve(
     @Param('accountId', new ParseUUIDPipe()) accountId: string,
   ): Promise<ProviderRegistrationResponse> {

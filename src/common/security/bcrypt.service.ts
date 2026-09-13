@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
  * decisions explicit without leaking a library detail into domain services.
  */
 @Injectable()
+/** Encapsulates password hashing and comparison so credential handling stays consistent. */
 export class BcryptService {
   private readonly saltRounds: number;
 
@@ -19,11 +20,13 @@ export class BcryptService {
   }
 
   /** Hashes a plaintext secret with the configured bcrypt cost factor. */
+  /** Hashes a secret using the configured adaptive password algorithm. */
   hash(value: string): Promise<string> {
     return bcrypt.hash(value, this.saltRounds);
   }
 
   /** Compares a plaintext secret with a bcrypt digest. */
+  /** Compares a candidate secret to a stored digest without exposing hash details. */
   compare(value: string, digest: string): Promise<boolean> {
     return bcrypt.compare(value, digest);
   }

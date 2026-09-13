@@ -12,12 +12,15 @@ export type RequestWithContext = Request & {
 function getIncomingRequestId(request: Request): string | undefined {
   const value = request.headers[REQUEST_ID_HEADER];
   const requestId = Array.isArray(value) ? value[0] : value;
-  return typeof requestId === 'string' && requestId.trim()
-    ? requestId.trim()
+  if (typeof requestId !== 'string') return undefined;
+  const candidate = requestId.trim();
+  return candidate.length <= 128 && /^[A-Za-z0-9._:-]+$/.test(candidate)
+    ? candidate
     : undefined;
 }
 
 @Injectable()
+/** Sanitizes or creates request correlation IDs for logs and error responses. */
 export class RequestContextMiddleware implements NestMiddleware {
   use(request: Request, response: Response, next: NextFunction): void {
     const requestId = getIncomingRequestId(request) || randomUUID();

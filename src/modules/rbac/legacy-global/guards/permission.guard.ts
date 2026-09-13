@@ -20,6 +20,7 @@ export class PermissionsGuard implements CanActivate {
     private readonly roleService: RoleService,
   ) {}
 
+  /** Enforces legacy permission metadata for quarantined compatibility routes. */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.getAllAndOverride<PermissionMetadata>(
       PERMISSION_KEY,

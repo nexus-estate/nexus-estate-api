@@ -35,8 +35,15 @@ export type AuthenticationContext = 'customer' | 'administration';
 /** Claims carried by access and refresh tokens. */
 export type JwtPayload = {
   sub: string;
-  type: 'access' | 'refresh';
-  aud: AuthenticationContext;
+  /** New claim names are optional here for legacy callers; runtime validators require them. */
+  realm?: AuthenticationContext;
+  tokenType?: 'access' | 'refresh';
+  sessionId?: string;
+  familyId?: string;
+  /** @deprecated Legacy claim aliases. */
+  type?: 'access' | 'refresh';
+  /** @deprecated Legacy claim aliases. */
+  aud?: AuthenticationContext;
 };
 
 /** Access/refresh token pair returned by an authentication boundary. */

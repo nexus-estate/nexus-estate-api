@@ -9,6 +9,7 @@ export class RoleRepository extends BaseRepository<Role> {
     super(dataSource, Role, 'Role');
   }
 
+  /** Finds one legacy role by exact name. */
   async findByName(name: string): Promise<Role | null> {
     return this.repository.findOne({
       where: {
@@ -16,6 +17,7 @@ export class RoleRepository extends BaseRepository<Role> {
       },
     });
   }
+  /** Loads one legacy role and its mapped permissions. */
   async findByIdWithPermissions(id: string): Promise<Role | null> {
     return this.repository.findOne({
       where: {

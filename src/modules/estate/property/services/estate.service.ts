@@ -54,6 +54,7 @@ export class EstateService extends BaseService<
     return true;
   }
 
+  /** Loads one estate by exact identifier or raises the feature's not-found error. */
   async findById(id: string): Promise<Estate> {
     const estate = await this.estateRepository.findById(id);
     if (!estate) {
@@ -61,11 +62,20 @@ export class EstateService extends BaseService<
     }
     return estate;
   }
+  /** Creates an estate owned by the authenticated provider/customer context. */
   async createEstate(
     customerId: string,
     dto: CreateEstateDto,
+    providerId?: string,
   ): Promise<Estate> {
-    await this.providerAccountService.requireActiveProvider(customerId);
+    if (providerId) {
+      await this.providerAccountService.requireActiveProvider(
+        customerId,
+        providerId,
+      );
+    } else {
+      await this.providerAccountService.requireActiveProvider(customerId);
+    }
 
     // 1. find province
     const checkedLocation = await this.validateLocaion(
@@ -78,12 +88,21 @@ export class EstateService extends BaseService<
     return await this.estateRepository.createEstate({ ...dto, customerId });
   }
 
+  /** Updates an estate only after ownership and active-provider policy checks. */
   async updateEstate(
     dto: UpdateEstateDto,
     customerId: string,
     estateId: string,
+    providerId?: string,
   ): Promise<Estate> {
-    await this.providerAccountService.requireActiveProvider(customerId);
+    if (providerId) {
+      await this.providerAccountService.requireActiveProvider(
+        customerId,
+        providerId,
+      );
+    } else {
+      await this.providerAccountService.requireActiveProvider(customerId);
+    }
 
     //check exist estate
     const estate = await this.estateRepository.findById(estateId);
@@ -121,11 +140,20 @@ export class EstateService extends BaseService<
     return updatedEstate;
   }
 
+  /** Soft-deletes an estate after enforcing the same ownership boundary as update. */
   async softDeleteEstate(
     customerId: string,
     estateId: string,
+    providerId?: string,
   ): Promise<boolean> {
-    await this.providerAccountService.requireActiveProvider(customerId);
+    if (providerId) {
+      await this.providerAccountService.requireActiveProvider(
+        customerId,
+        providerId,
+      );
+    } else {
+      await this.providerAccountService.requireActiveProvider(customerId);
+    }
 
     const estate = await this.estateRepository.findById(estateId);
     if (!estate) {
@@ -147,6 +175,7 @@ export class EstateService extends BaseService<
     return true;
   }
 
+  /** Lists estates belonging to one exact customer/provider owner. */
   async findByCustomerId(customerId: string): Promise<Estate[]> {
     return this.estateRepository.findByCustomerId(customerId);
   }

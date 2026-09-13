@@ -18,6 +18,7 @@ export class ProviderAccountRepository extends BaseRepository<ProviderAccount> {
   }
 
   /** Finds the account owned by a specific customer, excluding soft-deleted rows. */
+  /** Finds the exact non-deleted provider account owned by one customer. */
   findByOwnerCustomerId(
     ownerCustomerId: string,
   ): Promise<ProviderAccount | null> {
@@ -25,11 +26,13 @@ export class ProviderAccountRepository extends BaseRepository<ProviderAccount> {
   }
 
   /** Checks account ownership without loading the full entity. */
+  /** Checks ownership existence without loading account data. */
   async existsByOwnerCustomerId(ownerCustomerId: string): Promise<boolean> {
     return this.repository.exists({ where: { ownerCustomerId } });
   }
 
   /** Lists pending provider accounts with owner data for administrator review. */
+  /** Lists pending accounts in stable creation order for review queues. */
   findPendingForReview(): Promise<ProviderAccount[]> {
     return this.repository.find({
       where: { verificationStatus: ProviderVerificationStatus.PENDING },
@@ -39,6 +42,7 @@ export class ProviderAccountRepository extends BaseRepository<ProviderAccount> {
   }
 
   /** Finds one pending provider account with owner data for administrator review. */
+  /** Loads one exact pending account with its owner projection for review. */
   findPendingByIdForReview(id: string): Promise<ProviderAccount | null> {
     return this.repository.findOne({
       where: {

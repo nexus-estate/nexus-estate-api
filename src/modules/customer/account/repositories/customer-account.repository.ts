@@ -49,6 +49,7 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
   }
 
   /** Loads a safe customer projection by identifier. */
+  /** Loads a safe customer projection by exact identifier. */
   async findSafeById(id: string): Promise<SafeCustomerAccount | null> {
     const rows = await this.repository.query<CustomerAccountWithRoleRow[]>(
       `
@@ -75,6 +76,7 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
   }
 
   /** Loads a safe customer projection by normalized email. */
+  /** Finds a safe customer projection by exact normalized email. */
   async findByEmail(email: string): Promise<SafeCustomerAccount | null> {
     const rows = await this.repository.query<CustomerAccountWithRoleRow[]>(
       `
@@ -101,6 +103,7 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
   }
 
   /** Loads the password-bearing projection used only by authentication. */
+  /** Loads password data only for the credential-verification boundary. */
   async findByEmailForAuthentication(
     email: string,
   ): Promise<CustomerAuthenticationAccount | null> {
@@ -132,6 +135,7 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
   }
 
   /** Creates an account and returns the safe projection after persistence. */
+  /** Creates a customer record and returns its safe projection. */
   async createCustomerAccount(data: {
     email: string;
     password: string;
@@ -176,6 +180,7 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
   }
 
   /** Updates the last-login timestamp for an active customer account. */
+  /** Updates the last-login timestamp for one exact customer account. */
   async updateLastLogin(customerId: string, lastLogin: Date): Promise<boolean> {
     const rows = await this.repository.query<UpdatedCustomerAccountIdRow[]>(
       `

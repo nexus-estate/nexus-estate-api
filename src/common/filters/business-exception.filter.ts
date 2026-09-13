@@ -9,6 +9,7 @@ import {
 } from '../middleware/request-context.middleware';
 
 @Catch(BusinessException)
+/** Converts stable business exceptions into the repository's localized HTTP error contract. */
 export class BusinessExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(BusinessExceptionFilter.name);
 

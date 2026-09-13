@@ -73,4 +73,12 @@ export const ProviderAccountErrorCodes = {
     },
     HttpCodes.CONFLICT,
   ),
+  PROVIDER_CONTEXT_REQUIRED: defineBusinessErrorCode(
+    'PROVIDER_CONTEXT_REQUIRED',
+    {
+      en: providerAccountMessages.en.PROVIDER_CONTEXT_REQUIRED,
+      vi: providerAccountMessages.vi.PROVIDER_CONTEXT_REQUIRED,
+    },
+    HttpCodes.CONFLICT,
+  ),
 } as const satisfies Record<string, BusinessErrorCode>;

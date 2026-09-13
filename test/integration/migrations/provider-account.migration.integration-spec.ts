@@ -49,7 +49,7 @@ describe('ProviderAccount migration (PostgreSQL integration)', () => {
     );
 
     expect(
-      migrationNames.filter((name) => name.endsWith('1789202344037')),
+      migrationNames.filter((name) => name.endsWith('1789307935991')),
     ).toHaveLength(1);
   });
 

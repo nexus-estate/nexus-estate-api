@@ -1,5 +1,6 @@
-# Platform migrations
+# Retired migration location
 
-Place schema migrations here when a change belongs to shared database
-infrastructure or spans multiple modules. Aggregate-owned schema migrations
-belong in the owning module's `migrations/` directory instead.
+This directory is intentionally empty. Every schema migration must be placed
+in the `migrations/` directory of a concrete owning module. For a change that
+spans modules, choose and document the module that owns the resulting schema
+contract; do not add a migration here.

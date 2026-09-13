@@ -1,4 +1,4 @@
-import { Column, Entity, Index, OneToMany } from 'typeorm';
+import { Check, Column, Entity, Index, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../../../services/abstraction-services';
 import { AdministrationRolePermission } from './administration-role-permission.entity';
 import type { Relation } from 'typeorm';
@@ -6,6 +6,10 @@ import { AuthorizationRiskLevel } from '../enums/authorization-platform.enum';
 
 @Entity('tbl_administration_permission')
 @Index('uq_administration_permission_code', ['code'], { unique: true })
+@Check(
+  'chk_administration_permission_risk_level',
+  `"risk_level" IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')`,
+)
 export class AdministrationPermission extends BaseEntity {
   @Column({ type: 'varchar', length: 150, nullable: false })
   code: string;

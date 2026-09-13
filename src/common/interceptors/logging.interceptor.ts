@@ -15,6 +15,7 @@ import { RequestWithContext } from '../middleware/request-context.middleware';
  * Includes method, URL, status code, and duration in milliseconds.
  */
 @Injectable()
+/** Logs bounded request metadata and timing while excluding credentials and tokens. */
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 

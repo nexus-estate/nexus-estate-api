@@ -13,6 +13,7 @@ export interface BusinessErrorCode {
 }
 
 /** Creates a typed module-owned business error definition. */
+/** Builds one immutable bilingual business-error definition for stable HTTP handling. */
 export function defineBusinessErrorCode(
   code: string,
   messages: BusinessErrorMessages,

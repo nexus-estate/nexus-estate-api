@@ -14,6 +14,7 @@ export class ProviderAccountPolicy {
   private readonly logger = new Logger(ProviderAccountPolicy.name);
 
   /** Throws unless the provider is active and approved for supply mutations. */
+  /** Rejects supply operations unless provider status and verification permit mutation. */
   requireActiveProvider(context: CurrentProviderContextValue): void {
     if (context.membershipStatus && context.membershipStatus !== 'ACTIVE') {
       throw new BusinessException(
@@ -51,6 +52,7 @@ export class ProviderAccountPolicy {
   }
 
   /** Throws when a provider attempts to mutate another provider's resource. */
+  /** Rejects access when the resolved provider context does not belong to the customer. */
   requireProviderOwnership(
     context: CurrentProviderContextValue,
     resourceProviderId: string,

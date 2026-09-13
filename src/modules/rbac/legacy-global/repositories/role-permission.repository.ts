@@ -10,6 +10,7 @@ export class RolePermissionRepository {
     private readonly repository: Repository<RolePermission>,
   ) {}
 
+  /** Lists legacy mappings for one exact role. */
   async findByRoleId(roleId: string): Promise<RolePermission[]> {
     return this.repository.find({
       where: { roleId },
@@ -19,6 +20,7 @@ export class RolePermissionRepository {
     });
   }
 
+  /** Replaces legacy role mappings as one compatibility transaction. */
   async replaceForRole(
     manager: EntityManager,
     roleId: string,

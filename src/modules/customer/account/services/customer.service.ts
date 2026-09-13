@@ -14,6 +14,7 @@ export class CustomerService {
   ) {}
 
   /** Creates a new customer account without a global role lookup. */
+  /** Registers a customer through the account service and returns a safe projection. */
   async register(dto: RegisterCustomerDto): Promise<SafeCustomerAccount> {
     const passwordHash = await this.bcryptService.hash(dto.password);
     return this.customerAccountService.handleCreate({
@@ -23,6 +24,7 @@ export class CustomerService {
   }
 
   /** Returns the authenticated customer profile without exposing credentials. */
+  /** Returns the authenticated customer's current safe profile. */
   getCurrent(customerId: string): Promise<SafeCustomerAccount> {
     return this.customerAccountService.findById(customerId);
   }

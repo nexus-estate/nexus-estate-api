@@ -1,12 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { BusinessException } from '../../../../common/exceptions/business.exception';
+import { ProviderAccountErrorCodes } from '../../account/errors/provider-account-error-codes';
 
-/** Resolves provider membership permissions and current provider policy state. */
+/**
+ * Provider runtime authorization service. Use it to provision the initial
+ * owner membership or evaluate effective provider authority for a selected
+ * customer membership. It reads platform-owned tables, excludes deprecated
+ * permissions, rejects ambiguous/no context, and never chooses a provider by
+ * join order; mutation policy remains in the provider account/supply services.
+ */
 @Injectable()
 export class ProviderAuthorizationService {
   constructor(private readonly dataSource: DataSource) {}
 
   /** Ensures a newly-created provider owner has its IA-02 membership and role. */
+  /**
+   * Ensures the provider creator has one active membership with the immutable
+   * OWNER role. Call this immediately after provider-account creation so the
+   * account cannot exist without its initial provider authority.
+   */
   async ensureOwnerMembership(
     providerId: string,
     customerId: string,
@@ -37,7 +50,26 @@ export class ProviderAuthorizationService {
     });
   }
 
-  async effective(customerId: string) {
+  /**
+   * Resolves effective provider permissions for an explicitly selected
+   * membership, or for the customer's sole active membership. Ambiguous or
+   * absent context fails closed instead of selecting a provider arbitrarily.
+   */
+  async effective(customerId: string, providerId?: string) {
+    if (providerId && !UUID_PATTERN.test(providerId)) {
+      throw new BusinessException(
+        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
+      );
+    }
+    const parameters: string[] = [customerId];
+    const providerFilter = providerId
+      ? (() => {
+          parameters.push(providerId);
+          return 'AND provider.id = $2';
+        })()
+      : '';
+    // The provider identifier is a context selector, never a hint for a
+    // fallback query; all effective permissions must come from that row.
     const membershipRows = await this.dataSource.query<MembershipRow[]>(
       `SELECT membership.id AS membership_id, membership.provider_id,
               membership.status AS membership_status, provider.status AS provider_status,
@@ -45,10 +77,34 @@ export class ProviderAuthorizationService {
        FROM tbl_provider_membership membership
        INNER JOIN tbl_provider_account provider ON provider.id = membership.provider_id
        WHERE membership.customer_id = $1 AND membership.deleted_at IS NULL
-       ORDER BY membership.joined_at ASC LIMIT 1`,
-      [customerId],
+         AND provider.deleted_at IS NULL ${providerFilter}
+       ORDER BY membership.joined_at ASC, membership.id ASC`,
+      parameters,
     );
-    const membership = membershipRows[0];
+    if (membershipRows.length === 0) {
+      throw new BusinessException(
+        providerId
+          ? ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN
+          : ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_FOUND,
+      );
+    }
+    if (providerId && membershipRows[0]?.membership_status !== 'ACTIVE') {
+      throw new BusinessException(
+        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
+      );
+    }
+    const activeMemberships = membershipRows.filter(
+      (candidate) => candidate.membership_status === 'ACTIVE',
+    );
+    if (!providerId && activeMemberships.length > 1) {
+      throw new BusinessException(
+        ProviderAccountErrorCodes.PROVIDER_CONTEXT_REQUIRED,
+      );
+    }
+    const membership = providerId
+      ? membershipRows[0]
+      : (activeMemberships[0] ??
+        (membershipRows.length === 1 ? membershipRows[0] : undefined));
     if (!membership) {
       return {
         platform: 'PROVIDER',
@@ -128,3 +184,6 @@ type MembershipRow = {
   verification_status: string;
   display_name: string;
 };
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

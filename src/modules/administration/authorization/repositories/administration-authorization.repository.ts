@@ -32,6 +32,7 @@ export class AdministrationAuthorizationRepository {
             AND administrator.is_active = true
             AND permission.code = $2
             AND permission.deleted_at IS NULL
+            AND permission.deprecated_at IS NULL
             AND role.deleted_at IS NULL
             AND role.status = 'ACTIVE'
         ) AS allowed

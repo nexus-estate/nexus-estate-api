@@ -30,6 +30,7 @@ import { API_LANGUAGE_HEADER, resolveApiLanguage } from '../i18n/language';
  * ```
  */
 @Catch()
+/** Normalizes unexpected and framework HTTP exceptions without leaking internals. */
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 

@@ -15,5 +15,11 @@ export const ADMINISTRATION_PERMISSIONS = {
   AUTHORIZATION_AUDIT_READ: 'authorization:audit:read',
 } as const;
 
+/** Permissions required to recover authorization administration access. */
+export const AUTHORIZATION_RECOVERY_PERMISSIONS = [
+  ADMINISTRATION_PERMISSIONS.AUTHORIZATION_ROLE_WRITE,
+  ADMINISTRATION_PERMISSIONS.AUTHORIZATION_ASSIGNMENT_WRITE,
+] as const;
+
 export type AdministrationPermissionCode =
   (typeof ADMINISTRATION_PERMISSIONS)[keyof typeof ADMINISTRATION_PERMISSIONS];

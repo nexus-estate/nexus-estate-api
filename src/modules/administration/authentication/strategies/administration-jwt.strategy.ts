@@ -25,13 +25,21 @@ export class AdministrationJwtStrategy extends PassportStrategy(
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey:
-        configService.get<string>('ADMIN_JWT_SECRET') ??
-        configService.getOrThrow<string>('JWT_SECRET'),
+        configService.get<string>('ADMIN_JWT_ACCESS_SECRET') ??
+        configService.get<string>(
+          'ADMIN_JWT_SECRET',
+          'local-administration-access-secret-32',
+        ),
     });
   }
 
+  /** Validates administration realm/type claims and rejects inactive administrators. */
   async validate(payload: JwtPayload): Promise<AdministrationPrincipal> {
-    if (payload.type !== 'access' || payload.aud !== 'administration') {
+    if (
+      payload.tokenType !== 'access' ||
+      payload.realm !== 'administration' ||
+      !payload.sessionId
+    ) {
       throw new BusinessException(AdministrationErrorCodes.TOKEN_INVALID);
     }
 

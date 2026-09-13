@@ -13,7 +13,8 @@
     "AUTHORIZATION_ROLE_PLATFORM_MISMATCH": "This role belongs to another platform. Please select a role from the subject's platform.",
     "AUTHORIZATION_LAST_ADMIN_PROTECTION": "This change would remove the last administrator who can manage authorization. Please keep at least one active administrator with authorization-management permissions.",
     "AUTHORIZATION_ASSIGNMENT_CONFLICT": "The assignment changed while you were editing it. Please refresh the subject's roles and submit the complete, current selection again.",
-    "PROVIDER_LAST_OWNER_PROTECTION": "This change would leave the provider without an owner. Please assign another active OWNER first, then remove the current owner."
+    "PROVIDER_LAST_OWNER_PROTECTION": "This change would leave the provider without an owner. Please assign another active OWNER first, then remove the current owner.",
+    "PROVIDER_OWNER_PROTECTION": "The protected OWNER role must remain active and retain its mandatory provider-account permissions."
   },
   "vi": {
     "AUTHORIZATION_PLATFORM_NOT_FOUND": "Không tìm thấy nền tảng phân quyền. Vui lòng chọn nền tảng trong danh sách được hệ thống cung cấp rồi thử lại.",
@@ -29,6 +30,7 @@
     "AUTHORIZATION_ROLE_PLATFORM_MISMATCH": "Role này thuộc nền tảng khác. Vui lòng chọn role thuộc đúng nền tảng của đối tượng.",
     "AUTHORIZATION_LAST_ADMIN_PROTECTION": "Thay đổi này sẽ xóa quản trị viên cuối cùng có thể quản lý phân quyền. Vui lòng giữ lại ít nhất một quản trị viên đang hoạt động với quyền quản lý authorization.",
     "AUTHORIZATION_ASSIGNMENT_CONFLICT": "Assignment đã thay đổi trong lúc bạn chỉnh sửa. Vui lòng làm mới danh sách role của đối tượng và gửi lại toàn bộ lựa chọn hiện tại.",
-    "PROVIDER_LAST_OWNER_PROTECTION": "Thay đổi này sẽ khiến Provider không còn owner. Vui lòng gán một OWNER đang hoạt động khác trước khi xóa owner hiện tại."
+    "PROVIDER_LAST_OWNER_PROTECTION": "Thay đổi này sẽ khiến Provider không còn owner. Vui lòng gán một OWNER đang hoạt động khác trước khi xóa owner hiện tại.",
+    "PROVIDER_OWNER_PROTECTION": "OWNER được bảo vệ phải luôn hoạt động và giữ các permission bắt buộc của tài khoản provider."
   }
 }

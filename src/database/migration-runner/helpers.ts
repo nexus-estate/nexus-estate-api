@@ -5,6 +5,14 @@ type MigrationMetadataRow = {
   timestamp: string | number;
 };
 
+/**
+ * Historical identities were normalized before this fresh-database baseline,
+ * so no collision is currently allowed. If a deployed legacy collision must
+ * remain in a future branch, list the exact migration names here explicitly;
+ * every new collision must still fail verification.
+ */
+export const LEGACY_MIGRATION_TIMESTAMP_COLLISION_ALLOWLIST = new Set<string>();
+
 function assertCondition(
   condition: unknown,
   message: string,
@@ -22,6 +30,35 @@ function getMigrationName(migration: MigrationInterface): string {
   return migrationWithName.name || migration.constructor.name;
 }
 
+/** Rejects timestamp collisions unless every colliding identity is explicitly legacy. */
+export function assertMigrationTimestamps(dataSource: DataSource): void {
+  const migrationsByTimestamp = new Map<number, string[]>();
+  for (const migration of dataSource.migrations) {
+    const name = getMigrationName(migration);
+    const timestampMatch = /(\d{13})$/.exec(name);
+    assertCondition(
+      Boolean(timestampMatch),
+      `migration ${name} should end with a 13-digit timestamp`,
+    );
+    const timestamp = Number(timestampMatch?.[1]);
+    const names = migrationsByTimestamp.get(timestamp) ?? [];
+    names.push(name);
+    migrationsByTimestamp.set(timestamp, names);
+  }
+
+  for (const [timestamp, names] of migrationsByTimestamp) {
+    if (names.length < 2) continue;
+    const isAllowedLegacyCollision = names.every((name) =>
+      LEGACY_MIGRATION_TIMESTAMP_COLLISION_ALLOWLIST.has(name),
+    );
+    assertCondition(
+      isAllowedLegacyCollision,
+      `migration timestamp ${timestamp} is duplicated by ${names.join(', ')}`,
+    );
+  }
+}
+
+/** Verifies that a data source is configured for deterministic migration execution. */
 export function assertMigrationMetadata(dataSource: DataSource): void {
   const migrationNames = dataSource.migrations.map(getMigrationName);
   assertCondition(
@@ -32,8 +69,10 @@ export function assertMigrationMetadata(dataSource: DataSource): void {
     new Set(migrationNames).size === migrationNames.length,
     'discovered migration names should be unique',
   );
+  assertMigrationTimestamps(dataSource);
 }
 
+/** Fails verification when the compiled data source has undiscovered pending migrations. */
 export async function assertAllMigrationsApplied(
   dataSource: DataSource,
 ): Promise<void> {

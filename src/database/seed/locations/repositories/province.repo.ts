@@ -4,6 +4,7 @@ import { Province } from '../../../../modules/location/administrative-division/e
 import { Repository } from 'typeorm';
 
 @Injectable() // Khai bao 1 class duoc quan li voi nestJs , dung de inject vao cac class khasc
+/** Reads seeded province reference rows for location queries. */
 export class ProvinceRepo {
   constructor(
     @InjectRepository(Province)

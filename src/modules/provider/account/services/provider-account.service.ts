@@ -42,6 +42,7 @@ export class ProviderAccountService extends BaseService<
   }
 
   /** Creates a provider request for the authenticated customer. */
+  /** Creates the authenticated customer's provider account in pending-verification state. */
   async createForCustomer(
     customerId: string,
     dto: CreateProviderAccountDto,
@@ -54,6 +55,7 @@ export class ProviderAccountService extends BaseService<
   }
 
   /** Creates a provider account that is waiting for administrator approval. */
+  /** Creates a provider onboarding record explicitly waiting for administrator review. */
   async createPendingForCustomer(
     customerId: string,
     dto: CreateProviderAccountDto,
@@ -127,8 +129,15 @@ export class ProviderAccountService extends BaseService<
   }
 
   /** Returns the current customer's account without creating one implicitly. */
-  async getCurrent(customerId: string): Promise<ProviderAccountResponse> {
-    const context = await this.currentProviderContext.resolve(customerId);
+  /** Loads the selected provider account after server-side membership/context validation. */
+  async getCurrent(
+    customerId: string,
+    providerId?: string,
+  ): Promise<ProviderAccountResponse> {
+    const context = await this.currentProviderContext.resolve(
+      customerId,
+      providerId,
+    );
     const account = await this.providerAccountRepository.findById(
       context.providerId,
     );
@@ -143,11 +152,16 @@ export class ProviderAccountService extends BaseService<
   }
 
   /** Updates only fields that are editable through the provider profile API. */
+  /** Updates only the selected provider profile after context and ownership checks. */
   async updateCurrent(
     customerId: string,
     dto: UpdateProviderAccountDto,
+    providerId?: string,
   ): Promise<ProviderAccountResponse> {
-    const context = await this.currentProviderContext.resolve(customerId);
+    const context = await this.currentProviderContext.resolve(
+      customerId,
+      providerId,
+    );
     const account = await this.providerAccountRepository.findById(
       context.providerId,
     );
@@ -171,20 +185,26 @@ export class ProviderAccountService extends BaseService<
     return ProviderAccountMapper.toResponse(updated);
   }
 
+  /** Resolves provider context for callers that need identity without supply policy checks. */
   resolveCurrentProvider(
     customerId: string,
+    providerId?: string,
   ): Promise<CurrentProviderContextValue> {
-    return this.currentProviderContext.resolve(customerId);
+    return this.currentProviderContext.resolve(customerId, providerId);
   }
 
   /** Rejects supply mutations unless the provider is active and verified. */
+  /** Resolves context and rejects suspended, unverified, or otherwise unusable provider supply access. */
   requireActiveProvider(
     customerId: string,
+    providerId?: string,
   ): Promise<CurrentProviderContextValue> {
-    return this.resolveCurrentProvider(customerId).then((context) => {
-      this.providerAccountPolicy.requireActiveProvider(context);
-      return context;
-    });
+    return this.resolveCurrentProvider(customerId, providerId).then(
+      (context) => {
+        this.providerAccountPolicy.requireActiveProvider(context);
+        return context;
+      },
+    );
   }
 
   private validateType(

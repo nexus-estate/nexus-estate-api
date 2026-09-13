@@ -14,4 +14,5 @@ import { locationController } from './location.controller';
   controllers: [locationController],
   providers: [ProvinceRepo, WardRepository, locationService],
 })
+/** Composes the legacy location seed/read endpoints. */
 export class LocationModule {}

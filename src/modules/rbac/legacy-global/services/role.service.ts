@@ -15,6 +15,7 @@ export class RoleService {
     private readonly dataSource: DataSource,
   ) {}
 
+  /** Loads one legacy role by exact identifier for compatibility callers. */
   async findById(id: string): Promise<Role> {
     const role = await this.roleRepository.findById(id);
 
@@ -25,10 +26,12 @@ export class RoleService {
     return role;
   }
 
+  /** Finds one legacy role by its exact name. */
   async findByName(name: string): Promise<Role | null> {
     return this.roleRepository.findByName(name.trim().toLowerCase());
   }
 
+  /** Loads a legacy role together with its mapped permissions. */
   async findByIdWithPermissions(id: string): Promise<Role> {
     const role = await this.roleRepository.findByIdWithPermissions(id);
 
@@ -39,6 +42,7 @@ export class RoleService {
     return role;
   }
 
+  /** Replaces legacy role permissions as one compatibility transaction. */
   async replacePermissions(
     roleId: string,
     permissionIds: string[],

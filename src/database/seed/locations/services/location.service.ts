@@ -13,10 +13,12 @@ export class locationService {
     private readonly wardRepository: WardRepository,
   ) {}
 
+  /** Returns all seed provinces in deterministic display order. */
   async getAllProvinces(): Promise<Province[]> {
     return this.provinceRepository.findAll();
   }
 
+  /** Returns wards belonging to one exact province identifier. */
   async getWardsByProvinceId(provinceId: string): Promise<Ward[]> {
     return this.wardRepository.findByProvinceId(provinceId);
   }

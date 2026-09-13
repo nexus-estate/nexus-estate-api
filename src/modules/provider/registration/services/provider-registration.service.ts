@@ -18,6 +18,7 @@ import type { ProviderAccountResponse } from '../../account/dto/provider-account
 import type { RegisterProviderFromCustomerDto } from '../dto/register-provider-from-customer.dto';
 import type { RegisterProviderDto } from '../dto/register-provider.dto';
 import type { ProviderRegistrationResponse } from '../dto/provider-registration.response';
+import { ProviderAuthorizationService } from '../../authorization/services/provider-authorization.service';
 
 /** Handles provider registration and customer-to-provider registration requests. */
 @Injectable()
@@ -27,6 +28,7 @@ export class ProviderRegistrationService {
     private readonly customerAccountService: CustomerAccountService,
     private readonly providerAccountService: ProviderAccountService,
     private readonly bcryptService: BcryptService,
+    private readonly providerAuthorizationService: ProviderAuthorizationService,
   ) {}
 
   /**
@@ -35,6 +37,7 @@ export class ProviderRegistrationService {
    * provider capability is represented by ProviderAccount, not by replacing the
    * customer authentication identity.
    */
+  /** Registers an independent provider and provisions its initial authorization membership. */
   async registerIndependent(
     dto: RegisterProviderDto,
   ): Promise<ProviderRegistrationResponse> {
@@ -43,9 +46,9 @@ export class ProviderRegistrationService {
     this.validateType(dto.type);
     const passwordHash = await this.bcryptService.hash(dto.password);
 
-    let customerId: string;
+    let registrationIds: { customerId: string; providerId: string };
     try {
-      customerId = await this.dataSource.transaction(async (manager) => {
+      registrationIds = await this.dataSource.transaction(async (manager) => {
         const customerRepository = manager.getRepository(CustomerAccount);
         const providerRepository = manager.getRepository(ProviderAccount);
 
@@ -63,7 +66,7 @@ export class ProviderRegistrationService {
           verificationStatus: ProviderVerificationStatus.PENDING,
         });
         await providerRepository.save(provider);
-        return savedCustomer.id;
+        return { customerId: savedCustomer.id, providerId: provider.id };
       });
     } catch (error) {
       if (error instanceof QueryFailedError) {
@@ -78,12 +81,21 @@ export class ProviderRegistrationService {
       throw error;
     }
 
-    const providerAccount =
-      await this.providerAccountService.getCurrent(customerId);
-    return this.toResponse(customerId, providerAccount);
+    // Registration creates the provider row through a transaction, so seed
+    // the matching membership before resolving the context used by the API.
+    await this.providerAuthorizationService.ensureOwnerMembership(
+      registrationIds.providerId,
+      registrationIds.customerId,
+    );
+    const providerAccount = await this.providerAccountService.getCurrent(
+      registrationIds.customerId,
+      registrationIds.providerId,
+    );
+    return this.toResponse(registrationIds.customerId, providerAccount);
   }
 
   /** Creates a pending provider account for the authenticated customer. */
+  /** Creates a provider registration request for an already authenticated customer. */
   async requestFromCustomer(
     authenticatedCustomerId: string,
     dto: RegisterProviderFromCustomerDto,

@@ -87,19 +87,19 @@ npm run start:dev
 
 ## Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run build` | Compile TypeScript to JavaScript |
-| `npm run start` | Start the production server |
-| `npm run start:dev` | Start in development mode (watch mode) |
-| `npm run start:debug` | Start with debugger enabled |
-| `npm run start:prod` | Start the compiled server |
-| `npm run lint:check` | Run ESLint without modifying files |
-| `npm run lint:fix` | Run ESLint and apply fixes |
-| `npm run format` | Format code with Prettier |
-| `npm test` | Run unit tests |
-| `npm run test:cov` | Run unit tests with coverage |
-| `npm run test:e2e` | Run integration/e2e tests |
+| Command               | Description                            |
+| --------------------- | -------------------------------------- |
+| `npm run build`       | Compile TypeScript to JavaScript       |
+| `npm run start`       | Start the production server            |
+| `npm run start:dev`   | Start in development mode (watch mode) |
+| `npm run start:debug` | Start with debugger enabled            |
+| `npm run start:prod`  | Start the compiled server              |
+| `npm run lint:check`  | Run ESLint without modifying files     |
+| `npm run lint:fix`    | Run ESLint and apply fixes             |
+| `npm run format`      | Format code with Prettier              |
+| `npm test`            | Run unit tests                         |
+| `npm run test:cov`    | Run unit tests with coverage           |
+| `npm run test:e2e`    | Run integration/e2e tests              |
 
 ## Development Workflow
 
@@ -127,12 +127,13 @@ npm run test:e2e
 ### 3. Working with the Database
 
 ```bash
-# Generate a module-owned migration (use the owning module's migrations folder)
+# Generate a module-owned migration (always use the owning module's migrations folder)
 npm run typeorm -- migration:create src/modules/provider/property/migrations/CreateProperty
 npm run typeorm -- migration:generate src/modules/provider/property/migrations/AddPropertyField
 
-# Generate a platform migration when the change is cross-module
-npm run typeorm -- migration:create src/database/migrations/platform/NormalizeCrossDomainLocationReferences
+# Run `date +%s%3N` first and use the resulting TypeORM timestamp in the
+# filename/class. The folder does not define execution order; the timestamp
+# does.
 
 # Run migrations
 npx typeorm migration:run
@@ -147,10 +148,10 @@ npx typeorm migration:revert
 
 ## Troubleshooting
 
-| Problem | Solution |
-|---------|----------|
-| `npm install` fails | Check Node.js version (24.x). Clear npm cache: `npm cache clean --force` |
-| Can't connect to PostgreSQL | Ensure PostgreSQL is running. Check credentials in `.env` |
-| Port 50001 in use | Change the `PORT` in `.env` |
-| TypeScript errors | Run `npm run build` to check compilation |
-| Tests fail with Docker | Ensure Docker is running: `sudo usermod -aG docker \$USER` |
+| Problem                     | Solution                                                                 |
+| --------------------------- | ------------------------------------------------------------------------ |
+| `npm install` fails         | Check Node.js version (24.x). Clear npm cache: `npm cache clean --force` |
+| Can't connect to PostgreSQL | Ensure PostgreSQL is running. Check credentials in `.env`                |
+| Port 50001 in use           | Change the `PORT` in `.env`                                              |
+| TypeScript errors           | Run `npm run build` to check compilation                                 |
+| Tests fail with Docker      | Ensure Docker is running: `sudo usermod -aG docker \$USER`               |
