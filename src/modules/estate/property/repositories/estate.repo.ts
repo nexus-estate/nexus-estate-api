@@ -16,6 +16,7 @@ export class EstateRepo extends BaseRepository<Estate> {
     return this.repository
       .createQueryBuilder('estate')
       .innerJoinAndSelect('estate.customer', 'customer')
+      .leftJoinAndSelect('estate.provider', 'provider')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
       .where('estate.id = :id', { id })
@@ -24,14 +25,21 @@ export class EstateRepo extends BaseRepository<Estate> {
   }
 
   /** Lists non-deleted estates owned by one exact customer identifier. */
-  async findByCustomerId(customerId: string): Promise<Estate[]> {
+  async findByCustomerId(
+    customerId: string,
+    providerId?: string,
+  ): Promise<Estate[]> {
     return this.repository
       .createQueryBuilder('estate')
       .innerJoinAndSelect('estate.customer', 'customer')
+      .leftJoinAndSelect('estate.provider', 'provider')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
       .where('estate.customerId = :customerId', { customerId })
       .andWhere('estate.deletedAt IS NULL')
+      .andWhere(providerId ? 'estate.providerId = :providerId' : '1=1', {
+        providerId,
+      })
       .getMany();
   }
 

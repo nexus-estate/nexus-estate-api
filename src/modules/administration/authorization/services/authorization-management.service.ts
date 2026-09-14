@@ -21,16 +21,11 @@ import type {
   ReplaceSubjectRolesDto,
   UpdateAuthorizationRoleDto,
 } from '../dto/authorization-management.dto';
-
-type PlatformConfig = {
-  roleTable: string;
-  permissionTable: string;
-  rolePermissionTable: string;
-  assignmentTable: string;
-  assignmentSubjectColumn: string;
-  subjectTable: string;
-  subjectType: 'CUSTOMER' | 'PROVIDER_MEMBERSHIP' | 'ADMINISTRATOR';
-};
+import {
+  platformAuthorizationSqlConfig,
+  platformAuthorizationSqlConfigs,
+  type PlatformAuthorizationSqlConfig,
+} from '../management/platform-authorization-config';
 
 type RoleRow = {
   id: string;
@@ -44,36 +39,6 @@ type RoleRow = {
   assignment_count: string | number;
   created_at: Date;
   updated_at: Date;
-};
-
-const CONFIGS: Record<AuthorizationPlatform, PlatformConfig> = {
-  [AuthorizationPlatform.MARKETPLACE]: {
-    roleTable: 'tbl_marketplace_role',
-    permissionTable: 'tbl_marketplace_permission',
-    rolePermissionTable: 'tbl_marketplace_role_permission',
-    assignmentTable: 'tbl_customer_role_assignment',
-    assignmentSubjectColumn: 'customer_id',
-    subjectTable: 'tbl_customer_account',
-    subjectType: 'CUSTOMER',
-  },
-  [AuthorizationPlatform.PROVIDER]: {
-    roleTable: 'tbl_provider_role',
-    permissionTable: 'tbl_provider_permission',
-    rolePermissionTable: 'tbl_provider_role_permission',
-    assignmentTable: 'tbl_provider_membership_role',
-    assignmentSubjectColumn: 'membership_id',
-    subjectTable: 'tbl_provider_membership',
-    subjectType: 'PROVIDER_MEMBERSHIP',
-  },
-  [AuthorizationPlatform.ADMINISTRATION]: {
-    roleTable: 'tbl_administration_role',
-    permissionTable: 'tbl_administration_permission',
-    rolePermissionTable: 'tbl_administration_role_permission',
-    assignmentTable: 'tbl_administrator_role_assignment',
-    assignmentSubjectColumn: 'administrator_id',
-    subjectTable: 'tbl_administrator_account',
-    subjectType: 'ADMINISTRATOR',
-  },
 };
 
 const ROLE_SORT_COLUMNS: Record<string, string> = {
@@ -1086,8 +1051,10 @@ export class AuthorizationManagementCoreService {
     );
   }
 
-  private config(platform: AuthorizationPlatform): PlatformConfig {
-    const config = CONFIGS[platform];
+  private config(
+    platform: AuthorizationPlatform,
+  ): PlatformAuthorizationSqlConfig {
+    const config = platformAuthorizationSqlConfig(platform);
     if (!config) {
       throw new BusinessException(AuthorizationErrorCodes.PLATFORM_NOT_FOUND, {
         platform,
@@ -1097,7 +1064,7 @@ export class AuthorizationManagementCoreService {
   }
 
   private async findRole(
-    config: PlatformConfig,
+    config: PlatformAuthorizationSqlConfig,
     id: string,
     manager?: EntityManager,
   ): Promise<RoleRow | null> {
@@ -1113,7 +1080,7 @@ export class AuthorizationManagementCoreService {
   }
 
   private async roleIds(
-    config: PlatformConfig,
+    config: PlatformAuthorizationSqlConfig,
     subjectId: string,
     manager?: EntityManager,
   ): Promise<string[]> {
@@ -1126,7 +1093,7 @@ export class AuthorizationManagementCoreService {
   }
 
   private async rolePermissionIds(
-    config: PlatformConfig,
+    config: PlatformAuthorizationSqlConfig,
     roleId: string,
     manager?: EntityManager,
   ): Promise<string[]> {
@@ -1139,7 +1106,7 @@ export class AuthorizationManagementCoreService {
   }
 
   private async subjectExists(
-    config: PlatformConfig,
+    config: PlatformAuthorizationSqlConfig,
     id: string,
     manager?: EntityManager,
   ): Promise<boolean> {
@@ -1153,7 +1120,7 @@ export class AuthorizationManagementCoreService {
 
   private async validatePermissions(
     manager: EntityManager,
-    config: PlatformConfig,
+    config: PlatformAuthorizationSqlConfig,
     platform: AuthorizationPlatform,
     ids: string[],
   ) {
@@ -1164,7 +1131,7 @@ export class AuthorizationManagementCoreService {
       [ids],
     );
     if (rows.length !== ids.length) {
-      const otherTables = Object.values(CONFIGS)
+      const otherTables = platformAuthorizationSqlConfigs
         .filter(
           (candidate) => candidate.permissionTable !== config.permissionTable,
         )
@@ -1203,7 +1170,7 @@ export class AuthorizationManagementCoreService {
 
   private async validateRoleIds(
     manager: EntityManager,
-    config: PlatformConfig,
+    config: PlatformAuthorizationSqlConfig,
     platform: AuthorizationPlatform,
     ids: string[],
   ) {
@@ -1214,7 +1181,7 @@ export class AuthorizationManagementCoreService {
     );
     if (rows.length !== ids.length) {
       const known = new Set(rows.map((row) => row.id));
-      const otherTables = Object.values(CONFIGS)
+      const otherTables = platformAuthorizationSqlConfigs
         .filter((candidate) => candidate.roleTable !== config.roleTable)
         .map((candidate) => candidate.roleTable);
       const crossRows: { id: string }[] = [];

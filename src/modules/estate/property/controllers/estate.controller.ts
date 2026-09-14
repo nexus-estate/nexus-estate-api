@@ -49,8 +49,18 @@ export class EstateController {
 
   /** Lists the authenticated customer's estates. */
   @Get('mine')
-  async findEstateMine(@Req() req: AuthenticatedRequest): Promise<Estate[]> {
-    return this.estateService.findByCustomerId(req.user.id);
+  @ApiHeader({
+    name: 'X-Provider-Id',
+    required: false,
+    description: 'Provider context used to scope the legacy Estate list.',
+  })
+  async findEstateMine(
+    @Req() req: AuthenticatedRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<Estate[]> {
+    return providerId
+      ? this.estateService.findByCustomerId(req.user.id, providerId)
+      : this.estateService.findByCustomerId(req.user.id);
   }
 
   /** Returns one public estate by exact identifier. */

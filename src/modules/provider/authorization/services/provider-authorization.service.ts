@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { ProviderAccountErrorCodes } from '../../account/errors/provider-account-error-codes';
 
@@ -21,33 +21,53 @@ export class ProviderAuthorizationService {
    * account cannot exist without its initial provider authority.
    */
   async ensureOwnerMembership(
+    manager: EntityManager,
     providerId: string,
     customerId: string,
   ): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
-      const ownerRoles = await manager.query<{ id: string }[]>(
-        `SELECT id FROM tbl_provider_role
+    const ownerRoles = await manager.query<{ id: string }[]>(
+      `SELECT id FROM tbl_provider_role
          WHERE code = 'OWNER' AND deleted_at IS NULL AND status = 'ACTIVE'
          LIMIT 1`,
+    );
+    const ownerRoleId = ownerRoles[0]?.id;
+    if (!ownerRoleId) {
+      throw new BusinessException(
+        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
       );
-      const ownerRoleId = ownerRoles[0]?.id;
-      if (!ownerRoleId) return;
-      const memberships = await manager.query<{ id: string }[]>(
-        `INSERT INTO tbl_provider_membership (provider_id, customer_id, status)
+    }
+    const memberships = await manager.query<{ id: string }[]>(
+      `INSERT INTO tbl_provider_membership (provider_id, customer_id, status)
          VALUES ($1, $2, 'ACTIVE')
          ON CONFLICT (provider_id, customer_id) DO UPDATE
            SET status = 'ACTIVE', deleted_at = NULL, updated_at = CURRENT_TIMESTAMP
          RETURNING id`,
-        [providerId, customerId],
+      [providerId, customerId],
+    );
+    const membershipId = memberships[0]?.id;
+    if (!membershipId) {
+      throw new BusinessException(
+        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
       );
-      const membershipId = memberships[0]?.id;
-      if (!membershipId) return;
-      await manager.query(
-        `INSERT INTO tbl_provider_membership_role (membership_id, role_id)
+    }
+    await manager.query(
+      `INSERT INTO tbl_provider_membership_role (membership_id, role_id)
          VALUES ($1, $2) ON CONFLICT (membership_id, role_id) DO NOTHING`,
-        [membershipId, ownerRoleId],
+      [membershipId, ownerRoleId],
+    );
+  }
+
+  /** Legacy Estate remains owner-only until explicit Estate permissions exist. */
+  async requireLegacyEstateOwner(
+    customerId: string,
+    providerId: string,
+  ): Promise<void> {
+    const authority = await this.effective(customerId, providerId);
+    if (!authority.roles.some((role) => role.code === 'OWNER')) {
+      throw new BusinessException(
+        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
       );
-    });
+    }
   }
 
   /**

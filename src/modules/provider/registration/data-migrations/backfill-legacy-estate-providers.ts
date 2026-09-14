@@ -36,5 +36,17 @@ export async function backfillLegacyEstateProviders(
     RETURNING id
   `);
 
+  // The provider binding migration adds this column before this command is
+  // run. Keep the account creation count stable for operators, then bind all
+  // legacy rows through the canonical owner mapping.
+  await dataSource.query(`
+    UPDATE tbl_estate estate
+    SET fk_provider_id = provider.id
+    FROM tbl_provider_account provider
+    WHERE provider.owner_customer_id = estate.fk_customer_id
+      AND provider.deleted_at IS NULL
+      AND estate.fk_provider_id IS NULL
+  `);
+
   return result.length;
 }

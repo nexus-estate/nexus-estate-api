@@ -6,6 +6,7 @@ import {
   Ward,
 } from '../../../location/administrative-division/entities/location.entity';
 import { CustomerAccount } from '../../../customer/account/entities/customer-account.entity';
+import { ProviderAccount } from '../../../provider/account/entities/provider-account.entity';
 import { EstatePurpose, EstateType } from '../types/estate.type';
 
 @Entity('tbl_estate')
@@ -16,6 +17,13 @@ export class Estate extends BaseEntity {
   @ManyToOne(() => CustomerAccount, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'fk_customer_id' })
   customer: Relation<CustomerAccount>;
+
+  @Column({ name: 'fk_provider_id', type: 'uuid', nullable: true })
+  providerId: string | null;
+
+  @ManyToOne(() => ProviderAccount, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'fk_provider_id' })
+  provider: Relation<ProviderAccount>;
 
   @Column({ type: 'varchar', length: 500, nullable: false })
   title: string;

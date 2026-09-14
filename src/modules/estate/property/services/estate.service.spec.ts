@@ -130,6 +130,7 @@ describe('EstateService', () => {
       expect(estateRepository.createEstate).toHaveBeenCalledWith({
         ...createDto,
         customerId,
+        providerId,
       });
     });
 
@@ -215,6 +216,7 @@ describe('EstateService', () => {
       ]);
       expect(estateRepository.findByCustomerId).toHaveBeenCalledWith(
         customerId,
+        providerId,
       );
     });
 

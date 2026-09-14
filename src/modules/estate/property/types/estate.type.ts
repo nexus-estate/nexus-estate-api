@@ -24,4 +24,5 @@ export enum EstatePurpose {
 
 export type CreateEstateData = CreateEstateDto & {
   customerId: string;
+  providerId?: string;
 };

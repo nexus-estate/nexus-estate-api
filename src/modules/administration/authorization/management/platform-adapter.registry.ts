@@ -17,7 +17,10 @@ export class PlatformAuthorizationAdapterRegistry {
   >;
 
   constructor(core: AuthorizationManagementCoreService) {
-    this.adapters = new Map([
+    this.adapters = new Map<
+      AuthorizationPlatform,
+      PlatformAuthorizationManagementPort
+    >([
       [
         AuthorizationPlatform.MARKETPLACE,
         new MarketplaceAuthorizationManagementAdapter(core),

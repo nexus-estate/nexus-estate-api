@@ -1,5 +1,5 @@
 import { Injectable, Optional } from '@nestjs/common';
-import { QueryFailedError } from 'typeorm';
+import { DataSource, QueryFailedError } from 'typeorm';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { BaseService } from '../../../../services/abstraction-services';
@@ -35,6 +35,7 @@ export class ProviderAccountService extends BaseService<
     private readonly providerAccountRepository: ProviderAccountRepository,
     private readonly currentProviderContext: CurrentProviderContext,
     private readonly providerAccountPolicy: ProviderAccountPolicy,
+    @Optional() private readonly dataSource?: DataSource,
     @Optional()
     private readonly providerAuthorizationService?: ProviderAuthorizationService,
   ) {
@@ -91,13 +92,37 @@ export class ProviderAccountService extends BaseService<
     }
 
     try {
-      const account = await super.create({
-        ownerCustomerId: customerId,
-        type: dto.type,
-        displayName,
-        status: ProviderStatus.ACTIVE,
-        verificationStatus,
-      });
+      const createAccount = async (
+        manager: import('typeorm').EntityManager,
+      ) => {
+        const repository = manager.getRepository(ProviderAccount);
+        const account = repository.create({
+          ownerCustomerId: customerId,
+          type: dto.type,
+          displayName,
+          status: ProviderStatus.ACTIVE,
+          verificationStatus,
+        });
+        const saved = await repository.save(account);
+        if (!this.providerAuthorizationService) {
+          throw new Error('Provider authorization service is required');
+        }
+        await this.providerAuthorizationService.ensureOwnerMembership(
+          manager,
+          saved.id,
+          customerId,
+        );
+        return saved;
+      };
+      const account = this.dataSource
+        ? await this.dataSource.transaction(createAccount)
+        : await super.create({
+            ownerCustomerId: customerId,
+            type: dto.type,
+            displayName,
+            status: ProviderStatus.ACTIVE,
+            verificationStatus,
+          });
 
       this.logger.log(
         JSON.stringify({
@@ -106,11 +131,6 @@ export class ProviderAccountService extends BaseService<
           provider_id: account.id,
           verification_status: account.verificationStatus,
         }),
-      );
-
-      await this.providerAuthorizationService?.ensureOwnerMembership(
-        account.id,
-        customerId,
       );
 
       return ProviderAccountMapper.toResponse(account);

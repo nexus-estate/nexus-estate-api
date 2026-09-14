@@ -10,6 +10,7 @@ import { WardRepository } from '../../../../database/seed/locations/repositories
 import { UpdateEstateDto } from '../dto/update-estate-dto';
 import type { CreateEstateData } from '../types/estate.type';
 import { ProviderAccountService } from '../../../provider/account/services/provider-account.service';
+import { ProviderAuthorizationService } from '../../../provider/authorization/services/provider-authorization.service';
 
 @Injectable()
 export class EstateService extends BaseService<
@@ -22,6 +23,7 @@ export class EstateService extends BaseService<
     private readonly provinceRepository: ProvinceRepo,
     private readonly wardRepository: WardRepository,
     private readonly providerAccountService: ProviderAccountService,
+    private readonly providerAuthorizationService?: ProviderAuthorizationService,
   ) {
     super(estateRepository, 'Estate');
   }
@@ -68,14 +70,16 @@ export class EstateService extends BaseService<
     dto: CreateEstateDto,
     providerId?: string,
   ): Promise<Estate> {
-    if (providerId) {
-      await this.providerAccountService.requireActiveProvider(
-        customerId,
-        providerId,
-      );
-    } else {
-      await this.providerAccountService.requireActiveProvider(customerId);
-    }
+    const context = providerId
+      ? await this.providerAccountService.requireActiveProvider(
+          customerId,
+          providerId,
+        )
+      : await this.providerAccountService.requireActiveProvider(customerId);
+    await this.providerAuthorizationService?.requireLegacyEstateOwner(
+      customerId,
+      context.providerId,
+    );
 
     // 1. find province
     const checkedLocation = await this.validateLocaion(
@@ -85,7 +89,11 @@ export class EstateService extends BaseService<
     if (!checkedLocation) {
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
     }
-    return await this.estateRepository.createEstate({ ...dto, customerId });
+    return await this.estateRepository.createEstate({
+      ...dto,
+      customerId,
+      providerId: context.providerId,
+    });
   }
 
   /** Updates an estate only after ownership and active-provider policy checks. */
@@ -95,16 +103,12 @@ export class EstateService extends BaseService<
     estateId: string,
     providerId?: string,
   ): Promise<Estate> {
-    if (providerId) {
-      await this.providerAccountService.requireActiveProvider(
-        customerId,
-        providerId,
-      );
-    } else {
-      await this.providerAccountService.requireActiveProvider(customerId);
-    }
-
-    //check exist estate
+    const context = providerId
+      ? await this.providerAccountService.requireActiveProvider(
+          customerId,
+          providerId,
+        )
+      : await this.providerAccountService.requireActiveProvider(customerId);
     const estate = await this.estateRepository.findById(estateId);
     if (!estate) {
       throw new BusinessException(
@@ -112,6 +116,16 @@ export class EstateService extends BaseService<
         estateId,
       );
     }
+    if (estate.providerId && estate.providerId !== context.providerId) {
+      throw new BusinessException(
+        CommonErrorCodes.FORBIDDEN,
+        context.providerId,
+      );
+    }
+    await this.providerAuthorizationService?.requireLegacyEstateOwner(
+      customerId,
+      context.providerId,
+    );
 
     const checkedLocation = await this.validateLocaion(
       dto.wardId ?? estate.wardId,
@@ -146,15 +160,12 @@ export class EstateService extends BaseService<
     estateId: string,
     providerId?: string,
   ): Promise<boolean> {
-    if (providerId) {
-      await this.providerAccountService.requireActiveProvider(
-        customerId,
-        providerId,
-      );
-    } else {
-      await this.providerAccountService.requireActiveProvider(customerId);
-    }
-
+    const context = providerId
+      ? await this.providerAccountService.requireActiveProvider(
+          customerId,
+          providerId,
+        )
+      : await this.providerAccountService.requireActiveProvider(customerId);
     const estate = await this.estateRepository.findById(estateId);
     if (!estate) {
       throw new BusinessException(
@@ -162,10 +173,16 @@ export class EstateService extends BaseService<
         estateId,
       );
     }
-
-    if (customerId !== estate.customerId) {
+    if (
+      customerId !== estate.customerId ||
+      (estate.providerId && estate.providerId !== context.providerId)
+    ) {
       throw new BusinessException(CommonErrorCodes.FORBIDDEN, customerId);
     }
+    await this.providerAuthorizationService?.requireLegacyEstateOwner(
+      customerId,
+      context.providerId,
+    );
     const deletedEstate =
       await this.estateRepository.softDeleteEstate(estateId);
 
@@ -176,7 +193,19 @@ export class EstateService extends BaseService<
   }
 
   /** Lists estates belonging to one exact customer/provider owner. */
-  async findByCustomerId(customerId: string): Promise<Estate[]> {
-    return this.estateRepository.findByCustomerId(customerId);
+  async findByCustomerId(
+    customerId: string,
+    providerId?: string,
+  ): Promise<Estate[]> {
+    const context = providerId
+      ? await this.providerAccountService.requireActiveProvider(
+          customerId,
+          providerId,
+        )
+      : await this.providerAccountService.requireActiveProvider(customerId);
+    return this.estateRepository.findByCustomerId(
+      customerId,
+      context.providerId,
+    );
   }
 }

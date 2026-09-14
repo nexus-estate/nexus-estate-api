@@ -66,6 +66,11 @@ export class ProviderRegistrationService {
           verificationStatus: ProviderVerificationStatus.PENDING,
         });
         await providerRepository.save(provider);
+        await this.providerAuthorizationService.ensureOwnerMembership(
+          manager,
+          provider.id,
+          savedCustomer.id,
+        );
         return { customerId: savedCustomer.id, providerId: provider.id };
       });
     } catch (error) {
@@ -81,12 +86,6 @@ export class ProviderRegistrationService {
       throw error;
     }
 
-    // Registration creates the provider row through a transaction, so seed
-    // the matching membership before resolving the context used by the API.
-    await this.providerAuthorizationService.ensureOwnerMembership(
-      registrationIds.providerId,
-      registrationIds.customerId,
-    );
     const providerAccount = await this.providerAccountService.getCurrent(
       registrationIds.customerId,
       registrationIds.providerId,

@@ -17,7 +17,12 @@ import type {
 export class MarketplaceAuthorizationManagementAdapter implements PlatformAuthorizationManagementPort {
   readonly platform: AuthorizationPlatform = AuthorizationPlatform.MARKETPLACE;
 
-  constructor(private readonly core: AuthorizationManagementCoreService) {}
+  constructor(
+    private readonly core: AuthorizationManagementCoreService,
+    platform: AuthorizationPlatform = AuthorizationPlatform.MARKETPLACE,
+  ) {
+    this.platform = platform;
+  }
 
   /** Lists Marketplace roles through the platform-owned core. */
   listRoles(query: AuthorizationRoleListQueryDto) {
