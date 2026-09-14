@@ -15,13 +15,14 @@ import type {
 /** Marketplace adapter: customer subjects and marketplace-owned tables. */
 @Injectable()
 export class MarketplaceAuthorizationManagementAdapter implements PlatformAuthorizationManagementPort {
-  readonly platform: AuthorizationPlatform = AuthorizationPlatform.MARKETPLACE;
+  platform: AuthorizationPlatform = AuthorizationPlatform.MARKETPLACE;
 
-  constructor(
-    private readonly core: AuthorizationManagementCoreService,
-    platform: AuthorizationPlatform = AuthorizationPlatform.MARKETPLACE,
-  ) {
+  constructor(private readonly core: AuthorizationManagementCoreService) {}
+
+  /** Configures the neutral operations delegate for a concrete platform adapter. */
+  forPlatform(platform: AuthorizationPlatform): this {
     this.platform = platform;
+    return this;
   }
 
   /** Lists Marketplace roles through the platform-owned core. */

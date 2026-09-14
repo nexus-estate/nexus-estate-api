@@ -22,8 +22,7 @@ export class AdministrationAuthorizationManagementAdapter implements PlatformAut
   constructor(core: AuthorizationManagementCoreService) {
     this.operations = new MarketplaceAuthorizationManagementAdapter(
       core,
-      this.platform,
-    );
+    ).forPlatform(this.platform);
   }
 
   listRoles(q: AuthorizationRoleListQueryDto) {
