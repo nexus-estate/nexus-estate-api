@@ -101,7 +101,7 @@ export class CustomerAuthenticationService {
       replacementSessionId: identifiers.sessionId,
       replacementRefreshToken: tokens.refreshToken,
       expiresAt: this.refreshExpiry(),
-      absoluteExpiresAt: new Date(Date.now() + 30 * 86_400_000),
+      refreshTokenInvalidError: CustomerAuthErrorCodes.TOKEN_INVALID,
       refreshTokenReusedError: CustomerAuthErrorCodes.REFRESH_TOKEN_REUSED,
     });
     return tokens;

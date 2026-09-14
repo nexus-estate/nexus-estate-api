@@ -116,7 +116,7 @@ export class AdministrationAuthenticationService {
       replacementSessionId: identifiers.sessionId,
       replacementRefreshToken: tokens.refreshToken,
       expiresAt: this.refreshExpiry(),
-      absoluteExpiresAt: new Date(Date.now() + 30 * 86_400_000),
+      refreshTokenInvalidError: AdministrationErrorCodes.TOKEN_INVALID,
       refreshTokenReusedError: AdministrationErrorCodes.REFRESH_TOKEN_REUSED,
     });
     return tokens;
