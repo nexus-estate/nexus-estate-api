@@ -9,6 +9,7 @@ import { assertAllMigrationsApplied } from '../../../src/database/migration-runn
 import { typeOrmConfig } from '../../../src/database/type.config';
 import { MigrateLegacyUserSchemaToCustomerAccount1789307935990 } from '../../../src/modules/customer/account/migrations/1789307935990-MigrateLegacyUserSchemaToCustomerAccount';
 import { backfillLegacyEstateProviders } from '../../../src/modules/provider/registration/data-migrations/backfill-legacy-estate-providers';
+import { CurrentProviderContext } from '../../../src/modules/provider/account/services/current-provider-context.service';
 
 jest.setTimeout(120_000);
 
@@ -354,6 +355,79 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
       await expect(
         backfillLegacyEstateProviders(upgradeDataSource),
       ).resolves.toBe(1);
+      const provider = await upgradeDataSource.query<
+        Array<{
+          id: string;
+          owner_customer_id: string;
+          status: string;
+          verification_status: string;
+        }>
+      >(
+        `SELECT id, owner_customer_id, status, verification_status FROM tbl_provider_account WHERE owner_customer_id = '20000000-0000-4000-8000-000000000001'`,
+      );
+      expect(provider).toHaveLength(1);
+      expect(provider[0]).toMatchObject({
+        owner_customer_id: '20000000-0000-4000-8000-000000000001',
+        status: 'ACTIVE',
+        verification_status: 'VERIFIED',
+      });
+      const membership = await upgradeDataSource.query<
+        Array<{
+          id: string;
+          provider_id: string;
+          customer_id: string;
+          status: string;
+        }>
+      >(
+        `SELECT id, provider_id, customer_id, status FROM tbl_provider_membership WHERE provider_id = $1 AND customer_id = '20000000-0000-4000-8000-000000000001' AND deleted_at IS NULL`,
+        [provider[0].id],
+      );
+      expect(membership).toHaveLength(1);
+      expect(membership[0].status).toBe('ACTIVE');
+      const ownerAssignment = await upgradeDataSource.query<
+        Array<{ code: string; status: string; deleted_at: Date | null }>
+      >(
+        `SELECT role.code, role.status, role.deleted_at FROM tbl_provider_membership_role assignment INNER JOIN tbl_provider_role role ON role.id = assignment.role_id WHERE assignment.membership_id = $1 AND role.code = 'OWNER'`,
+        [membership[0].id],
+      );
+      expect(ownerAssignment).toEqual([
+        { code: 'OWNER', status: 'ACTIVE', deleted_at: null },
+      ]);
+      await expect(
+        upgradeDataSource.query(
+          `SELECT fk_provider_id FROM tbl_estate WHERE id = '30000000-0000-4000-8000-000000000001'`,
+        ),
+      ).resolves.toEqual([{ fk_provider_id: provider[0].id }]);
+      const context = new CurrentProviderContext(
+        {} as never,
+        upgradeDataSource,
+      );
+      await expect(
+        context.resolve('20000000-0000-4000-8000-000000000001'),
+      ).resolves.toMatchObject({
+        providerId: provider[0].id,
+        customerId: '20000000-0000-4000-8000-000000000001',
+        membershipId: membership[0].id,
+        membershipStatus: 'ACTIVE',
+        providerStatus: 'ACTIVE',
+        verificationStatus: 'VERIFIED',
+      });
+      await upgradeDataSource.query(
+        `DELETE FROM tbl_provider_membership_role WHERE membership_id = $1`,
+        [membership[0].id],
+      );
+      await upgradeDataSource.query(
+        `DELETE FROM tbl_provider_membership WHERE id = $1`,
+        [membership[0].id],
+      );
+      await expect(
+        backfillLegacyEstateProviders(upgradeDataSource),
+      ).resolves.toBe(0);
+      await expect(
+        upgradeDataSource.query(
+          `SELECT COUNT(*)::int AS count FROM tbl_provider_membership m INNER JOIN tbl_provider_account p ON p.id = m.provider_id WHERE p.owner_customer_id = '20000000-0000-4000-8000-000000000001' AND m.status = 'ACTIVE' AND m.deleted_at IS NULL`,
+        ),
+      ).resolves.toEqual([{ count: 1 }]);
       await expect(
         backfillLegacyEstateProviders(upgradeDataSource),
       ).resolves.toBe(0);
