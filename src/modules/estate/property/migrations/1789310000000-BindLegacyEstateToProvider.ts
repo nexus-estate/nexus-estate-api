@@ -19,13 +19,6 @@ export class BindLegacyEstateToProvider1789310000000 implements MigrationInterfa
         AND provider.deleted_at IS NULL
         AND estate.fk_provider_id IS NULL
     `);
-    await queryRunner.query(`
-      DO $$ BEGIN
-        IF EXISTS (SELECT 1 FROM tbl_estate WHERE deleted_at IS NULL AND fk_provider_id IS NULL) THEN
-          RAISE EXCEPTION 'Cannot bind legacy Estate rows: unresolved provider owner mapping';
-        END IF;
-      END $$
-    `);
     await queryRunner.createForeignKey(
       'tbl_estate',
       new TableForeignKey({

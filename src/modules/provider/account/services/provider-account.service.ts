@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DataSource, QueryFailedError } from 'typeorm';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
@@ -35,9 +35,8 @@ export class ProviderAccountService extends BaseService<
     private readonly providerAccountRepository: ProviderAccountRepository,
     private readonly currentProviderContext: CurrentProviderContext,
     private readonly providerAccountPolicy: ProviderAccountPolicy,
-    @Optional() private readonly dataSource?: DataSource,
-    @Optional()
-    private readonly providerAuthorizationService?: ProviderAuthorizationService,
+    private readonly dataSource: DataSource,
+    private readonly providerAuthorizationService: ProviderAuthorizationService,
   ) {
     super(providerAccountRepository, 'ProviderAccount');
   }
@@ -114,15 +113,7 @@ export class ProviderAccountService extends BaseService<
         );
         return saved;
       };
-      const account = this.dataSource
-        ? await this.dataSource.transaction(createAccount)
-        : await super.create({
-            ownerCustomerId: customerId,
-            type: dto.type,
-            displayName,
-            status: ProviderStatus.ACTIVE,
-            verificationStatus,
-          });
+      const account = await this.dataSource.transaction(createAccount);
 
       this.logger.log(
         JSON.stringify({

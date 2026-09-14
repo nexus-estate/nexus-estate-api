@@ -29,6 +29,7 @@ type RepositoryMock = {
 describe('ProviderAccountService', () => {
   let service: ProviderAccountService;
   let repository: RepositoryMock;
+  let transactionRepository: { create: jest.Mock; save: jest.Mock };
 
   const customerId = '10000000-0000-4000-8000-000000000001';
   const providerId = '20000000-0000-4000-8000-000000000001';
@@ -51,6 +52,17 @@ describe('ProviderAccountService', () => {
       create: jest.fn(),
       update: jest.fn(),
     };
+    transactionRepository = { create: jest.fn(), save: jest.fn() };
+    transactionRepository.create.mockImplementation(
+      (data: unknown) => data as ProviderAccount,
+    );
+    transactionRepository.save.mockResolvedValue(account);
+    const dataSource = {
+      transaction: jest.fn((callback: (manager: unknown) => unknown) =>
+        callback({ getRepository: () => transactionRepository }),
+      ),
+    };
+    const authorization = { ensureOwnerMembership: jest.fn() };
     const context = new CurrentProviderContext(
       repository as unknown as ProviderAccountRepository,
     );
@@ -58,12 +70,13 @@ describe('ProviderAccountService', () => {
       repository as unknown as ProviderAccountRepository,
       context,
       new ProviderAccountPolicy(),
+      dataSource as never,
+      authorization as never,
     );
   });
 
   it('creates a pending account with server-controlled defaults', async () => {
     repository.existsByOwnerCustomerId.mockResolvedValue(false);
-    repository.create.mockResolvedValue(account);
 
     const dto: CreateProviderAccountDto = {
       type: ProviderType.INDIVIDUAL,
@@ -78,7 +91,7 @@ describe('ProviderAccountService', () => {
       status: ProviderStatus.ACTIVE,
       verificationStatus: ProviderVerificationStatus.PENDING,
     });
-    expect(repository.create).toHaveBeenCalledWith({
+    expect(transactionRepository.create).toHaveBeenCalledWith({
       ownerCustomerId: customerId,
       type: ProviderType.INDIVIDUAL,
       displayName: 'Nguyen Van A',

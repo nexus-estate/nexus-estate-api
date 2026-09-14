@@ -48,5 +48,16 @@ export async function backfillLegacyEstateProviders(
       AND estate.fk_provider_id IS NULL
   `);
 
+  const unresolved = await dataSource.query<{ count: string }[]>(`
+    SELECT COUNT(*)::text AS count
+    FROM tbl_estate
+    WHERE deleted_at IS NULL AND fk_provider_id IS NULL
+  `);
+  if (Number(unresolved[0]?.count ?? 0) !== 0) {
+    throw new Error(
+      `Provider backfill incomplete: ${unresolved[0]?.count ?? 'unknown'} active Estate row(s) remain unbound`,
+    );
+  }
+
   return result.length;
 }

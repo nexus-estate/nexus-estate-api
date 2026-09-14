@@ -155,12 +155,12 @@ export class AuthSessionService {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             replacementId,
-            input.accountId,
-            input.realm,
-            input.familyId,
+            current.account_id,
+            current.realm,
+            current.family_id,
             hashToken(input.replacementRefreshToken),
             absoluteExpiresAt,
-            absoluteExpiresAt,
+            current.absolute_expires_at,
             input.userAgent ?? null,
           ],
         );
