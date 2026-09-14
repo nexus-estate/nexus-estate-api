@@ -1,6 +1,15 @@
 const SAFE_SECRET_MIN_LENGTH = 32;
 const EXPIRY_PATTERN = /^\d+(ms|s|m|h|d|w)$/;
-const ALLOWED_ENVIRONMENTS = new Set(['development', 'test', 'production']);
+const ALLOWED_ENVIRONMENTS = new Set([
+  'development',
+  'test',
+  'staging',
+  'production',
+]);
+
+function isDeployedEnvironment(nodeEnv: string): boolean {
+  return nodeEnv === 'staging' || nodeEnv === 'production';
+}
 
 /** Normalizes legacy names while enforcing production security requirements. */
 /** Validates and normalizes runtime configuration, failing closed for unsafe production settings. */
@@ -9,8 +18,11 @@ export function validateEnvironment(
 ): Record<string, unknown> {
   const nodeEnv = toText(raw.NODE_ENV ?? 'development');
   if (!ALLOWED_ENVIRONMENTS.has(nodeEnv)) {
-    throw new Error(`NODE_ENV must be development, test, or production`);
+    throw new Error(
+      `NODE_ENV must be development, test, staging, or production`,
+    );
   }
+  const deployedEnvironment = isDeployedEnvironment(nodeEnv);
 
   const normalized = {
     ...raw,
@@ -20,13 +32,13 @@ export function validateEnvironment(
     CUSTOMER_JWT_ACCESS_SECRET:
       raw.CUSTOMER_JWT_ACCESS_SECRET ??
       raw.JWT_SECRET ??
-      (nodeEnv === 'production'
+      (deployedEnvironment
         ? undefined
         : 'local-customer-access-secret-change-me-32'),
     CUSTOMER_JWT_REFRESH_SECRET:
       raw.CUSTOMER_JWT_REFRESH_SECRET ??
       raw.JWT_REFRESH_SECRET ??
-      (nodeEnv === 'production'
+      (deployedEnvironment
         ? undefined
         : 'local-customer-refresh-secret-change-me-32'),
     // ADMIN_JWT_SECRET is a temporary access-secret alias only. It never
@@ -34,22 +46,22 @@ export function validateEnvironment(
     ADMIN_JWT_ACCESS_SECRET:
       raw.ADMIN_JWT_ACCESS_SECRET ??
       raw.ADMIN_JWT_SECRET ??
-      (nodeEnv === 'production'
+      (deployedEnvironment
         ? undefined
         : 'local-administration-access-secret-32'),
     ADMIN_JWT_REFRESH_SECRET:
       raw.ADMIN_JWT_REFRESH_SECRET ??
-      (nodeEnv === 'production'
+      (deployedEnvironment
         ? undefined
         : 'local-administration-refresh-secret-32'),
     CORS_ORIGINS:
       raw.CORS_ORIGINS ??
       raw.CORS_ORIGIN ??
-      (nodeEnv === 'production'
+      (deployedEnvironment
         ? undefined
         : 'http://localhost:3000,http://localhost:5173'),
     SWAGGER_ENABLED:
-      raw.SWAGGER_ENABLED ?? (nodeEnv === 'production' ? 'false' : 'true'),
+      raw.SWAGGER_ENABLED ?? (deployedEnvironment ? 'false' : 'true'),
     CUSTOMER_JWT_ACCESS_EXPIRES_IN:
       raw.CUSTOMER_JWT_ACCESS_EXPIRES_IN ?? raw.JWT_ACCESS_EXPIRES_IN ?? '15m',
     CUSTOMER_JWT_REFRESH_EXPIRES_IN:
@@ -60,7 +72,7 @@ export function validateEnvironment(
       raw.ADMIN_JWT_REFRESH_EXPIRES_IN ?? raw.ADMIN_JWT_REFRESH_EXPIRES ?? '7d',
   };
 
-  if (nodeEnv === 'production') {
+  if (deployedEnvironment) {
     for (const key of [
       'DB_POSTGRES_HOST',
       'DB_POSTGRES_PORT',
@@ -156,7 +168,7 @@ function requireValue(values: Record<string, unknown>, key: string): void {
 
 function validateSecret(value: unknown, key: string, nodeEnv: string): void {
   if (value === undefined || value === null || toText(value).trim() === '') {
-    if (nodeEnv === 'production') throw new Error(`${key} is required`);
+    if (isDeployedEnvironment(nodeEnv)) throw new Error(`${key} is required`);
     return;
   }
   if (toText(value).length < SAFE_SECRET_MIN_LENGTH) {

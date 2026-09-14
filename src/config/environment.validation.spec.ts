@@ -35,6 +35,16 @@ describe('validateEnvironment', () => {
     ).toThrow('CORS_ORIGINS');
   });
 
+  it('requires an explicit CORS allowlist in staging', () => {
+    expect(() =>
+      validateEnvironment({
+        ...baseProductionEnvironment,
+        NODE_ENV: 'staging',
+        CORS_ORIGINS: undefined,
+      }),
+    ).toThrow('CORS_ORIGINS is required');
+  });
+
   it('rejects malformed token expiry configuration', () => {
     expect(() =>
       validateEnvironment({
