@@ -1,0 +1,46 @@
+import {
+  MigrationInterface,
+  QueryRunner,
+  TableColumn,
+  TableIndex,
+} from 'typeorm';
+
+export class AddCustomerUsername1789307935976 implements MigrationInterface {
+  /** Preserve the deployed TypeORM migration identity from the legacy User model. */
+  readonly name = 'AddUsernameToUserTable1789307935976';
+
+  /** Applies this module-owned schema change to the database. */
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.addColumn(
+      'tbl_customer_account',
+      new TableColumn({
+        name: 'username',
+        type: 'varchar',
+        isUnique: true,
+        isNullable: true,
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'tbl_customer_account',
+      new TableIndex({
+        columnNames: ['username'],
+        isUnique: true,
+        where: 'username IS NOT NULL',
+      }),
+    );
+  }
+
+  /** Reverses this module-owned schema change for controlled rollback. */
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropIndex(
+      'tbl_customer_account',
+      new TableIndex({
+        columnNames: ['username'],
+        isUnique: true,
+        where: 'username IS NOT NULL',
+      }),
+    );
+    await queryRunner.dropColumn('tbl_customer_account', 'username');
+  }
+}

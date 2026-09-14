@@ -1,13 +1,28 @@
-import { Global, Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { Global, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { BusinessExceptionFilter } from './filters/business-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
+import { RequestContextMiddleware } from './middleware/request-context.middleware';
+import { BcryptService } from './security/bcrypt.service';
+import { AuthSessionService } from './security/auth-session.service';
 
 @Global()
 @Module({
+  imports: [
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 100,
+      },
+    ]),
+  ],
   providers: [
+    BcryptService,
+    AuthSessionService,
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
@@ -24,7 +39,17 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
-  exports: [],
+  exports: [BcryptService, AuthSessionService],
 })
-export class CommonModule {}
+/** Shared infrastructure module for request context, errors, throttling, and cross-cutting HTTP behavior. */
+export class CommonModule implements NestModule {
+  /** Installs request correlation before controllers and cross-cutting handlers run. */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}

@@ -1,4 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   PostgreSqlContainer,
@@ -7,24 +8,25 @@ import {
 import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
-import { Estate } from '../../src/modules/estate/entities';
+import { Estate } from '../../src/modules/estate/property/entities';
 import { EstateModule } from '../../src/modules/estate/estate.module';
-import { EstateRepo } from '../../src/modules/estate/repositories/estate.repo';
+import { EstateRepo } from '../../src/modules/estate/property/repositories/estate.repo';
 import {
   EstatePurpose,
   EstateType,
   type CreateEstateData,
-} from '../../src/modules/estate/type/estate.type';
+} from '../../src/modules/estate/property/types/estate.type';
 import {
   PROVINCE_TYPES,
   Province,
   WARD_TYPES,
   Ward,
-} from '../../src/modules/location/entities/location.entity';
-import { Permission } from '../../src/modules/rbac/entities/permission.entity';
-import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
-import { Role } from '../../src/modules/rbac/entities/role.entity';
-import { User } from '../../src/modules/user/entities/user.entity';
+} from '../../src/modules/location/administrative-division/entities/location.entity';
+import { Permission } from '../../src/modules/rbac/legacy-global/entities/permission.entity';
+import { RolePermission } from '../../src/modules/rbac/legacy-global/entities/role-permission.entity';
+import { Role } from '../../src/modules/rbac/legacy-global/entities/role.entity';
+import { CustomerAccount } from '../../src/modules/customer/account/entities/customer-account.entity';
+import { ProviderAccount } from '../../src/modules/provider/account/entities/provider-account.entity';
 
 jest.setTimeout(120_000);
 
@@ -33,13 +35,13 @@ describe('EstateRepo (PostgreSQL integration)', () => {
   let module: TestingModule | undefined;
   let dataSource: DataSource;
   let estateRepository: EstateRepo;
-  let owner: User;
-  let otherUser: User;
+  let owner: CustomerAccount;
+  let otherCustomer: CustomerAccount;
   let province: Province;
   let ward: Ward;
 
   const createData = (): CreateEstateData => ({
-    userId: owner.id,
+    customerId: owner.id,
     title: 'Riverside apartment',
     description: 'River view',
     type: EstateType.APARTMENT,
@@ -65,6 +67,11 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
     module = await Test.createTestingModule({
       imports: [
+        ConfigModule.forRoot({
+          isGlobal: true,
+          ignoreEnvFile: true,
+          load: [() => ({ JWT_SECRET: 'estate-integration-secret' })],
+        }),
         TypeOrmModule.forRoot({
           type: 'postgres',
           host: container.getHost(),
@@ -74,7 +81,8 @@ describe('EstateRepo (PostgreSQL integration)', () => {
           database: container.getDatabase(),
           entities: [
             Estate,
-            User,
+            CustomerAccount,
+            ProviderAccount,
             Role,
             Permission,
             RolePermission,
@@ -94,20 +102,20 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_estate, tbl_user, tbl_role, tbl_ward, tbl_province CASCADE',
+      'TRUNCATE TABLE tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({
-      name: 'buyer',
+      name: 'customer',
       description: null,
       isSystem: true,
     });
-    owner = await dataSource.getRepository(User).save({
+    owner = await dataSource.getRepository(CustomerAccount).save({
       email: 'owner@nexus.test',
       password: 'hashed-password',
       roleId: role.id,
     });
-    otherUser = await dataSource.getRepository(User).save({
+    otherCustomer = await dataSource.getRepository(CustomerAccount).save({
       email: 'other@nexus.test',
       password: 'hashed-password',
       roleId: role.id,
@@ -135,7 +143,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
     expect(created).toMatchObject({
       id: expect.any(String) as string,
-      userId: owner.id,
+      customerId: owner.id,
       title: 'Riverside apartment',
       provinceId: province.id,
       wardId: ward.id,
@@ -149,7 +157,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
     expect(found).toMatchObject({
       id: created.id,
-      user: { id: owner.id, email: owner.email },
+      customer: { id: owner.id, email: owner.email },
       province: { id: province.id },
       ward: { id: ward.id, provinceId: province.id },
     });
@@ -165,15 +173,15 @@ describe('EstateRepo (PostgreSQL integration)', () => {
     });
     await estateRepository.createEstate({
       ...createData(),
-      userId: otherUser.id,
+      customerId: otherCustomer.id,
       title: 'Other owner estate',
     });
     await dataSource.getRepository(Estate).softDelete(deleted.id);
 
-    const found = await estateRepository.findByUserId(owner.id);
+    const found = await estateRepository.findByCustomerId(owner.id);
 
     expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ id: visible.id, userId: owner.id });
+    expect(found[0]).toMatchObject({ id: visible.id, customerId: owner.id });
   });
 
   it('updates an existing estate and returns null for a missing id', async () => {

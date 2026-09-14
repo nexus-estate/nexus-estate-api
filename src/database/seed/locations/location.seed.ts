@@ -7,7 +7,7 @@ import type { LocationFixture } from '../location-seed.type';
 import {
   Province,
   Ward,
-} from '../../../modules/location/entities/location.entity';
+} from '../../../modules/location/administrative-division/entities/location.entity';
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null;
 };

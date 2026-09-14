@@ -19,10 +19,11 @@ export interface SuccessResponse<T> {
  * Transforms all successful responses into a standardized envelope.
  *
  * Pass-through paths (not wrapped):
- *  - /swagger, /docs, /favicon, /healthz
+ *  - /swagger, /docs, /favicon, /health, /healthz
  *  - Non-JSON content types (file streams, etc.)
  */
 @Injectable()
+/** Wraps successful API results in the normalized response envelope. */
 export class TransformInterceptor<T> implements NestInterceptor<
   T,
   SuccessResponse<T> | T
@@ -32,6 +33,7 @@ export class TransformInterceptor<T> implements NestInterceptor<
     /^\/docs/,
     /^\/favicon/,
     /^\/healthz(?:[/?]|$)/,
+    /^\/health(?:[/?]|$)/,
   ];
 
   intercept(
