@@ -9,14 +9,16 @@ This directory is the **single source of truth** for all project documentation.
 | [developer.rules.md](./developer.rules.md) | **Architecture, conventions, and development rules** |
 | [local-development.md](./local-development.md) | Local development environment setup guide |
 | [ci-pipeline.md](./ci-pipeline.md) | CI pipeline with GitHub Actions (build, lint, test) |
+| [security-runtime.md](./security-runtime.md) | Authentication and production runtime operations |
 
 ## Architecture Overview
 
 ```
 Client Apps ──▶ API Gateway (NestJS) ──▶ PostgreSQL
                      │
-                     ├── Auth Module (JWT + Passport)
-                     ├── User Module (CRUD + Password)
+                     ├── Customer Module (customer account + customer authentication)
+                     ├── Provider Platform (provider onboarding + supply ownership)
+                     ├── Administration (internal portal + admin authentication)
                      ├── RBAC Module (Roles + Permissions)
                      │
                      ├── Abstraction Layer
@@ -57,6 +59,7 @@ npm run test:all          # Full pipeline: build + lint + unit + integration
 
 # Database
 npm run migration:run     # Run pending migrations
+npm run migration:run:prod # Run compiled migrations inside the production image
 npm run migration:revert  # Revert last migration
 ```
 

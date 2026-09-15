@@ -1,0 +1,26 @@
+{
+  "en": {
+    "AUTHENTICATION_REQUIRED": "Please sign in and provide a valid access token before trying again.",
+    "FORBIDDEN": "You do not have permission to perform this action. Please contact an administrator if you believe you should have access.",
+    "VALIDATION_ERROR": "Some information is invalid: %s. Please review the highlighted fields and submit the form again.",
+    "INVALID_UUID": "%s is not a valid ID. Please use the ID returned by the API or choose the resource again.",
+    "INVALID_PAGINATION": "The page or limit is invalid. Please use page >= 1 and limit between 1 and 100.",
+    "RESOURCE_NOT_FOUND": "We couldn't find the requested %s with ID %s. Please check the ID or refresh the page before trying again.",
+    "RESOURCE_CONFLICT": "A %s with the same details already exists. Please use different details or update the existing resource.",
+    "INTERNAL_ERROR": "We couldn't complete your request. Please try again shortly, and contact support with the request ID if the problem continues.",
+    "DATABASE_ERROR": "We couldn't save your request because of a temporary data problem. Please try again shortly, and contact support if it continues.",
+    "RATE_LIMIT_EXCEEDED": "Too many requests were sent in a short time. Please wait a moment before trying again."
+  },
+  "vi": {
+    "AUTHENTICATION_REQUIRED": "Vui lòng đăng nhập và cung cấp access token hợp lệ trước khi thử lại.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này. Vui lòng liên hệ quản trị viên nếu bạn cần được cấp quyền.",
+    "VALIDATION_ERROR": "Một số thông tin chưa hợp lệ: %s. Vui lòng kiểm tra các trường được báo lỗi rồi gửi lại.",
+    "INVALID_UUID": "%s không phải mã ID hợp lệ. Vui lòng sử dụng ID do API trả về hoặc chọn lại tài nguyên.",
+    "INVALID_PAGINATION": "Số trang hoặc giới hạn bản ghi không hợp lệ. Vui lòng dùng page >= 1 và limit từ 1 đến 100.",
+    "RESOURCE_NOT_FOUND": "Không tìm thấy %s với mã %s. Vui lòng kiểm tra mã hoặc làm mới trang rồi thử lại.",
+    "RESOURCE_CONFLICT": "%s có cùng thông tin đã tồn tại. Vui lòng dùng thông tin khác hoặc cập nhật tài nguyên hiện có.",
+    "INTERNAL_ERROR": "Không thể hoàn tất yêu cầu. Vui lòng thử lại sau ít phút; nếu vẫn lỗi, hãy liên hệ hỗ trợ và cung cấp request ID.",
+    "DATABASE_ERROR": "Không thể lưu yêu cầu do sự cố dữ liệu tạm thời. Vui lòng thử lại sau ít phút và liên hệ hỗ trợ nếu lỗi tiếp tục.",
+    "RATE_LIMIT_EXCEEDED": "Bạn đã gửi quá nhiều yêu cầu trong thời gian ngắn. Vui lòng chờ một lát rồi thử lại."
+  }
+}

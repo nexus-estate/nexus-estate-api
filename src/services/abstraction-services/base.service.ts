@@ -21,6 +21,7 @@ export abstract class BaseService<
     this.logger = new Logger(`${contextName}Service`);
   }
 
+  /** Creates an entity through the repository abstraction owned by the feature. */
   async create(data: C): Promise<T> {
     try {
       const entity = await this.repository.create(data);
@@ -34,6 +35,7 @@ export abstract class BaseService<
     }
   }
 
+  /** Loads one exact entity or raises the service's stable not-found error. */
   async findOne(id: string): Promise<T> {
     const entity = await this.repository.findById(id);
     if (!entity)
@@ -43,10 +45,12 @@ export abstract class BaseService<
     return entity;
   }
 
+  /** Lists entities through the repository without exposing persistence details. */
   async findAll(options?: FindManyOptions<T>): Promise<T[]> {
     return this.repository.findAll(options);
   }
 
+  /** Returns a normalized paginated entity result for management/list screens. */
   async findAllPaginated(
     pagination?: PaginationOptions,
     options?: FindManyOptions<T>,
@@ -54,6 +58,7 @@ export abstract class BaseService<
     return this.repository.findAllPaginated(options, pagination);
   }
 
+  /** Updates one exact entity after loading it through the repository boundary. */
   async update(id: string, data: U): Promise<T> {
     try {
       await this.findOne(id);
@@ -68,6 +73,7 @@ export abstract class BaseService<
     }
   }
 
+  /** Soft-removes one exact entity and returns the standard success message. */
   async remove(id: string): Promise<{ message: string }> {
     await this.findOne(id);
     await this.repository.softDelete(id); //Shared contract for soft delete
@@ -75,6 +81,7 @@ export abstract class BaseService<
     return { message: `${this.getEntityName()} deleted successfully` };
   }
 
+  /** Counts entities using the feature repository's non-deleted semantics. */
   async count(where?: FindOptionsWhere<T>): Promise<number> {
     return this.repository.count(where);
   }

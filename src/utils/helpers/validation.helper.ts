@@ -1,7 +1,7 @@
 import { validate, ValidationError } from 'class-validator';
 import { plainToInstance, ClassConstructor } from 'class-transformer';
 import { BusinessException } from '../../common/exceptions/business.exception';
-import { ErrorCodes } from '../constants/error.constant';
+import { CommonErrorCodes } from '../../common/errors/common-error-codes';
 
 export class ValidationHelper {
   static async validate<T extends object>(
@@ -13,7 +13,7 @@ export class ValidationHelper {
     if (errors.length > 0) {
       const messages = ValidationHelper.formatErrors(errors);
       throw new BusinessException(
-        ErrorCodes.VALIDATION_ERROR,
+        CommonErrorCodes.VALIDATION_ERROR,
         messages.join('; '),
       );
     }

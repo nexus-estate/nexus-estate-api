@@ -1,0 +1,14 @@
+{
+  "en": {
+    "ROLE_NOT_FOUND": "We couldn't find the legacy role with ID %s. Please check the ID or refresh the role list before trying again.",
+    "ROLE_NAME_EXISTS": "A legacy role named %s already exists. Please choose a different name or update the existing role.",
+    "PERMISSION_NOT_FOUND": "We couldn't find the legacy permission with ID %s. Please check the ID or refresh the permission list before trying again.",
+    "PERMISSION_EXISTS": "The legacy permission %s already exists. Please use the existing permission instead of creating a duplicate."
+  },
+  "vi": {
+    "ROLE_NOT_FOUND": "Không tìm thấy role cũ với mã %s. Vui lòng kiểm tra mã hoặc làm mới danh sách role rồi thử lại.",
+    "ROLE_NAME_EXISTS": "Role cũ có tên %s đã tồn tại. Vui lòng chọn tên khác hoặc cập nhật role hiện có.",
+    "PERMISSION_NOT_FOUND": "Không tìm thấy permission cũ với mã %s. Vui lòng kiểm tra mã hoặc làm mới danh sách permission rồi thử lại.",
+    "PERMISSION_EXISTS": "Permission cũ %s đã tồn tại. Vui lòng sử dụng permission hiện có thay vì tạo bản trùng lặp."
+  }
+}

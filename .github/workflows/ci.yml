@@ -44,7 +44,13 @@ jobs:
       DB_POSTGRES_USER: test
       DB_POSTGRES_PASS: test
       DB_POSTGRES_NAME: nexus_estate_test
-      JWT_SECRET: ci-test-secret
+      DB_POSTGRES_ADMIN_NAME: postgres
+      CUSTOMER_JWT_ACCESS_SECRET: ci-customer-access-secret-which-is-long-enough-32
+      CUSTOMER_JWT_REFRESH_SECRET: ci-customer-refresh-secret-which-is-long-enough-32
+      ADMIN_JWT_ACCESS_SECRET: ci-admin-access-secret-which-is-long-enough-32
+      ADMIN_JWT_REFRESH_SECRET: ci-admin-refresh-secret-which-is-long-enough-32
+      CORS_ORIGINS: http://localhost:3000
+      SWAGGER_ENABLED: 'false'
 
     steps:
       - name: Checkout
@@ -74,8 +80,11 @@ jobs:
       - name: Integration tests
         run: npm run test:e2e -- --no-coverage
 
-      - name: Migration check
-        run: npm run migration:check
+      - name: Check migration timestamp identities
+        run: npm run migration:check-timestamps
+
+      - name: Run and verify migrations
+        run: npm run migration:verify:prod
 
   docker-build:
     name: Validate production Docker image

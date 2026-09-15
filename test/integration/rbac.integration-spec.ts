@@ -7,13 +7,13 @@ import {
 import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
-import { Permission } from '../../src/modules/rbac/entities/permission.entity';
-import { RolePermission } from '../../src/modules/rbac/entities/role-permission.entity';
-import { Role } from '../../src/modules/rbac/entities/role.entity';
+import { Permission } from '../../src/modules/rbac/legacy-global/entities/permission.entity';
+import { RolePermission } from '../../src/modules/rbac/legacy-global/entities/role-permission.entity';
+import { Role } from '../../src/modules/rbac/legacy-global/entities/role.entity';
 import { RbacModule } from '../../src/modules/rbac/rbac.module';
-import { PermissionService } from '../../src/modules/rbac/services/permission.service';
-import { RoleService } from '../../src/modules/rbac/services/role.service';
-import { ErrorCodes } from '../../src/utils/constants/error.constant';
+import { PermissionService } from '../../src/modules/rbac/legacy-global/services/permission.service';
+import { RoleService } from '../../src/modules/rbac/legacy-global/services/role.service';
+import { RbacErrorCodes } from '../../src/modules/rbac/legacy-global/errors/rbac-error-codes';
 
 describe('RbacModule (PostgreSQL integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -95,7 +95,7 @@ describe('RbacModule (PostgreSQL integration)', () => {
         '00000000-0000-0000-0000-000000000000',
       ]),
     ).rejects.toMatchObject({
-      errorCode: ErrorCodes.PERMISSION_NOT_FOUND.code,
+      errorCode: RbacErrorCodes.PERMISSION_NOT_FOUND.code,
     });
 
     const unchangedRole = await roleService.findByIdWithPermissions(role.id);

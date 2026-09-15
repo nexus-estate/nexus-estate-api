@@ -1,15 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Role } from './entities/role.entity';
-import { Permission } from './entities/permission.entity';
-import { RolePermission } from './entities/role-permission.entity';
-import { RoleRepository } from './repositories/role.repository';
-import { PermissionRepository } from './repositories/permission.repository';
-import { RolePermissionRepository } from './repositories/role-permission.repository';
-import { RoleService } from './services/role.service';
-import { PermissionService } from './services/permission.service';
-import { RoleGurad } from './guard/role.guard';
-import { PermissionsGuard } from './guard/permission.guard';
+import { Role } from './legacy-global/entities/role.entity';
+import { Permission } from './legacy-global/entities/permission.entity';
+import { RolePermission } from './legacy-global/entities/role-permission.entity';
+import { RoleRepository } from './legacy-global/repositories/role.repository';
+import { PermissionRepository } from './legacy-global/repositories/permission.repository';
+import { RolePermissionRepository } from './legacy-global/repositories/role-permission.repository';
+import { RoleService } from './legacy-global/services/role.service';
+import { PermissionService } from './legacy-global/services/permission.service';
+import { RoleGuard } from './legacy-global/guards/role.guard';
+import { PermissionsGuard } from './legacy-global/guards/permission.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Role, Permission, RolePermission])],
@@ -19,9 +19,9 @@ import { PermissionsGuard } from './guard/permission.guard';
     RolePermissionRepository,
     RoleService,
     PermissionService,
-    RoleGurad,
+    RoleGuard,
     PermissionsGuard,
   ],
-  exports: [RoleService, PermissionService, RoleGurad, PermissionsGuard],
+  exports: [RoleService, PermissionService, RoleGuard, PermissionsGuard],
 })
 export class RbacModule {}

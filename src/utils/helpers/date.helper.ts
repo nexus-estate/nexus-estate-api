@@ -1,3 +1,4 @@
+/** Date utilities used to keep API and persistence timestamps consistent. */
 export class DateHelper {
   static now(): Date {
     return new Date();
