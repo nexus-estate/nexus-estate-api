@@ -4,7 +4,6 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { BusinessExceptionFilter } from './filters/business-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
-import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { RequestContextMiddleware } from './middleware/request-context.middleware';
 import { BcryptService } from './security/bcrypt.service';
 import { AuthSessionService } from './security/auth-session.service';
@@ -34,10 +33,6 @@ import { AuthSessionService } from './security/auth-session.service';
     {
       provide: APP_INTERCEPTOR,
       useClass: TransformInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: LoggingInterceptor,
     },
     {
       provide: APP_GUARD,
