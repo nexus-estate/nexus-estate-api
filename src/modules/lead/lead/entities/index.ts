@@ -1,1 +1,1 @@
-export { Lead } from './lead.entity';
+export { Lead, LeadStatus } from './lead.entity';

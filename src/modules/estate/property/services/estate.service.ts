@@ -27,7 +27,7 @@ export class EstateService extends BaseService<
   ) {
     super(estateRepository, 'Estate');
   }
-  private async validateLocaion(
+  private async validateLocation(
     wardId: string,
     provinceId: string,
   ): Promise<boolean> {
@@ -82,7 +82,7 @@ export class EstateService extends BaseService<
     );
 
     // 1. find province
-    const checkedLocation = await this.validateLocaion(
+    const checkedLocation = await this.validateLocation(
       dto.wardId,
       dto.provinceId,
     );
@@ -127,7 +127,7 @@ export class EstateService extends BaseService<
       context.providerId,
     );
 
-    const checkedLocation = await this.validateLocaion(
+    const checkedLocation = await this.validateLocation(
       dto.wardId ?? estate.wardId,
       dto.provinceId ?? estate.provinceId,
     );
