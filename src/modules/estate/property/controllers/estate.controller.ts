@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Req,
@@ -18,19 +19,28 @@ import { CreateEstateDto } from '../dto/create-estate-dto';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
 import { Estate } from '../entities';
 import { EstateService } from '../services/estate.service';
-import { ApiHeader } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 type AuthenticatedRequest = {
   user: Pick<CustomerPrincipal, 'id'>;
 };
 
 @Controller('estates')
+@ApiTags('Estates')
 @UseGuards(CustomerJwtAuthGuard)
 export class EstateController {
   constructor(private readonly estateService: EstateService) {}
 
   /** Creates an estate in the explicitly selected provider context. */
   @Post()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create an estate' })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,
@@ -49,6 +59,8 @@ export class EstateController {
 
   /** Lists the authenticated customer's estates. */
   @Get('mine')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "List the authenticated customer's estates" })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,
@@ -66,12 +78,19 @@ export class EstateController {
   /** Returns one public estate by exact identifier. */
   @Get(':id')
   @Public()
-  async findEstateById(@Param('id') estateId: string): Promise<Estate> {
+  @ApiOperation({ summary: 'Get an estate by id' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  async findEstateById(
+    @Param('id', new ParseUUIDPipe()) estateId: string,
+  ): Promise<Estate> {
     return this.estateService.findById(estateId);
   }
 
   /** Updates one estate after service-level ownership and provider checks. */
   @Patch(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update an estate' })
+  @ApiParam({ name: 'id', format: 'uuid' })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,
@@ -79,7 +98,7 @@ export class EstateController {
       'Required when the customer has multiple active provider memberships.',
   })
   async updateEstate(
-    @Param('id') estateId: string,
+    @Param('id', new ParseUUIDPipe()) estateId: string,
     @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateEstateDto,
     @ProviderId() providerId?: string,
@@ -91,6 +110,9 @@ export class EstateController {
 
   /** Soft-deletes one estate after service-level ownership and provider checks. */
   @Delete(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Soft-delete an estate' })
+  @ApiParam({ name: 'id', format: 'uuid' })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,
@@ -98,7 +120,7 @@ export class EstateController {
       'Required when the customer has multiple active provider memberships.',
   })
   async deleteEstate(
-    @Param('id') estateId: string,
+    @Param('id', new ParseUUIDPipe()) estateId: string,
     @Req() req: AuthenticatedRequest,
     @ProviderId() providerId?: string,
   ): Promise<boolean> {

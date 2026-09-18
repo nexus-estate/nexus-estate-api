@@ -30,10 +30,14 @@ export class BusinessExceptionFilter implements ExceptionFilter {
       exception.messageArgs,
       language,
     );
+    const path = request.originalUrl || request.url;
 
-    this.logger.warn(
-      `Business exception: ${exception.errorCode} lang=${language} request_id=${requestId} - ${message}`,
-    );
+    const logMessage = `${request.method || 'UNKNOWN'} ${path} ${status} request_id=${requestId || '-'} code=${exception.errorCode} lang=${language} - ${message}`;
+    if (status >= 500) {
+      this.logger.error(logMessage);
+    } else if (status >= 400) {
+      this.logger.warn(logMessage);
+    }
 
     if (typeof response.setHeader === 'function') {
       response.setHeader('content-language', language);
@@ -47,7 +51,7 @@ export class BusinessExceptionFilter implements ExceptionFilter {
       details: body.details || {},
       error: exception.name,
       timestamp: new Date().toISOString(),
-      path: request.originalUrl || request.url,
+      path,
     });
   }
 }

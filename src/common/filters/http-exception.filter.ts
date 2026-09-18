@@ -81,6 +81,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
       (typeof request.header === 'function'
         ? request.header(REQUEST_ID_HEADER)
         : undefined);
+    const path = request.originalUrl || request.url;
+    const requestLabel = `${request.method || 'UNKNOWN'} ${path}`;
+    const logMessage = `${requestLabel} ${statusCode} request_id=${requestId || '-'} - ${message}`;
+
+    if (statusCode >= 500) {
+      const stack = exception instanceof Error ? exception.stack : undefined;
+      if (stack) {
+        this.logger.error(logMessage, stack);
+      } else {
+        this.logger.error(logMessage);
+      }
+    } else if (statusCode >= 400) {
+      this.logger.warn(logMessage);
+    }
 
     if (typeof response.setHeader === 'function') {
       response.setHeader('content-language', language);
@@ -91,7 +105,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message,
       error,
       timestamp: new Date().toISOString(),
-      path: request.originalUrl || request.url,
+      path,
       request_id: requestId,
     });
   }

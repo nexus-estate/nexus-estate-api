@@ -26,8 +26,16 @@ function createHost() {
 }
 
 describe('HttpExceptionFilter', () => {
+  let errorSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
+
   beforeEach(() => {
-    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('formats validation message arrays', () => {
@@ -40,6 +48,9 @@ describe('HttpExceptionFilter', () => {
     new HttpExceptionFilter().catch(exception, host);
 
     expect(status).toHaveBeenCalledWith(400);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('UNKNOWN /api/v1/example 400'),
+    );
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         status: false,
@@ -59,6 +70,10 @@ describe('HttpExceptionFilter', () => {
     );
 
     expect(status).toHaveBeenCalledWith(500);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('UNKNOWN /api/v1/example 500'),
+      expect.any(String),
+    );
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: 500,

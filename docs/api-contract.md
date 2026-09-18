@@ -1,0 +1,90 @@
+# Nexus Estate API contract inventory
+
+This document is the backend-owned integration reference. Paths below are
+relative to `/api/v1`. Successful responses are wrapped by the common response
+envelope: `{ status: true, data, timestamp, path }`.
+
+The backend does not currently expose `properties`, `media`, standalone
+`search`, `recommendations`, or `payments` routes. Marketplace search is part
+of the public Listing collection contract. Frontend clients for absent
+capabilities must remain removed or explicitly blocked until implemented.
+
+## Endpoint inventory
+
+| Method | Path                                                                      | Auth realm                      | Provider context         | Request DTO / query                                                | Response data                  |
+| ------ | ------------------------------------------------------------------------- | ------------------------------- | ------------------------ | ------------------------------------------------------------------ | ------------------------------ |
+| POST   | `/customers/register`                                                     | Public                          | None                     | `RegisterCustomerDto`                                              | Customer auth response         |
+| POST   | `/customers/auth/login`                                                   | Public                          | None                     | Customer login DTO                                                 | Token pair                     |
+| GET    | `/customers/me`                                                           | Customer JWT                    | None                     | —                                                                  | Customer account response      |
+| GET    | `/customers/me/authorization`                                             | Customer JWT                    | None                     | —                                                                  | Customer authorization         |
+| POST   | `/customers/auth/refresh`                                                 | Refresh token                   | None                     | Refresh token DTO                                                  | Token pair                     |
+| POST   | `/customers/auth/logout`                                                  | Customer JWT                    | None                     | Refresh token DTO                                                  | `void`                         |
+| POST   | `/providers/register`                                                     | Public                          | None                     | `RegisterProviderDto` (`email`, `password`, `type`, `displayName`) | Provider registration response |
+| POST   | `/providers/register/from-customer`                                       | Customer JWT                    | None                     | `RegisterProviderFromCustomerDto` (`type`, `displayName`)          | Provider registration response |
+| GET    | `/providers/me`                                                           | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Provider account response      |
+| GET    | `/providers/me/authorization`                                             | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Provider authorization         |
+| POST   | `/provider/account`                                                       | Customer JWT                    | Optional `X-Provider-Id` | `CreateProviderAccountDto`                                         | Provider account response      |
+| GET    | `/provider/account`                                                       | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Provider account response      |
+| PATCH  | `/provider/account`                                                       | Customer JWT                    | Optional `X-Provider-Id` | `UpdateProviderAccountDto`                                         | Provider account response      |
+| POST   | `/estates`                                                                | Customer JWT                    | Optional `X-Provider-Id` | `CreateEstateDto`                                                  | Estate                         |
+| GET    | `/estates/mine`                                                           | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Estate[]                       |
+| GET    | `/estates/:id`                                                            | Public                          | None                     | UUID route parameter                                               | Estate                         |
+| PATCH  | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | `UpdateEstateDto`                                                  | Estate                         |
+| DELETE | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | `boolean`                      |
+| POST   | `/listings`                                                               | Customer JWT                    | Optional `X-Provider-Id` | `CreateListingDto` (`estateId`)                                    | Listing response               |
+| GET    | `/listings/mine`                                                          | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Listing response[]             |
+| GET    | `/listings`                                                               | Public                          | None                     | `ListingQueryDto`                                                  | Paginated published listings   |
+| GET    | `/listings/:id`                                                           | Public                          | None                     | UUID route parameter                                               | Published listing response     |
+| POST   | `/listings/:id/publish`                                                   | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
+| POST   | `/listings/:id/unpublish`                                                 | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
+| POST   | `/listings/:listingId/leads`                                              | Public                          | None                     | `CreateLeadDto`                                                    | Lead response                  |
+| GET    | `/locations/provinces`                                                    | Public                          | None                     | —                                                                  | Province[]                     |
+| GET    | `/locations/provinces/:provinceId/wards`                                  | Public                          | None                     | UUID route parameter                                               | Ward[]                         |
+| POST   | `/administration/auth/login`                                              | Public                          | None                     | Administration login DTO                                           | Token pair                     |
+| POST   | `/administration/auth/refresh`                                            | Refresh token                   | None                     | Refresh token DTO                                                  | Token pair                     |
+| POST   | `/administration/auth/logout`                                             | Administration JWT              | None                     | Refresh token DTO                                                  | `void`                         |
+| GET    | `/administration/me/authorization`                                        | Administration JWT              | None                     | —                                                                  | Administration authorization   |
+| GET    | `/administration/provider-registrations`                                  | Administration JWT + permission | None                     | Review filters                                                     | Provider registrations         |
+| GET    | `/administration/provider-registrations/:accountId`                       | Administration JWT + permission | None                     | UUID route parameter                                               | Provider registration          |
+| POST   | `/administration/provider-registrations/:accountId/approve`               | Administration JWT + permission | None                     | Approval DTO                                                       | Provider registration          |
+| GET    | `/administration/providers/:providerId/members`                           | Administration JWT + permission | None                     | Subject filters                                                    | Provider memberships           |
+| GET    | `/administration/authorization/platforms`                                 | Administration JWT + permission | None                     | —                                                                  | Authorization platforms        |
+| GET    | `/administration/authorization/audit`                                     | Administration JWT + permission | None                     | `AuthorizationAuditQueryDto`                                       | Audit results                  |
+| GET    | `/administration/authorization/:platform/roles`                           | Administration JWT + permission | None                     | `AuthorizationRoleListQueryDto`                                    | Paginated roles                |
+| POST   | `/administration/authorization/:platform/roles`                           | Administration JWT + permission | None                     | `CreateAuthorizationRoleDto`                                       | Role                           |
+| GET    | `/administration/authorization/:platform/roles/:roleId`                   | Administration JWT + permission | None                     | UUID route parameter                                               | Role and permissions           |
+| PATCH  | `/administration/authorization/:platform/roles/:roleId`                   | Administration JWT + permission | None                     | `UpdateAuthorizationRoleDto`                                       | Role                           |
+| DELETE | `/administration/authorization/:platform/roles/:roleId`                   | Administration JWT + permission | None                     | UUID route parameter                                               | Deleted role                   |
+| PUT    | `/administration/authorization/:platform/roles/:roleId/permissions`       | Administration JWT + permission | None                     | `ReplaceRolePermissionsDto`                                        | Role                           |
+| GET    | `/administration/authorization/:platform/roles/:roleId/subjects`          | Administration JWT + permission | None                     | `AuthorizationSubjectListQueryDto`                                 | Paginated subjects             |
+| GET    | `/administration/authorization/:platform/permissions`                     | Administration JWT + permission | None                     | `AuthorizationPermissionListQueryDto`                              | Paginated permissions          |
+| GET    | `/administration/authorization/:platform/permissions/:permissionId`       | Administration JWT + permission | None                     | UUID route parameter                                               | Permission                     |
+| GET    | `/administration/authorization/:platform/permissions/:permissionId/roles` | Administration JWT + permission | None                     | UUID route parameter                                               | Permission roles               |
+| GET    | `/administration/authorization/:platform/matrix`                          | Administration JWT + permission | None                     | —                                                                  | Authorization matrix           |
+| GET    | `/administration/authorization/:platform/subjects`                        | Administration JWT + permission | None                     | `AuthorizationSubjectListQueryDto`                                 | Paginated subjects             |
+| GET    | `/administration/authorization/:platform/subjects/:subjectId`             | Administration JWT + permission | None                     | UUID route parameter                                               | Subject authorization          |
+| PUT    | `/administration/authorization/:platform/subjects/:subjectId/roles`       | Administration JWT + permission | None                     | `ReplaceSubjectRolesDto`                                           | Subject authorization          |
+
+## Estate wire contract
+
+`CreateEstateDto` accepts only backend enum values and location IDs:
+
+- `type`: `APARTMENT`, `HOUSE`, `VILLA`, `TOWNHOUSE`, `LAND`, `OFFICE`,
+  `SHOPHOUSE`, `WAREHOUSE`, `COMMERCIAL`, `HOTEL`, `RESORT`, `FARM`, `OTHER`.
+- `purpose`: `SALE`, `RENT`, `SALE_OR_RENT`.
+- Required location fields: `provinceId` and `wardId`, both UUIDs.
+
+The API rejects unknown request fields through the global validation pipe. The
+customer ID and provider ID are derived from authentication and provider
+context; clients must not submit them as ownership fields.
+
+## Feature gates
+
+These capabilities are intentionally not represented by API methods until
+their backend domain, DTOs, auth rules, persistence behavior, Swagger contract,
+and tests exist:
+
+- Provider lead access and lead-management workflow
+- Media upload/finalization
+- Recommendations
+- Payment orders, callbacks, idempotency, and package activation
