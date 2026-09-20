@@ -228,4 +228,29 @@ describe('Administration authorization management (HTTP + PostgreSQL)', () => {
         expect(body.code).toBe('AUTHORIZATION_SYSTEM_ROLE_IMMUTABLE');
       });
   });
+
+  it('returns the role with subjects when listing a role assignment', async () => {
+    const [{ id: roleId }] = await dataSource.query<{ id: string }[]>(
+      `SELECT id FROM tbl_provider_role WHERE code = 'OWNER'`,
+    );
+
+    await management()
+      .get(
+        `/api/v1/administration/authorization/PROVIDER/roles/${roleId}/subjects`,
+      )
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toEqual(
+          expect.objectContaining({
+            role: expect.objectContaining({ id: roleId }),
+            items: expect.any(Array),
+            meta: expect.objectContaining({
+              page: expect.any(Number),
+              limit: expect.any(Number),
+              total: expect.any(Number),
+            }),
+          }),
+        );
+      });
+  });
 });

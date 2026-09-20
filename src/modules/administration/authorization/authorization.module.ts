@@ -63,7 +63,6 @@ import { AuthorizationAuditQueryService } from './audit/authorization-audit-quer
   exports: [
     AdministrationAuthorizationRepository,
     AdministrationPermissionsGuard,
-    AuthorizationManagementService,
     AdministrationAuthorizationService,
   ],
 })
