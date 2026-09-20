@@ -42,4 +42,29 @@ describe('AuthorizationService', () => {
     expect(list).toHaveBeenNthCalledWith(1, providerContext, {});
     expect(list).toHaveBeenNthCalledWith(2, marketplaceContext, {});
   });
+
+  it('forwards the bound context unchanged to matrix operations', async () => {
+    const context = Object.freeze({
+      platform: AuthorizationPlatform.PROVIDER,
+      config: {},
+    });
+    const matrix = jest.fn().mockResolvedValue({
+      roles: [],
+      permissionGroups: [],
+      assignments: {},
+    });
+    const service = new AuthorizationService(
+      { resolve: () => context } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { matrix } as never,
+    );
+
+    await service.for(AuthorizationPlatform.PROVIDER).matrix();
+
+    expect(matrix).toHaveBeenCalledWith(context);
+  });
 });
