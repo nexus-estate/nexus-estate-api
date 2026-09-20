@@ -43,15 +43,21 @@ export class ProviderRegistrationAdministrationService {
     return this.toReviewResponse(account);
   }
 
-  /** Approves one pending provider account and reloads the canonical response. */
+  /**
+   * Approves one pending provider account and reloads the canonical response by
+   * the exact approved provider id. Reading by the mutated id keeps the reload
+   * unambiguous even when the owner has multiple active provider memberships.
+   */
   async approve(accountId: string): Promise<ProviderRegistrationResponse> {
-    const { ownerCustomerId } =
+    const { providerId, ownerCustomerId } =
       await this.providerAccountCommandService.approve(accountId);
 
     const customer =
       await this.customerAccountService.findById(ownerCustomerId);
-    const providerAccount =
-      await this.providerAccountService.getCurrent(ownerCustomerId);
+    const providerAccount = await this.providerAccountService.getCurrent(
+      ownerCustomerId,
+      providerId,
+    );
     return {
       customerId: customer.id,
       role: 'customer',

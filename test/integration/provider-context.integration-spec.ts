@@ -4,10 +4,15 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CustomerAccount } from '../../src/modules/customer/account/entities/customer-account.entity';
+import { CustomerAccountRepository } from '../../src/modules/customer/account/repositories/customer-account.repository';
+import { CustomerAccountService } from '../../src/modules/customer/account/services/customer-account.service';
 import { ProviderAccount } from '../../src/modules/provider/account/entities/provider-account.entity';
 import { ProviderAccountRepository } from '../../src/modules/provider/account/repositories/provider-account.repository';
 import { ProviderContextResolver } from '../../src/modules/provider/account/services/provider-context.resolver';
+import { ProviderAccountService } from '../../src/modules/provider/account/services/provider-account.service';
+import { ProviderAccountCommandService } from '../../src/modules/provider/account/services/provider-account-command.service';
 import { ProviderAccountPolicy } from '../../src/modules/provider/account/helpers/provider-account.policy';
+import { ProviderRegistrationAdministrationService } from '../../src/modules/administration/provider-review/services/provider-registration-administration.service';
 import { ProviderSupplyAccessPolicy } from '../../src/modules/provider/authorization/helpers/provider-supply-access.policy';
 import { ProviderAuthorizationService } from '../../src/modules/provider/authorization/services/provider-authorization.service';
 import { ProviderMembership } from '../../src/modules/provider/authorization/entities/provider-membership.entity';
@@ -29,6 +34,8 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
   let dataSource: DataSource;
   let resolver: ProviderContextResolver;
   let supplyAccessPolicy: ProviderSupplyAccessPolicy;
+  let adminService: ProviderRegistrationAdministrationService;
+  let commandService: ProviderAccountCommandService;
 
   let owner: CustomerAccount;
   let other: CustomerAccount;
@@ -96,13 +103,23 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
     });
     await dataSource.initialize();
 
-    resolver = new ProviderContextResolver(
-      new ProviderAccountRepository(dataSource),
-      dataSource,
-    );
+    const accountRepository = new ProviderAccountRepository(dataSource);
+    const authorizationService = new ProviderAuthorizationService(dataSource);
+    resolver = new ProviderContextResolver(accountRepository, dataSource);
     supplyAccessPolicy = new ProviderSupplyAccessPolicy(
       new ProviderAccountPolicy(),
-      new ProviderAuthorizationService(dataSource),
+      authorizationService,
+    );
+    commandService = new ProviderAccountCommandService(
+      dataSource,
+      accountRepository,
+      authorizationService,
+    );
+    adminService = new ProviderRegistrationAdministrationService(
+      new CustomerAccountService(new CustomerAccountRepository(dataSource)),
+      accountRepository,
+      new ProviderAccountService(accountRepository, resolver),
+      commandService,
     );
   });
 
@@ -281,6 +298,40 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED.code,
       });
+    });
+  });
+
+  describe('admin approve read-after-write regression', () => {
+    it('approves a pending provider owned by a multi-membership customer without ambiguity', async () => {
+      // The customer is already an active member of another customer's provider
+      // and owns a pending provider, so context selection without a provider id
+      // is ambiguous. This mirrors the pre-fix regression exactly.
+      const multi = await createCustomer('multi@nexus.test');
+      const providerX = await createProvider(third.id);
+      const membershipX = await createMembership(providerX.id, multi.id);
+      await assignRole(membershipX.id, ownerRole.id);
+
+      const pendingProviderId = await commandService.createPending(multi.id, {
+        type: ProviderType.INDIVIDUAL,
+        displayName: 'Pending Provider',
+      });
+
+      await expect(resolver.resolve(multi.id)).rejects.toMatchObject({
+        errorCode: ProviderAccountErrorCodes.PROVIDER_CONTEXT_REQUIRED.code,
+      });
+
+      const response = await adminService.approve(pendingProviderId);
+
+      expect(response.customerId).toBe(multi.id);
+      expect(response.role).toBe('customer');
+      expect(response.providerAccount.id).toBe(pendingProviderId);
+
+      const approved = await accounts().findOneByOrFail({
+        id: pendingProviderId,
+      });
+      expect(approved.verificationStatus).toBe(
+        ProviderVerificationStatus.VERIFIED,
+      );
     });
   });
 });
