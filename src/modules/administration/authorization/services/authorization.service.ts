@@ -8,17 +8,14 @@ import { AuthorizationRoleCommandService } from './roles/authorization-role-comm
 import { AuthorizationRoleService } from './roles/authorization-role.service';
 import { AuthorizationRoleSubjectService } from './subjects/authorization-role-subject.service';
 import { AuthorizationSubjectService } from './subjects/authorization-subject.service';
-import { AuthorizationPermissionScope } from '../scopes/authorization-permission.scope';
-import { AuthorizationRoleScope } from '../scopes/authorization-role.scope';
-import { AuthorizationScope } from '../scopes/authorization.scope';
-import { AuthorizationSubjectScope } from '../scopes/authorization-subject.scope';
+import type { AuthorizationOperations } from '../types/contracts/authorization-operations.contract';
 
 @Injectable()
 /**
- * Application entry point for creating immutable platform authorization scopes.
+ * Application entry point for creating immutable platform-bound operations.
  *
  * This singleton stores only stateless service dependencies. It never stores a
- * current platform, making scopes safe to use concurrently.
+ * current platform, making bound operations safe to use concurrently.
  */
 export class AuthorizationService {
   constructor(
@@ -32,28 +29,64 @@ export class AuthorizationService {
   ) {}
 
   /**
-   * Creates a new authorization scope bound to one platform.
+   * Creates a new operations object bound to one platform.
    *
    * @param platform Platform to bind to the returned scope.
-   * @returns A new immutable scope whose operations use the selected platform.
+   * @returns A new immutable operations object using the selected platform.
    * @throws BusinessException When the platform is unsupported.
    */
-  for(platform: AuthorizationPlatform): AuthorizationScope {
+  for(platform: AuthorizationPlatform): AuthorizationOperations {
     const context = this.contextResolver.resolve(platform);
-    return new AuthorizationScope(
-      context,
-      new AuthorizationRoleScope(
-        context,
-        this.roleService,
-        this.roleCommandService,
-      ),
-      new AuthorizationPermissionScope(context, this.permissionService),
-      new AuthorizationSubjectScope(
-        context,
-        this.subjectService,
-        this.roleSubjectService,
-      ),
-      this.managementService,
-    );
+
+    const operations: AuthorizationOperations = {
+      roles: Object.freeze({
+        list: (query) => this.roleService.list(context, query),
+        get: (roleId) => this.roleService.get(context, roleId),
+        create: (dto, actor, requestId) =>
+          this.roleCommandService.create(context, dto, actor, requestId),
+        update: (roleId, dto, actor, requestId) =>
+          this.roleCommandService.update(
+            context,
+            roleId,
+            dto,
+            actor,
+            requestId,
+          ),
+        delete: (roleId, actor, requestId) =>
+          this.roleCommandService.delete(context, roleId, actor, requestId),
+        replacePermissions: (roleId, dto, actor, requestId) =>
+          this.roleCommandService.replacePermissions(
+            context,
+            roleId,
+            dto,
+            actor,
+            requestId,
+          ),
+      }),
+      permissions: Object.freeze({
+        list: (query) => this.permissionService.list(context, query),
+        get: (permissionId) =>
+          this.permissionService.get(context, permissionId),
+        roles: (permissionId) =>
+          this.permissionService.roles(context, permissionId),
+      }),
+      subjects: Object.freeze({
+        list: (query) => this.subjectService.list(context, query),
+        get: (subjectId) => this.subjectService.get(context, subjectId),
+        listForRole: (roleId, query) =>
+          this.roleSubjectService.listForRole(context, roleId, query),
+        replaceRoles: (subjectId, dto, actor, requestId) =>
+          this.roleSubjectService.replaceRoles(
+            context,
+            subjectId,
+            dto,
+            actor,
+            requestId,
+          ),
+      }),
+      matrix: () => this.managementService.matrix(context),
+    };
+
+    return Object.freeze(operations);
   }
 }

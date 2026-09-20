@@ -5,7 +5,7 @@ import type {
   AuthorizationSubjectListResult,
 } from '../../types/contracts/authorization-subject.contract';
 import type { AuthorizationSubjectListQueryDto } from '../../dto/authorization-management.dto';
-import type { AuthorizationContextInput } from '../../context/authorization-context';
+import type { AuthorizationContext } from '../../context/authorization-context';
 import { AuthorizationSubjectRepository } from '../../repositories/subjects/authorization-subject.repository';
 
 @Injectable()
@@ -15,7 +15,7 @@ export class AuthorizationSubjectService {
 
   /** Lists subjects using the selected platform's identity semantics. */
   list(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     query: AuthorizationSubjectListQueryDto,
   ): Promise<AuthorizationSubjectListResult> {
     return this.repository.list(context, query);
@@ -23,7 +23,7 @@ export class AuthorizationSubjectService {
 
   /** Loads one subject with assigned roles and effective permissions. */
   get(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     subjectId: string,
   ): Promise<SubjectDetail> {
     return this.repository.findById(context, subjectId);

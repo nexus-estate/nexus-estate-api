@@ -5,7 +5,7 @@ import type {
   AuthorizationRoleListResult,
 } from '../../types/contracts/authorization-role.contract';
 import type { AuthorizationRoleListQueryDto } from '../../dto/authorization-management.dto';
-import type { AuthorizationContextInput } from '../../context/authorization-context';
+import type { AuthorizationContext } from '../../context/authorization-context';
 import { AuthorizationRoleRepository } from '../../repositories/roles/authorization-role.repository';
 
 @Injectable()
@@ -21,7 +21,7 @@ export class AuthorizationRoleService {
    * @returns Paginated role summaries.
    */
   list(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     query: AuthorizationRoleListQueryDto,
   ): Promise<AuthorizationRoleListResult> {
     return this.repository.list(context, query);
@@ -35,7 +35,7 @@ export class AuthorizationRoleService {
    * @returns Role detail with permission summaries.
    */
   get(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     roleId: string,
   ): Promise<AuthorizationRoleDetail> {
     return this.repository.findById(context, roleId);

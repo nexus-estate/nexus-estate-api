@@ -1,7 +1,14 @@
 import { AuthorizationPlatform } from '../../enums/authorization-platform.enum';
+import { createAuthorizationContext } from '../../context/authorization-context';
 import { AuthorizationRoleRepository } from './authorization-role.repository';
 
 describe('AuthorizationRoleRepository', () => {
+  const providerContext = createAuthorizationContext(
+    AuthorizationPlatform.PROVIDER,
+  );
+  const marketplaceContext = createAuthorizationContext(
+    AuthorizationPlatform.MARKETPLACE,
+  );
   it('maps paginated role rows and preserves usage counts', async () => {
     const query = jest
       .fn()
@@ -24,7 +31,7 @@ describe('AuthorizationRoleRepository', () => {
     const repository = new AuthorizationRoleRepository({ query } as never);
 
     await expect(
-      repository.list(AuthorizationPlatform.PROVIDER, {
+      repository.list(providerContext, {
         page: 1,
         limit: 20,
         sort: 'name',
@@ -81,7 +88,7 @@ describe('AuthorizationRoleRepository', () => {
     const repository = new AuthorizationRoleRepository({ query } as never);
 
     await expect(
-      repository.findById(AuthorizationPlatform.MARKETPLACE, 'role-1'),
+      repository.findById(marketplaceContext, 'role-1'),
     ).resolves.toMatchObject({
       id: 'role-1',
       permissions: [{ code: 'listing:read', riskLevel: 'LOW' }],

@@ -16,10 +16,7 @@ import {
   AuthorizationPlatform,
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
-import {
-  authorizationContext,
-  type AuthorizationContextInput,
-} from '../../context/authorization-context';
+import { type AuthorizationContext } from '../../context/authorization-context';
 
 type PermissionRow = {
   id: string;
@@ -53,10 +50,9 @@ export class AuthorizationPermissionRepository {
 
   /** Lists permission catalogue entries for a context. */
   async list(
-    contextInput: AuthorizationContextInput,
+    context: AuthorizationContext,
     query: AuthorizationPermissionListQueryDto,
   ): Promise<AuthorizationPermissionListResult> {
-    const context = authorizationContext(contextInput);
     const { platform, config } = context;
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['permission.deleted_at IS NULL'];
@@ -116,10 +112,9 @@ export class AuthorizationPermissionRepository {
 
   /** Loads one permission and the roles that use it. */
   async findById(
-    contextInput: AuthorizationContextInput,
+    context: AuthorizationContext,
     permissionId: string,
   ): Promise<AuthorizationPermissionDetail> {
-    const context = authorizationContext(contextInput);
     const { platform, config } = context;
     const rows = await this.dataSource.query<PermissionRow[]>(
       `SELECT id, code, name, description, category, resource, action,
@@ -154,10 +149,10 @@ export class AuthorizationPermissionRepository {
 
   /** Lists role references associated with a permission. */
   async roles(
-    contextInput: AuthorizationContextInput,
+    context: AuthorizationContext,
     permissionId: string,
   ): Promise<AuthorizationPermissionRolesResult> {
-    const permission = await this.findById(contextInput, permissionId);
+    const permission = await this.findById(context, permissionId);
     return { items: permission.rolesUsing };
   }
 

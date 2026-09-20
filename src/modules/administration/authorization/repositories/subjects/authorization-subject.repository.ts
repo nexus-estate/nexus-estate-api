@@ -15,10 +15,7 @@ import {
   AuthorizationPlatform,
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
-import {
-  authorizationContext,
-  type AuthorizationContextInput,
-} from '../../context/authorization-context';
+import { type AuthorizationContext } from '../../context/authorization-context';
 import type { PlatformAuthorizationSqlConfig } from '../../management/platform-authorization-config';
 
 type SubjectRow = {
@@ -52,11 +49,10 @@ export class AuthorizationSubjectRepository {
 
   /** Lists subjects, optionally filtered to those assigned to a role. */
   async list(
-    contextInput: AuthorizationContextInput,
+    context: AuthorizationContext,
     query: AuthorizationSubjectListQueryDto,
     roleId?: string,
   ): Promise<AuthorizationSubjectListResult> {
-    const context = authorizationContext(contextInput);
     const { platform, config } = context;
     const pagination = PaginationHelper.normalize(query);
     const parameters: unknown[] = [];
@@ -110,10 +106,9 @@ export class AuthorizationSubjectRepository {
 
   /** Loads one subject with roles and effective permissions. */
   async findById(
-    contextInput: AuthorizationContextInput,
+    context: AuthorizationContext,
     subjectId: string,
   ): Promise<AuthorizationSubjectDetail> {
-    const context = authorizationContext(contextInput);
     const { platform, config } = context;
     const { statusExpression, displayName, secondaryText } =
       this.subjectExpressions(platform);

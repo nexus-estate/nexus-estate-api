@@ -1,13 +1,13 @@
 import { AuthorizationPlatform } from '../enums/authorization-platform.enum';
 
 export type PlatformAuthorizationSqlConfig = {
-  roleTable: string;
-  permissionTable: string;
-  rolePermissionTable: string;
-  assignmentTable: string;
-  assignmentSubjectColumn: string;
-  subjectTable: string;
-  subjectType: 'CUSTOMER' | 'PROVIDER_MEMBERSHIP' | 'ADMINISTRATOR';
+  readonly roleTable: string;
+  readonly permissionTable: string;
+  readonly rolePermissionTable: string;
+  readonly assignmentTable: string;
+  readonly assignmentSubjectColumn: string;
+  readonly subjectTable: string;
+  readonly subjectType: 'CUSTOMER' | 'PROVIDER_MEMBERSHIP' | 'ADMINISTRATOR';
 };
 
 const configs: Record<AuthorizationPlatform, PlatformAuthorizationSqlConfig> = {

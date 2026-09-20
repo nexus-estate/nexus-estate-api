@@ -1,7 +1,14 @@
 import { AuthorizationPlatform } from '../../enums/authorization-platform.enum';
 import { AuthorizationPermissionService } from './authorization-permission.service';
+import { createAuthorizationContext } from '../../context/authorization-context';
 
 describe('AuthorizationPermissionService', () => {
+  const marketplaceContext = createAuthorizationContext(
+    AuthorizationPlatform.MARKETPLACE,
+  );
+  const providerContext = createAuthorizationContext(
+    AuthorizationPlatform.PROVIDER,
+  );
   it('routes permission listing through its repository', async () => {
     const list = jest.fn().mockResolvedValue({ items: [], meta: { total: 0 } });
     const service = new AuthorizationPermissionService({ list } as never);
@@ -13,10 +20,11 @@ describe('AuthorizationPermissionService', () => {
       includeDeprecated: false,
     };
 
-    await expect(
-      service.list(AuthorizationPlatform.MARKETPLACE, query),
-    ).resolves.toEqual({ items: [], meta: { total: 0 } });
-    expect(list).toHaveBeenCalledWith(AuthorizationPlatform.MARKETPLACE, query);
+    await expect(service.list(marketplaceContext, query)).resolves.toEqual({
+      items: [],
+      meta: { total: 0 },
+    });
+    expect(list).toHaveBeenCalledWith(marketplaceContext, query);
   });
 
   it('routes permission role lookup through its repository', async () => {
@@ -24,11 +32,8 @@ describe('AuthorizationPermissionService', () => {
     const service = new AuthorizationPermissionService({ roles } as never);
 
     await expect(
-      service.roles(AuthorizationPlatform.PROVIDER, 'permission-1'),
+      service.roles(providerContext, 'permission-1'),
     ).resolves.toEqual({ items: [] });
-    expect(roles).toHaveBeenCalledWith(
-      AuthorizationPlatform.PROVIDER,
-      'permission-1',
-    );
+    expect(roles).toHaveBeenCalledWith(providerContext, 'permission-1');
   });
 });

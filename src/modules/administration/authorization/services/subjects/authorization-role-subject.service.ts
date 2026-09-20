@@ -6,10 +6,7 @@ import type {
   AuthorizationSubjectListQueryDto,
   ReplaceSubjectRolesDto,
 } from '../../dto/authorization-management.dto';
-import {
-  authorizationContext,
-  type AuthorizationContextInput,
-} from '../../context/authorization-context';
+import { type AuthorizationContext } from '../../context/authorization-context';
 import { AuthorizationManagementCoreService } from '../authorization-management.service';
 import { AuthorizationRoleRepository } from '../../repositories/roles/authorization-role.repository';
 import { AuthorizationSubjectRepository } from '../../repositories/subjects/authorization-subject.repository';
@@ -29,7 +26,7 @@ export class AuthorizationRoleSubjectService {
    * The result preserves the public `{ role, items, meta }` contract.
    */
   async listForRole(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     roleId: string,
     query: AuthorizationSubjectListQueryDto,
   ): Promise<AuthorizationRoleSubjectsResult> {
@@ -42,15 +39,14 @@ export class AuthorizationRoleSubjectService {
 
   /** Replaces all roles assigned to a subject and returns updated detail. */
   async replaceRoles(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     subjectId: string,
     dto: ReplaceSubjectRolesDto,
     actor: string,
     requestId: string | null,
   ): Promise<AuthorizationSubjectDetail> {
-    const resolvedContext = authorizationContext(context);
     const updatedSubjectId = await this.core.replaceSubjectRoles(
-      resolvedContext,
+      context,
       subjectId,
       dto,
       actor,

@@ -2,15 +2,22 @@ import { AuthorizationPlatform } from '../enums/authorization-platform.enum';
 import { AuthorizationService } from './authorization.service';
 
 describe('AuthorizationService', () => {
-  it('creates independent immutable scopes for each platform', async () => {
+  it('creates independent immutable bound operations for each platform', async () => {
     const list = jest.fn().mockResolvedValue({ items: [], meta: {} });
+    const providerContext = Object.freeze({
+      platform: AuthorizationPlatform.PROVIDER,
+      config: {},
+    });
+    const marketplaceContext = Object.freeze({
+      platform: AuthorizationPlatform.MARKETPLACE,
+      config: {},
+    });
     const service = new AuthorizationService(
       {
         resolve: (platform: AuthorizationPlatform) =>
-          Object.freeze({
-            platform,
-            config: {},
-          }),
+          platform === AuthorizationPlatform.PROVIDER
+            ? providerContext
+            : marketplaceContext,
       } as never,
       { list, get: jest.fn() } as never,
       {} as never,
@@ -27,16 +34,12 @@ describe('AuthorizationService', () => {
     await marketplace.roles.list({} as never);
 
     expect(provider).not.toBe(marketplace);
-    expect(provider.context).not.toBe(marketplace.context);
-    expect(list).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ platform: AuthorizationPlatform.PROVIDER }),
-      {},
-    );
-    expect(list).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ platform: AuthorizationPlatform.MARKETPLACE }),
-      {},
-    );
+    expect(Object.isFrozen(provider)).toBe(true);
+    expect(Object.isFrozen(provider.roles)).toBe(true);
+    expect(providerContext).not.toBe(marketplaceContext);
+    expect(providerContext.platform).toBe(AuthorizationPlatform.PROVIDER);
+    expect(marketplaceContext.platform).toBe(AuthorizationPlatform.MARKETPLACE);
+    expect(list).toHaveBeenNthCalledWith(1, providerContext, {});
+    expect(list).toHaveBeenNthCalledWith(2, marketplaceContext, {});
   });
 });

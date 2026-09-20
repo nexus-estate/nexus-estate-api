@@ -18,17 +18,8 @@ export interface AuthorizationContext {
   readonly platform: AuthorizationPlatform;
 
   /** SQL table mapping belonging to {@link platform}. */
-  readonly config: PlatformAuthorizationSqlConfig;
+  readonly config: Readonly<PlatformAuthorizationSqlConfig>;
 }
-
-/**
- * Context or legacy platform input accepted at migration boundaries.
- *
- * New application code should resolve a context once through
- * {@link AuthorizationContextResolver} or {@link AuthorizationService.for}.
- */
-export type AuthorizationContextInput =
-  AuthorizationContext | AuthorizationPlatform;
 
 /**
  * Creates a frozen authorization context for a platform.
@@ -47,17 +38,4 @@ export function createAuthorizationContext(
     });
   }
   return Object.freeze({ platform, config: Object.freeze(config) });
-}
-
-/**
- * Normalizes a context or legacy platform value into an authorization context.
- * Existing context objects are returned unchanged to preserve scope identity.
- *
- * @param input Context or platform value supplied by a migrating caller.
- * @returns The immutable authorization context to pass downstream.
- */
-export function authorizationContext(
-  input: AuthorizationContextInput,
-): AuthorizationContext {
-  return typeof input === 'object' ? input : createAuthorizationContext(input);
 }

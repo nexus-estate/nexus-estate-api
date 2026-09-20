@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { AuthorizationPermissionListQueryDto } from '../../dto/authorization-management.dto';
-import type { AuthorizationContextInput } from '../../context/authorization-context';
+import type { AuthorizationContext } from '../../context/authorization-context';
 import type {
   AuthorizationPermissionDetail,
   AuthorizationPermissionListResult,
@@ -16,7 +16,7 @@ export class AuthorizationPermissionService {
 
   /** Lists permissions for a platform context. */
   list(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     query: AuthorizationPermissionListQueryDto,
   ): Promise<AuthorizationPermissionListResult> {
     return this.repository.list(context, query);
@@ -24,7 +24,7 @@ export class AuthorizationPermissionService {
 
   /** Loads one permission and its role usage. */
   get(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     permissionId: string,
   ): Promise<AuthorizationPermissionDetail> {
     return this.repository.findById(context, permissionId);
@@ -32,7 +32,7 @@ export class AuthorizationPermissionService {
 
   /** Lists roles that use a permission in the selected platform. */
   roles(
-    context: AuthorizationContextInput,
+    context: AuthorizationContext,
     permissionId: string,
   ): Promise<AuthorizationPermissionRolesResult> {
     return this.repository.roles(context, permissionId);

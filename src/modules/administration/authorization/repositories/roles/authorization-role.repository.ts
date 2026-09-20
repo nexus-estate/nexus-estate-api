@@ -16,10 +16,7 @@ import {
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
 import type { AuthorizationRoleListQueryDto } from '../../dto/authorization-management.dto';
-import {
-  authorizationContext,
-  type AuthorizationContextInput,
-} from '../../context/authorization-context';
+import { type AuthorizationContext } from '../../context/authorization-context';
 
 type RoleRow = {
   id: string;
@@ -66,10 +63,9 @@ export class AuthorizationRoleRepository {
 
   /** Lists role summaries and usage counts for a context. */
   async list(
-    contextInput: AuthorizationContextInput,
+    context: AuthorizationContext,
     query: AuthorizationRoleListQueryDto,
   ): Promise<AuthorizationRoleListResult> {
-    const context = authorizationContext(contextInput);
     const { platform, config } = context;
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['role.deleted_at IS NULL'];
@@ -131,10 +127,9 @@ export class AuthorizationRoleRepository {
 
   /** Loads one role, its usage counts, and its assigned permissions. */
   async findById(
-    contextInput: AuthorizationContextInput,
+    context: AuthorizationContext,
     roleId: string,
   ): Promise<AuthorizationRoleDetail> {
-    const context = authorizationContext(contextInput);
     const { platform, config } = context;
     const roleRows = await this.dataSource.query<RoleRow[]>(
       `SELECT role.id, role.code, role.name, role.description,
