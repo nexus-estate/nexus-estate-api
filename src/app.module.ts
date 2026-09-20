@@ -12,7 +12,7 @@ import { typeormConfig } from './database/type.config';
 import { CommonModule } from './common/common.module';
 
 import { Public } from './common/decorators/public.decorator';
-import { LocationModule } from './database/seed/locations/location.module';
+import { LocationModule } from './modules/location/location.module';
 import { EstateModule } from './modules/estate/estate.module';
 import { ListingModule } from './modules/listing/listing.module';
 import { LeadModule } from './modules/lead/lead.module';

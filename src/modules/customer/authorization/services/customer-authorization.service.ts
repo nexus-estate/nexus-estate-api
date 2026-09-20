@@ -1,16 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+import type {
+  MarketplaceAuthorizationPermission,
+  MarketplaceAuthorizationRole,
+  MarketplaceEffectiveAuthorization,
+} from '../types/marketplace-effective-authorization.contract';
+
 /** Resolves current Marketplace authorization for a customer. */
 @Injectable()
 export class CustomerAuthorizationService {
   constructor(private readonly dataSource: DataSource) {}
 
   /** Returns the current marketplace roles and non-deprecated permissions for a customer. */
-  async effective(customerId: string) {
-    const roles = await this.dataSource.query<
-      { id: string; code: string; name: string }[]
-    >(
+  async effective(
+    customerId: string,
+  ): Promise<MarketplaceEffectiveAuthorization> {
+    const roles = await this.dataSource.query<MarketplaceAuthorizationRole[]>(
       `SELECT role.id, role.code, role.name
        FROM tbl_customer_role_assignment assignment
        INNER JOIN tbl_marketplace_role role ON role.id = assignment.role_id
@@ -19,7 +25,7 @@ export class CustomerAuthorizationService {
       [customerId],
     );
     const permissions = await this.dataSource.query<
-      { id: string; code: string; name: string; category: string }[]
+      MarketplaceAuthorizationPermission[]
     >(
       `SELECT DISTINCT permission.id, permission.code, permission.name, permission.category
        FROM tbl_customer_role_assignment assignment

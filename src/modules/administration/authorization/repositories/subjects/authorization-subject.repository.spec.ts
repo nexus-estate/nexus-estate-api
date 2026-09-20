@@ -5,8 +5,18 @@ import {
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
 import { AuthorizationSubjectRepository } from './authorization-subject.repository';
+import { createAuthorizationContext } from '../../context/authorization-context';
 
 describe('AuthorizationSubjectRepository', () => {
+  const marketplaceContext = createAuthorizationContext(
+    AuthorizationPlatform.MARKETPLACE,
+  );
+  const providerContext = createAuthorizationContext(
+    AuthorizationPlatform.PROVIDER,
+  );
+  const administrationContext = createAuthorizationContext(
+    AuthorizationPlatform.ADMINISTRATION,
+  );
   it('maps Marketplace subjects and Administration status values', async () => {
     const query = jest
       .fn()
@@ -24,7 +34,7 @@ describe('AuthorizationSubjectRepository', () => {
     const repository = new AuthorizationSubjectRepository({ query } as never);
 
     await expect(
-      repository.list(AuthorizationPlatform.MARKETPLACE, {
+      repository.list(marketplaceContext, {
         page: 1,
         limit: 20,
       }),
@@ -56,7 +66,7 @@ describe('AuthorizationSubjectRepository', () => {
       ]);
     await expect(
       new AuthorizationSubjectRepository({ query: adminQuery } as never).list(
-        AuthorizationPlatform.ADMINISTRATION,
+        administrationContext,
         { page: 1, limit: 20 },
       ),
     ).resolves.toMatchObject({ items: [{ status: 'DISABLED' }] });
@@ -70,7 +80,7 @@ describe('AuthorizationSubjectRepository', () => {
     const repository = new AuthorizationSubjectRepository({ query } as never);
 
     await repository.list(
-      AuthorizationPlatform.PROVIDER,
+      providerContext,
       { page: 1, limit: 20, q: 'provider', status: 'ACTIVE' },
       'role-1',
     );
@@ -132,7 +142,7 @@ describe('AuthorizationSubjectRepository', () => {
     const repository = new AuthorizationSubjectRepository({ query } as never);
 
     await expect(
-      repository.findById(AuthorizationPlatform.PROVIDER, 'membership-1'),
+      repository.findById(providerContext, 'membership-1'),
     ).resolves.toMatchObject({
       id: 'membership-1',
       subjectType: 'PROVIDER_MEMBERSHIP',
@@ -152,7 +162,7 @@ describe('AuthorizationSubjectRepository', () => {
     const repository = new AuthorizationSubjectRepository({ query } as never);
 
     await expect(
-      repository.findById(AuthorizationPlatform.ADMINISTRATION, 'missing'),
+      repository.findById(administrationContext, 'missing'),
     ).rejects.toMatchObject({
       errorCode: AuthorizationErrorCodes.SUBJECT_NOT_FOUND.code,
     });

@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
-import { ProviderAccountService } from '../../../provider/account/services/provider-account.service';
-import { ProviderAuthorizationService } from '../../../provider/authorization/services/provider-authorization.service';
+import {
+  ProviderContextResolver,
+  type ProviderContext,
+} from '../../../provider/account/services/provider-context.resolver';
+import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/helpers/provider-supply-access.policy';
 import { EstateRepo } from '../../../estate/property/repositories/estate.repo';
 import { CreateListingDto } from '../dto/create-listing.dto';
 import { ListingQueryDto } from '../dto/listing-query.dto';
@@ -15,8 +18,8 @@ export class ListingService {
   constructor(
     private readonly listingRepository: ListingRepo,
     private readonly estateRepository: EstateRepo,
-    private readonly providerAccountService: ProviderAccountService,
-    private readonly providerAuthorizationService: ProviderAuthorizationService,
+    private readonly providerContextResolver: ProviderContextResolver,
+    private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
   ) {}
 
   async create(
@@ -24,7 +27,7 @@ export class ListingService {
     dto: CreateListingDto,
     providerId?: string,
   ): Promise<ListingResponse> {
-    const context = await this.requireProvider(customerId, providerId);
+    const context = await this.requireProviderContext(customerId, providerId);
     const estate = await this.estateRepository.findById(dto.estateId);
     if (!estate)
       throw new BusinessException(
@@ -32,10 +35,7 @@ export class ListingService {
         dto.estateId,
       );
     this.assertEstateOwnership(estate, customerId, context.providerId);
-    await this.providerAuthorizationService.requireLegacyEstateOwner(
-      customerId,
-      context.providerId,
-    );
+    await this.supplyAccessPolicy.requireWriteAccess(context);
     if (await this.listingRepository.findByEstateId(dto.estateId)) {
       throw new BusinessException(
         CommonErrorCodes.RESOURCE_CONFLICT,
@@ -56,7 +56,7 @@ export class ListingService {
     customerId: string,
     providerId?: string,
   ): Promise<ListingResponse[]> {
-    const context = await this.requireProvider(customerId, providerId);
+    const context = await this.requireProviderContext(customerId, providerId);
     return (await this.listingRepository.findMine(context.providerId)).map(
       (listing) => this.toResponse(listing),
     );
@@ -112,7 +112,7 @@ export class ListingService {
     id: string,
     providerId?: string,
   ) {
-    const context = await this.requireProvider(customerId, providerId);
+    const context = await this.requireProviderContext(customerId, providerId);
     const listing = await this.listingRepository.findById(id);
     if (!listing)
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND, id);
@@ -121,18 +121,21 @@ export class ListingService {
         CommonErrorCodes.FORBIDDEN,
         context.providerId,
       );
-    await this.providerAuthorizationService.requireLegacyEstateOwner(
-      customerId,
-      context.providerId,
-    );
+    await this.supplyAccessPolicy.requireWriteAccess(context);
     return listing;
   }
 
-  private async requireProvider(customerId: string, providerId?: string) {
-    return this.providerAccountService.requireActiveProvider(
+  /** Resolves provider context and enforces supply read access. */
+  private async requireProviderContext(
+    customerId: string,
+    providerId?: string,
+  ): Promise<ProviderContext> {
+    const context = await this.providerContextResolver.resolve(
       customerId,
       providerId,
     );
+    this.supplyAccessPolicy.requireReadAccess(context);
+    return context;
   }
 
   private assertEstateOwnership(

@@ -16,7 +16,7 @@ import {
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
 import type { AuthorizationRoleListQueryDto } from '../../dto/authorization-management.dto';
-import { platformAuthorizationSqlConfig } from '../../management/platform-authorization-config';
+import { type AuthorizationContext } from '../../context/authorization-context';
 
 type RoleRow = {
   id: string;
@@ -57,14 +57,16 @@ const ROLE_SORT_COLUMNS: Record<string, string> = {
 };
 
 @Injectable()
+/** SQL read repository for platform-scoped authorization roles. */
 export class AuthorizationRoleRepository {
   constructor(private readonly dataSource: DataSource) {}
 
+  /** Lists role summaries and usage counts for a context. */
   async list(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     query: AuthorizationRoleListQueryDto,
   ): Promise<AuthorizationRoleListResult> {
-    const config = this.config(platform);
+    const { platform, config } = context;
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['role.deleted_at IS NULL'];
     const parameters: unknown[] = [];
@@ -123,11 +125,12 @@ export class AuthorizationRoleRepository {
     );
   }
 
+  /** Loads one role, its usage counts, and its assigned permissions. */
   async findById(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     roleId: string,
   ): Promise<AuthorizationRoleDetail> {
-    const config = this.config(platform);
+    const { platform, config } = context;
     const roleRows = await this.dataSource.query<RoleRow[]>(
       `SELECT role.id, role.code, role.name, role.description,
               role.is_system, role.status, role.version,
@@ -166,16 +169,6 @@ export class AuthorizationRoleRepository {
         this.toPermissionSummary(permission, platform),
       ),
     };
-  }
-
-  private config(platform: AuthorizationPlatform) {
-    const config = platformAuthorizationSqlConfig(platform);
-    if (!config) {
-      throw new BusinessException(AuthorizationErrorCodes.PLATFORM_NOT_FOUND, {
-        platform,
-      });
-    }
-    return config;
   }
 
   private toSummary(

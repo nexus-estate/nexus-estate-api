@@ -1,8 +1,8 @@
 import { ProvinceRepo } from '../repositories/province.repo';
 import { WardRepository } from '../repositories/ward.repo';
-import { locationService } from './location.service';
+import { LocationService } from './location.service';
 
-describe('locationService', () => {
+describe('LocationService', () => {
   it('lists provinces in repository order', async () => {
     const provinces = [{ id: 'province-id' }];
     const findAll = jest.fn().mockResolvedValue(provinces);
@@ -12,7 +12,7 @@ describe('locationService', () => {
     const wardRepository = {} as WardRepository;
 
     await expect(
-      new locationService(provinceRepository, wardRepository).getAllProvinces(),
+      new LocationService(provinceRepository, wardRepository).getAllProvinces(),
     ).resolves.toBe(provinces);
     expect(findAll).toHaveBeenCalledWith();
   });
@@ -27,7 +27,7 @@ describe('locationService', () => {
     } as unknown as WardRepository;
 
     await expect(
-      new locationService(
+      new LocationService(
         provinceRepository,
         wardRepository,
       ).getWardsByProvinceId(provinceId),

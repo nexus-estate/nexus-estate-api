@@ -19,6 +19,7 @@ import { ProviderRegistrationService } from '../services/provider-registration.s
 import type { ProviderAccountResponse } from '../../account/dto/provider-account.response';
 import { CustomerJwtAuthGuard } from '../../../customer/authentication/guards/customer-jwt-auth.guard';
 import { ProviderAuthorizationService } from '../../authorization/services/provider-authorization.service';
+import { ProviderContextResolver } from '../../account/services/provider-context.resolver';
 
 /** Provider onboarding and provider-platform entry-point endpoints. */
 @ApiTags('Provider')
@@ -30,6 +31,7 @@ export class ProviderController {
     private readonly providerProfileService: ProviderProfileService,
     private readonly providerRegistrationService: ProviderRegistrationService,
     private readonly providerAuthorizationService: ProviderAuthorizationService,
+    private readonly providerContextResolver: ProviderContextResolver,
   ) {}
 
   /** Registers a customer identity and submits a provider request. */
@@ -81,12 +83,14 @@ export class ProviderController {
       'Required when the customer has multiple active provider memberships.',
   })
   @ApiOperation({ summary: 'Get current Provider membership authorization' })
-  getAuthorization(
+  async getAuthorization(
     @CurrentUser() customer: CustomerPrincipal,
     @ProviderId() providerId?: string,
   ) {
-    return providerId
-      ? this.providerAuthorizationService.effective(customer.id, providerId)
-      : this.providerAuthorizationService.effective(customer.id);
+    const context = await this.providerContextResolver.resolve(
+      customer.id,
+      providerId,
+    );
+    return this.providerAuthorizationService.effective(context);
   }
 }

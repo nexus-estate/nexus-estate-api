@@ -1,7 +1,7 @@
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
 import { BusinessException } from '../../../../common/exceptions/business.exception';
-import { ProvinceRepo } from '../../../../database/seed/locations/repositories/province.repo';
-import { WardRepository } from '../../../../database/seed/locations/repositories/ward.repo';
+import { ProvinceRepo } from '../../../location/administrative-division/repositories/province.repo';
+import { WardRepository } from '../../../location/administrative-division/repositories/ward.repo';
 import {
   Province,
   Ward,
@@ -12,7 +12,11 @@ import { Estate } from '../entities';
 import { EstateRepo } from '../repositories/estate.repo';
 import { EstatePurpose, EstateType } from '../types/estate.type';
 import { EstateService } from './estate.service';
-import { ProviderAccountService } from '../../../provider/account/services/provider-account.service';
+import {
+  ProviderContextResolver,
+  type ProviderContext,
+} from '../../../provider/account/services/provider-context.resolver';
+import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/helpers/provider-supply-access.policy';
 import {
   ProviderStatus,
   ProviderType,
@@ -36,9 +40,16 @@ type WardRepositoryMock = {
   findById: jest.MockedFunction<WardRepository['findById']>;
 };
 
-type ProviderAccountServiceMock = {
-  requireActiveProvider: jest.MockedFunction<
-    ProviderAccountService['requireActiveProvider']
+type ProviderContextResolverMock = {
+  resolve: jest.MockedFunction<ProviderContextResolver['resolve']>;
+};
+
+type ProviderSupplyAccessPolicyMock = {
+  requireReadAccess: jest.MockedFunction<
+    ProviderSupplyAccessPolicy['requireReadAccess']
+  >;
+  requireWriteAccess: jest.MockedFunction<
+    ProviderSupplyAccessPolicy['requireWriteAccess']
   >;
 };
 
@@ -47,7 +58,8 @@ describe('EstateService', () => {
   let estateRepository: EstateRepoMock;
   let provinceRepository: ProvinceRepoMock;
   let wardRepository: WardRepositoryMock;
-  let providerAccountService: ProviderAccountServiceMock;
+  let providerContextResolver: ProviderContextResolverMock;
+  let supplyAccessPolicy: ProviderSupplyAccessPolicyMock;
 
   const customerId = '10000000-0000-4000-8000-000000000001';
   const otherUserId = '10000000-0000-4000-8000-000000000002';
@@ -95,21 +107,30 @@ describe('EstateService', () => {
     };
     provinceRepository = { findById: jest.fn() };
     wardRepository = { findById: jest.fn() };
-    providerAccountService = {
-      requireActiveProvider: jest.fn().mockResolvedValue({
-        customerId,
-        providerId,
-        providerType: ProviderType.INDIVIDUAL,
-        providerStatus: ProviderStatus.ACTIVE,
-        verificationStatus: ProviderVerificationStatus.VERIFIED,
-      }),
+    const context: ProviderContext = {
+      customerId,
+      providerId,
+      providerType: ProviderType.INDIVIDUAL,
+      providerStatus: ProviderStatus.ACTIVE,
+      verificationStatus: ProviderVerificationStatus.VERIFIED,
+      providerDisplayName: 'Provider',
+      membershipId: '30000000-0000-4000-8000-000000000099',
+      membershipStatus: 'ACTIVE',
+    };
+    providerContextResolver = {
+      resolve: jest.fn().mockResolvedValue(context),
+    };
+    supplyAccessPolicy = {
+      requireReadAccess: jest.fn(),
+      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new EstateService(
       estateRepository as unknown as EstateRepo,
       provinceRepository as unknown as ProvinceRepo,
       wardRepository as unknown as WardRepository,
-      providerAccountService as unknown as ProviderAccountService,
+      providerContextResolver as unknown as ProviderContextResolver,
+      supplyAccessPolicy as unknown as ProviderSupplyAccessPolicy,
     );
   });
 
@@ -124,9 +145,11 @@ describe('EstateService', () => {
       );
       expect(provinceRepository.findById).toHaveBeenCalledWith(provinceId);
       expect(wardRepository.findById).toHaveBeenCalledWith(wardId);
-      expect(providerAccountService.requireActiveProvider).toHaveBeenCalledWith(
+      expect(providerContextResolver.resolve).toHaveBeenCalledWith(
         customerId,
+        undefined,
       );
+      expect(supplyAccessPolicy.requireWriteAccess).toHaveBeenCalled();
       expect(estateRepository.createEstate).toHaveBeenCalledWith({
         ...createDto,
         customerId,
@@ -192,7 +215,7 @@ describe('EstateService', () => {
   });
 
   it('blocks estate creation when the provider is not active and verified', async () => {
-    providerAccountService.requireActiveProvider.mockRejectedValue(
+    supplyAccessPolicy.requireWriteAccess.mockRejectedValue(
       new BusinessException(
         ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_VERIFIED,
       ),

@@ -10,50 +10,59 @@ import {
   ProviderVerificationStatus,
 } from '../enums/account.enums';
 
-/**
- * Snapshot of the provider state needed by authorization and supply use cases.
- */
-export type CurrentProviderContextValue = {
-  /** Authenticated customer identifier. */
-  customerId: string;
-  /** Provider-account identifier. */
-  providerId: string;
-  /** Provider operating model. */
-  providerType: ProviderType;
-  /** Provider lifecycle state. */
-  providerStatus: ProviderStatus;
-  /** Provider verification state. */
-  verificationStatus: ProviderVerificationStatus;
-  /** Provider membership state used by IA-02 provider authorization. */
-  membershipStatus?: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
-  /** Provider membership identifier when the IA-02 schema is available. */
-  membershipId?: string;
-};
+/** Provider membership lifecycle state used by provider authorization. */
+export type ProviderMembershipStatus = 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
 
 /**
- * Resolves the provider context used by provider profile, authorization, and
- * supply commands. Callers may provide `providerId`; otherwise this service
- * accepts exactly one active membership and rejects ambiguity. It validates
- * membership server-side and only uses the legacy owner-account fallback when
- * the membership schema is genuinely unavailable, never when it returns zero
- * active memberships.
+ * Resolved provider context shared by provider profile, authorization, and
+ * supply features.
+ *
+ * `membershipId` and `membershipStatus` are null only on the legacy fallback
+ * path, which is used when the IA-02 provider membership schema is genuinely
+ * unavailable. On a migrated database both fields are always present.
+ */
+export interface ProviderContext {
+  /** Authenticated customer identifier. */
+  readonly customerId: string;
+  /** Provider-account identifier. */
+  readonly providerId: string;
+  /** Provider operating model. */
+  readonly providerType: ProviderType;
+  /** Provider lifecycle state. */
+  readonly providerStatus: ProviderStatus;
+  /** Provider verification state. */
+  readonly verificationStatus: ProviderVerificationStatus;
+  /** Provider display name used by provider-facing authorization responses. */
+  readonly providerDisplayName: string;
+  /** Provider membership identifier, or null on the legacy fallback path. */
+  readonly membershipId: string | null;
+  /** Provider membership state, or null on the legacy fallback path. */
+  readonly membershipStatus: ProviderMembershipStatus | null;
+}
+
+/**
+ * Single source of truth for provider context selection.
+ *
+ * Callers may provide `providerId`; otherwise this resolver accepts exactly one
+ * active membership and rejects ambiguity. It validates membership server-side
+ * and only uses the legacy owner-account fallback when the membership schema is
+ * genuinely unavailable, never when it returns zero active memberships.
  */
 @Injectable()
-export class CurrentProviderContext {
+export class ProviderContextResolver {
   constructor(
     private readonly providerAccountRepository: ProviderAccountRepository,
     @Optional() private readonly dataSource?: DataSource,
   ) {}
 
   /**
-   * Loads the provider identity and state needed by downstream provider features.
+   * Selects and validates the exact provider context for a customer request.
    * A missing account is an explicit domain error; this method never creates it.
    */
-  /** Selects and validates the exact provider context for a customer request. */
   async resolve(
     customerId: string,
     providerId?: string,
-  ): Promise<CurrentProviderContextValue> {
+  ): Promise<ProviderContext> {
     if (this.dataSource) {
       if (providerId && !UUID_PATTERN.test(providerId)) {
         throw new BusinessException(
@@ -76,7 +85,8 @@ export class CurrentProviderContext {
         memberships = await this.dataSource.query<MembershipRow[]>(
           `SELECT membership.id AS membership_id, membership.status AS membership_status,
                   provider.id AS provider_id, provider.type AS provider_type,
-                  provider.status AS provider_status, provider.verification_status
+                  provider.status AS provider_status, provider.verification_status,
+                  provider.display_name
            FROM tbl_provider_membership membership
            INNER JOIN tbl_provider_account provider ON provider.id = membership.provider_id
            WHERE membership.customer_id = $1 AND membership.deleted_at IS NULL
@@ -126,6 +136,7 @@ export class CurrentProviderContext {
           providerType: membership.provider_type,
           providerStatus: membership.provider_status,
           verificationStatus: membership.verification_status,
+          providerDisplayName: membership.display_name,
           membershipId: membership.membership_id,
           membershipStatus: membership.membership_status,
         };
@@ -153,6 +164,9 @@ export class CurrentProviderContext {
       providerType: account.type,
       providerStatus: account.status,
       verificationStatus: account.verificationStatus,
+      providerDisplayName: account.displayName,
+      membershipId: null,
+      membershipStatus: null,
     };
   }
 }
@@ -162,9 +176,10 @@ const UUID_PATTERN =
 
 type MembershipRow = {
   membership_id: string;
-  membership_status: 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
+  membership_status: ProviderMembershipStatus;
   provider_id: string;
   provider_type: ProviderType;
   provider_status: ProviderStatus;
   verification_status: ProviderVerificationStatus;
+  display_name: string;
 };

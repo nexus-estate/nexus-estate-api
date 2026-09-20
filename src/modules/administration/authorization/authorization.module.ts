@@ -25,6 +25,8 @@ import { AuthorizationRoleCommandService } from './services/roles/authorization-
 import { AuthorizationRoleSubjectService } from './services/subjects/authorization-role-subject.service';
 import { AuthorizationProviderMembershipService } from './services/subjects/authorization-provider-membership.service';
 import { AuthorizationAuditQueryService } from './audit/authorization-audit-query.service';
+import { AuthorizationContextResolver } from './context/authorization-context.resolver';
+import { AuthorizationService } from './services/authorization.service';
 
 /** Owns internal administration roles, permissions, and assignments. */
 @Module({
@@ -52,6 +54,8 @@ import { AuthorizationAuditQueryService } from './audit/authorization-audit-quer
     AuthorizationRoleSubjectService,
     AuthorizationProviderMembershipService,
     AuthorizationAuditQueryService,
+    AuthorizationContextResolver,
+    AuthorizationService,
     AuthorizationManagementService,
     AdministrationAuthorizationService,
   ],

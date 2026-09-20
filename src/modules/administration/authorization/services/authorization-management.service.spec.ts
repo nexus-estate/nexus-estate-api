@@ -1,5 +1,6 @@
 import { AuthorizationPlatform } from '../enums/authorization-platform.enum';
 import { AuthorizationManagementCoreService } from './authorization-management.service';
+import { createAuthorizationContext } from '../context/authorization-context';
 
 describe('AuthorizationManagementCoreService', () => {
   it('advertises all independent management platforms', () => {
@@ -19,7 +20,7 @@ describe('AuthorizationManagementCoreService', () => {
 
     await expect(
       service.createRole(
-        AuthorizationPlatform.PROVIDER,
+        createAuthorizationContext(AuthorizationPlatform.PROVIDER),
         { code: 'not-valid', name: 'Invalid role', permissionIds: [] },
         'admin-1',
         'request-1',

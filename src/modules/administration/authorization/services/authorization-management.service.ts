@@ -21,10 +21,10 @@ import type {
   UpdateAuthorizationRoleDto,
 } from '../dto/authorization-management.dto';
 import {
-  platformAuthorizationSqlConfig,
   platformAuthorizationSqlConfigs,
   type PlatformAuthorizationSqlConfig,
 } from '../management/platform-authorization-config';
+import { type AuthorizationContext } from '../context/authorization-context';
 import type {
   AuthorizationRoleDeletionResult,
   AuthorizationRoleSummary,
@@ -97,12 +97,12 @@ export class AuthorizationManagementCoreService {
 
   /** Creates a custom role, validates platform ownership, and records one atomic audit event. */
   async createRole(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     dto: CreateAuthorizationRoleDto,
     actorAdministratorId: string,
     requestId: string | null,
   ): Promise<string> {
-    const config = this.config(platform);
+    const { platform, config } = context;
     const code = this.normalizeRoleCode(dto.code);
     const permissionIds = [...new Set(dto.permissionIds ?? [])];
     try {
@@ -152,13 +152,13 @@ export class AuthorizationManagementCoreService {
 
   /** Updates role metadata with optimistic locking and post-mutation safety validation. */
   async updateRole(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     roleId: string,
     dto: UpdateAuthorizationRoleDto,
     actorAdministratorId: string,
     requestId: string | null,
   ): Promise<string> {
-    const config = this.config(platform);
+    const { platform, config } = context;
     await this.dataSource.transaction(async (manager) => {
       // Serialize recovery-capability changes so two administrators cannot both
       // observe a safe state and then remove the final recovery path.
@@ -258,12 +258,12 @@ export class AuthorizationManagementCoreService {
 
   /** Soft-deletes an unused non-system role after checking platform invariants. */
   async deleteRole(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     roleId: string,
     actorAdministratorId: string,
     requestId: string | null,
   ): Promise<AuthorizationRoleDeletionResult> {
-    const config = this.config(platform);
+    const { platform, config } = context;
     await this.dataSource.transaction(async (manager) => {
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
         await this.lockAdministrationRecovery(manager);
@@ -319,13 +319,13 @@ export class AuthorizationManagementCoreService {
 
   /** Replaces a role's complete permission set and validates effective authority before commit. */
   async replaceRolePermissions(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     roleId: string,
     dto: ReplaceRolePermissionsDto,
     actorAdministratorId: string,
     requestId: string | null,
   ): Promise<string> {
-    const config = this.config(platform);
+    const { platform, config } = context;
     const permissionIds = [...new Set(dto.permissionIds)];
     await this.dataSource.transaction(async (manager) => {
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
@@ -410,9 +410,9 @@ export class AuthorizationManagementCoreService {
 
   /** Builds the normalized role-permission matrix with deterministic ordering. */
   async matrix(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
   ): Promise<AuthorizationMatrixResult> {
-    const config = this.config(platform);
+    const { config } = context;
     const roles = await this.dataSource.query<
       { id: string; code: string; name: string }[]
     >(
@@ -456,13 +456,13 @@ export class AuthorizationManagementCoreService {
 
   /** Replaces one subject's complete role set and protects affected recovery/owner invariants. */
   async replaceSubjectRoles(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     subjectId: string,
     dto: ReplaceSubjectRolesDto,
     actorAdministratorId: string,
     requestId: string | null,
   ): Promise<string> {
-    const config = this.config(platform);
+    const { platform, config } = context;
     const roleIds = [...new Set(dto.roleIds)];
     await this.dataSource.transaction(async (manager) => {
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
@@ -659,18 +659,6 @@ export class AuthorizationManagementCoreService {
       Number(countRows[0]?.total ?? 0),
       pagination,
     );
-  }
-
-  private config(
-    platform: AuthorizationPlatform,
-  ): PlatformAuthorizationSqlConfig {
-    const config = platformAuthorizationSqlConfig(platform);
-    if (!config) {
-      throw new BusinessException(AuthorizationErrorCodes.PLATFORM_NOT_FOUND, {
-        platform,
-      });
-    }
-    return config;
   }
 
   private async findRole(

@@ -7,9 +7,11 @@ import { ProviderController } from './registration/controllers/provider.controll
 import { ProviderAccountController } from './account/controllers/provider-account.controller';
 import { ProviderAccountRepository } from './account/repositories/provider-account.repository';
 import { ProviderAccountService } from './account/services/provider-account.service';
+import { ProviderAccountCommandService } from './account/services/provider-account-command.service';
 import { ProviderAccountPolicy } from './account/helpers/provider-account.policy';
-import { CurrentProviderContext } from './account/services/current-provider-context.service';
+import { ProviderContextResolver } from './account/services/provider-context.resolver';
 import { ProviderProfileService } from './account/services/provider-profile.service';
+import { ProviderSupplyAccessPolicy } from './authorization/helpers/provider-supply-access.policy';
 import { ProviderRegistrationService } from './registration/services/provider-registration.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProviderMembership } from './authorization/entities/provider-membership.entity';
@@ -37,20 +39,24 @@ import { ProviderAuthorizationService } from './authorization/services/provider-
   providers: [
     ProviderAccountRepository,
     ProviderAccountService,
+    ProviderAccountCommandService,
     ProviderAccountPolicy,
-    CurrentProviderContext,
+    ProviderContextResolver,
     ProviderProfileService,
     ProviderRegistrationService,
     ProviderAuthorizationService,
+    ProviderSupplyAccessPolicy,
   ],
   exports: [
     ProviderAccountRepository,
     ProviderAccountService,
+    ProviderAccountCommandService,
     ProviderAccountPolicy,
-    CurrentProviderContext,
+    ProviderContextResolver,
     ProviderProfileService,
     ProviderRegistrationService,
     ProviderAuthorizationService,
+    ProviderSupplyAccessPolicy,
   ],
 })
 export class ProviderModule {}

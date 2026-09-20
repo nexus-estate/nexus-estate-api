@@ -6,12 +6,13 @@ import type {
   AuthorizationSubjectListQueryDto,
   ReplaceSubjectRolesDto,
 } from '../../dto/authorization-management.dto';
-import { AuthorizationPlatform } from '../../enums/authorization-platform.enum';
+import { type AuthorizationContext } from '../../context/authorization-context';
 import { AuthorizationManagementCoreService } from '../authorization-management.service';
 import { AuthorizationRoleRepository } from '../../repositories/roles/authorization-role.repository';
 import { AuthorizationSubjectRepository } from '../../repositories/subjects/authorization-subject.repository';
 
 @Injectable()
+/** Coordinates subject-role reads and mutations for one authorization context. */
 export class AuthorizationRoleSubjectService {
   constructor(
     private readonly core: AuthorizationManagementCoreService,
@@ -19,28 +20,38 @@ export class AuthorizationRoleSubjectService {
     private readonly subjectRepository: AuthorizationSubjectRepository,
   ) {}
 
-  listForRole(
-    platform: AuthorizationPlatform,
+  /**
+   * Lists subjects assigned to a role.
+   *
+   * The result preserves the public `{ role, items, meta }` contract.
+   */
+  async listForRole(
+    context: AuthorizationContext,
     roleId: string,
     query: AuthorizationSubjectListQueryDto,
   ): Promise<AuthorizationRoleSubjectsResult> {
-    return Promise.all([
-      this.roleRepository.findById(platform, roleId),
-      this.subjectRepository.list(platform, query, roleId),
-    ]).then(([role, subjects]) => ({ role, ...subjects }));
+    const [role, subjects] = await Promise.all([
+      this.roleRepository.findById(context, roleId),
+      this.subjectRepository.list(context, query, roleId),
+    ]);
+    return { role, ...subjects };
   }
 
-  replaceRoles(
-    platform: AuthorizationPlatform,
+  /** Replaces all roles assigned to a subject and returns updated detail. */
+  async replaceRoles(
+    context: AuthorizationContext,
     subjectId: string,
     dto: ReplaceSubjectRolesDto,
     actor: string,
     requestId: string | null,
   ): Promise<AuthorizationSubjectDetail> {
-    return this.core
-      .replaceSubjectRoles(platform, subjectId, dto, actor, requestId)
-      .then((updatedSubjectId) =>
-        this.subjectRepository.findById(platform, updatedSubjectId),
-      );
+    const updatedSubjectId = await this.core.replaceSubjectRoles(
+      context,
+      subjectId,
+      dto,
+      actor,
+      requestId,
+    );
+    return await this.subjectRepository.findById(context, updatedSubjectId);
   }
 }

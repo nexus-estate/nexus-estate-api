@@ -12,10 +12,13 @@ import {
   AuthSessionService,
   newSessionIdentifiers,
 } from '../../../../common/security/auth-session.service';
+import { CustomerTokenService } from '../../../../common/security/realm-token.service';
 import {
-  CustomerTokenService,
-  durationToMilliseconds,
-} from '../../../../common/security/realm-token.service';
+  absoluteSessionExpiry,
+  assertRefreshTokenContext,
+  buildRealmTokenPayloads,
+  resolveRefreshExpiry,
+} from '../../../../common/security/authentication-mechanics';
 import { CustomerAccountService } from '../../account/services/customer-account.service';
 import type { CustomerAuthenticationAccount } from '../../account/types/customer-account.type';
 import { LoginDto } from '../dto/login.dto';
@@ -61,7 +64,7 @@ export class CustomerAuthenticationService {
       accountId: account.id,
       refreshToken: tokens.refreshToken,
       expiresAt: this.refreshExpiry(),
-      absoluteExpiresAt: new Date(Date.now() + 30 * 86_400_000),
+      absoluteExpiresAt: absoluteSessionExpiry(),
     });
     await this.customerAccountService.updateLastLogin(account.id, new Date());
     return tokens;
@@ -73,14 +76,7 @@ export class CustomerAuthenticationService {
     try {
       payload =
         await this.tokenService.verifyRefreshToken<JwtPayload>(refreshToken);
-      if (
-        payload.tokenType !== 'refresh' ||
-        payload.realm !== 'customer' ||
-        !payload.sessionId ||
-        !payload.familyId
-      ) {
-        throw new Error('Invalid customer token context');
-      }
+      assertRefreshTokenContext(payload, 'customer');
     } catch {
       throw new BusinessException(CustomerAuthErrorCodes.TOKEN_INVALID);
     }
@@ -114,12 +110,8 @@ export class CustomerAuthenticationService {
     try {
       const payload =
         await this.tokenService.verifyRefreshToken<JwtPayload>(refreshToken);
-      if (
-        payload.realm !== 'customer' ||
-        payload.tokenType !== 'refresh' ||
-        payload.sub !== customerId ||
-        !payload.sessionId
-      ) {
+      assertRefreshTokenContext(payload, 'customer');
+      if (payload.sub !== customerId) {
         throw new Error('Invalid customer refresh context');
       }
       await this.sessionService.revoke(
@@ -137,18 +129,11 @@ export class CustomerAuthenticationService {
     principal: CustomerPrincipal,
     identifiers: { sessionId: string; familyId: string },
   ): Promise<TokenPair> {
-    const accessPayload: JwtPayload = {
-      sub: principal.id,
-      realm: 'customer',
-      sessionId: identifiers.sessionId,
-      familyId: identifiers.familyId,
-    };
-    const refreshPayload: JwtPayload = {
-      sub: principal.id,
-      realm: 'customer',
-      sessionId: identifiers.sessionId,
-      familyId: identifiers.familyId,
-    };
+    const { accessPayload, refreshPayload } = buildRealmTokenPayloads(
+      principal.id,
+      'customer',
+      identifiers,
+    );
 
     return {
       accessToken: await this.tokenService.signAccessToken(accessPayload),
@@ -157,11 +142,10 @@ export class CustomerAuthenticationService {
   }
 
   private refreshExpiry(): Date {
-    const duration = this.configService.get<string>(
+    return resolveRefreshExpiry(
+      this.configService,
       'CUSTOMER_JWT_REFRESH_EXPIRES_IN',
-      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
     );
-    return new Date(Date.now() + durationToMilliseconds(duration));
   }
 
   private toPrincipal(

@@ -1,19 +1,18 @@
 import { Injectable } from '@nestjs/common';
+
 import { ProvinceRepo } from '../repositories/province.repo';
 import { WardRepository } from '../repositories/ward.repo';
-import {
-  Province,
-  Ward,
-} from '../../../../modules/location/administrative-division/entities/location.entity';
+import { Province, Ward } from '../entities/location.entity';
 
+/** Application service for administrative-division reference data. */
 @Injectable()
-export class locationService {
+export class LocationService {
   constructor(
     private readonly provinceRepository: ProvinceRepo,
     private readonly wardRepository: WardRepository,
   ) {}
 
-  /** Returns all seed provinces in deterministic display order. */
+  /** Returns all provinces in deterministic display order. */
   async getAllProvinces(): Promise<Province[]> {
     return this.provinceRepository.findAll();
   }

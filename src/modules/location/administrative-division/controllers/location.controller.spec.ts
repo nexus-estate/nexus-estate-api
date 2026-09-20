@@ -1,20 +1,17 @@
-import {
-  Province,
-  Ward,
-} from '../../../modules/location/administrative-division/entities/location.entity';
-import { locationService } from './services/location.service';
-import { locationController } from './location.controller';
+import { Province, Ward } from '../entities/location.entity';
+import { LocationService } from '../services/location.service';
+import { LocationController } from './location.controller';
 
-describe('locationController', () => {
+describe('LocationController', () => {
   it('returns provinces from the location service', async () => {
     const provinces = [{ id: 'province-id' }] as Province[];
     const getAllProvinces = jest.fn().mockResolvedValue(provinces);
     const service = {
       getAllProvinces,
       getWardsByProvinceId: jest.fn(),
-    } as unknown as locationService;
+    } as unknown as LocationService;
 
-    await expect(new locationController(service).getProvinces()).resolves.toBe(
+    await expect(new LocationController(service).getProvinces()).resolves.toBe(
       provinces,
     );
     expect(getAllProvinces).toHaveBeenCalledWith();
@@ -27,10 +24,10 @@ describe('locationController', () => {
     const service = {
       getAllProvinces: jest.fn(),
       getWardsByProvinceId,
-    } as unknown as locationService;
+    } as unknown as LocationService;
 
     await expect(
-      new locationController(service).getWardsByProvince(provinceId),
+      new LocationController(service).getWardsByProvince(provinceId),
     ).resolves.toBe(wards);
     expect(getWardsByProvinceId).toHaveBeenCalledWith(provinceId);
   });

@@ -13,7 +13,7 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { CommonModule } from '../../src/common/common.module';
 import { AuthSession } from '../../src/common/security/entities/auth-session.entity';
-import { LocationModule } from '../../src/database/seed/locations/location.module';
+import { LocationModule } from '../../src/modules/location/location.module';
 import { CustomerModule } from '../../src/modules/customer/customer.module';
 import { Estate } from '../../src/modules/estate/property/entities';
 import { EstateModule } from '../../src/modules/estate/estate.module';

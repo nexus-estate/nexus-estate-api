@@ -5,8 +5,18 @@ import {
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
 import { AuthorizationPermissionRepository } from './authorization-permission.repository';
+import { createAuthorizationContext } from '../../context/authorization-context';
 
 describe('AuthorizationPermissionRepository', () => {
+  const marketplaceContext = createAuthorizationContext(
+    AuthorizationPlatform.MARKETPLACE,
+  );
+  const providerContext = createAuthorizationContext(
+    AuthorizationPlatform.PROVIDER,
+  );
+  const administrationContext = createAuthorizationContext(
+    AuthorizationPlatform.ADMINISTRATION,
+  );
   const permission = {
     id: 'permission-1',
     code: 'listing:read',
@@ -32,7 +42,7 @@ describe('AuthorizationPermissionRepository', () => {
     const repository = new AuthorizationPermissionRepository({
       query,
     } as never);
-    const result = await repository.list(AuthorizationPlatform.MARKETPLACE, {
+    const result = await repository.list(marketplaceContext, {
       page: 2,
       limit: 1,
       q: 'listing',
@@ -91,7 +101,7 @@ describe('AuthorizationPermissionRepository', () => {
       query,
     } as never);
 
-    await repository.list(AuthorizationPlatform.PROVIDER, {
+    await repository.list(providerContext, {
       page: 1,
       limit: 20,
       includeDeprecated: false,
@@ -115,7 +125,7 @@ describe('AuthorizationPermissionRepository', () => {
     } as never);
 
     await expect(
-      repository.findById(AuthorizationPlatform.ADMINISTRATION, 'permission-1'),
+      repository.findById(administrationContext, 'permission-1'),
     ).resolves.toMatchObject({
       id: 'permission-1',
       rolesUsingCount: 1,
@@ -130,7 +140,7 @@ describe('AuthorizationPermissionRepository', () => {
     await expect(
       new AuthorizationPermissionRepository({
         query: rolesQuery,
-      } as never).roles(AuthorizationPlatform.ADMINISTRATION, 'permission-1'),
+      } as never).roles(administrationContext, 'permission-1'),
     ).resolves.toEqual({ items: roles });
   });
 
@@ -141,7 +151,7 @@ describe('AuthorizationPermissionRepository', () => {
     } as never);
 
     await expect(
-      repository.findById(AuthorizationPlatform.MARKETPLACE, 'missing'),
+      repository.findById(marketplaceContext, 'missing'),
     ).rejects.toMatchObject({
       errorCode: AuthorizationErrorCodes.PERMISSION_NOT_FOUND.code,
     });
