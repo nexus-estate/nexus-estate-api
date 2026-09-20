@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Province } from '../../../../modules/location/administrative-division/entities/location.entity';
 import { Repository } from 'typeorm';
 
-@Injectable() // Khai bao 1 class duoc quan li voi nestJs , dung de inject vao cac class khasc
-/** Reads seeded province reference rows for location queries. */
+import { Province } from '../entities/location.entity';
+
+/** Reads province reference rows for location queries. */
+@Injectable()
 export class ProvinceRepo {
   constructor(
     @InjectRepository(Province)
-    private readonly repository: Repository<Province>, // private is access modifier , bien chi duoc dung duy nhat ben trong Province repo
+    private readonly repository: Repository<Province>,
   ) {}
 
   async findById(id: string): Promise<Province | null> {
@@ -17,6 +18,7 @@ export class ProvinceRepo {
       .where('province.id = :id', { id })
       .getOne();
   }
+
   async findAll(): Promise<Province[]> {
     return this.repository.createQueryBuilder('province').getMany();
   }

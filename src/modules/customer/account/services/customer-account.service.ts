@@ -1,9 +1,8 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
-import { BaseService } from '../../../../services/abstraction-services';
 import { CustomerAccountErrorCodes } from '../errors/customer-account-error-codes';
 import { CustomerAccountRepository } from '../repositories/customer-account.repository';
 import type { CreateCustomerAccountInput } from '../dto/customer-account.dto';
@@ -11,23 +10,17 @@ import type {
   CustomerAuthenticationAccount,
   SafeCustomerAccount,
 } from '../types/customer-account.type';
-import { CustomerAccount } from '../entities/customer-account.entity';
 
-/** Coordinates customer-account validation and persistence. */
+/**
+ * Coordinates customer-account validation and persistence. Customer creation
+ * never depends on global RBAC; the legacy `role_id` column is read only as
+ * persistence compatibility and is not part of the registration contract.
+ */
 @Injectable()
-export class CustomerAccountService extends BaseService<
-  CustomerAccount,
-  CustomerAccountCreateData
-> {
+export class CustomerAccountService {
   constructor(
     private readonly customerAccountRepository: CustomerAccountRepository,
-    @Optional() legacyRoleLookup?: LegacyRoleLookup,
-  ) {
-    super(customerAccountRepository, 'CustomerAccount');
-    this.legacyRoleLookup = legacyRoleLookup;
-  }
-
-  private readonly legacyRoleLookup?: LegacyRoleLookup;
+  ) {}
 
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
@@ -46,7 +39,6 @@ export class CustomerAccountService extends BaseService<
     return normalizedEmail;
   }
 
-  /** Returns a customer account without exposing its password hash. */
   /** Returns a safe customer projection by exact identifier without exposing credentials. */
   async findById(id: string): Promise<SafeCustomerAccount> {
     const customerAccount =
@@ -62,7 +54,6 @@ export class CustomerAccountService extends BaseService<
     return customerAccount;
   }
 
-  /** Finds a customer account by its normalized email address. */
   /** Finds a safe customer projection by normalized email for public account flows. */
   async findByEmail(email: string): Promise<SafeCustomerAccount | null> {
     const normalizedEmail = this.prepareEmail(email);
@@ -70,7 +61,6 @@ export class CustomerAccountService extends BaseService<
     return this.customerAccountRepository.findByEmail(normalizedEmail);
   }
 
-  /** Loads the credential projection required by customer authentication. */
   /** Loads the password-bearing authentication projection for credential verification only. */
   async findByEmailForAuthentication(
     email: string,
@@ -82,26 +72,11 @@ export class CustomerAccountService extends BaseService<
     );
   }
 
-  /** Creates a customer account; legacy role input is compatibility-only. */
   /** Creates a customer account and translates persistence conflicts to stable business errors. */
   async handleCreate(
     input: CreateCustomerAccountInput,
   ): Promise<SafeCustomerAccount> {
     const normalizedEmail = this.prepareEmail(input.email);
-
-    if (!normalizedEmail) {
-      throw new BusinessException(
-        CommonErrorCodes.VALIDATION_ERROR,
-        'Email is required',
-      );
-    }
-
-    // Isolated legacy callers may still provide the former lookup service.
-    // CustomerModule does not provide it, so production registration never
-    // depends on global RBAC.
-    if (input.roleId && this.legacyRoleLookup) {
-      await this.legacyRoleLookup.findById(input.roleId);
-    }
 
     const existingCustomerAccount =
       await this.customerAccountRepository.findByEmail(normalizedEmail);
@@ -117,7 +92,6 @@ export class CustomerAccountService extends BaseService<
       return await this.customerAccountRepository.createCustomerAccount({
         email: normalizedEmail,
         password: input.passwordHash,
-        ...(input.roleId ? { roleId: input.roleId } : {}),
       });
     } catch (error) {
       if (error instanceof QueryFailedError) {
@@ -137,7 +111,6 @@ export class CustomerAccountService extends BaseService<
     }
   }
 
-  /** Stores the latest successful customer authentication timestamp. */
   /** Records the latest successful login without changing customer authorization state. */
   async updateLastLogin(customerId: string, lastLogin: Date): Promise<void> {
     const updated = await this.customerAccountRepository.updateLastLogin(
@@ -153,12 +126,3 @@ export class CustomerAccountService extends BaseService<
     }
   }
 }
-
-/** Fields accepted by the inherited generic customer-account create operation. */
-type CustomerAccountCreateData = Pick<CustomerAccount, 'email' | 'password'> & {
-  roleId?: string;
-};
-
-type LegacyRoleLookup = {
-  findById(id: string): Promise<unknown>;
-};

@@ -21,6 +21,7 @@ import {
   UpdateProviderAccountDto,
 } from '../dto/index';
 import { ProviderAccountService } from '../services/provider-account.service';
+import { ProviderAccountCommandService } from '../services/provider-account-command.service';
 import { CustomerJwtAuthGuard } from '../../../customer/authentication/guards/customer-jwt-auth.guard';
 
 /** HTTP endpoints for the authenticated customer's provider account. */
@@ -31,6 +32,7 @@ import { CustomerJwtAuthGuard } from '../../../customer/authentication/guards/cu
 export class ProviderAccountController {
   constructor(
     private readonly providerAccountService: ProviderAccountService,
+    private readonly providerAccountCommandService: ProviderAccountCommandService,
   ) {}
 
   @Post()
@@ -45,11 +47,15 @@ export class ProviderAccountController {
   @ApiConflictResponse({ description: 'PROVIDER_ACCOUNT_ALREADY_EXISTS' })
   @ApiUnauthorizedResponse({ description: 'Authentication required' })
   /** Creates the provider account for the authenticated customer. */
-  create(
+  async create(
     @CurrentUser() customer: CustomerPrincipal,
     @Body() dto: CreateProviderAccountDto,
   ): Promise<ProviderAccountResponse> {
-    return this.providerAccountService.createForCustomer(customer.id, dto);
+    const providerId = await this.providerAccountCommandService.createPending(
+      customer.id,
+      dto,
+    );
+    return this.providerAccountService.getCurrent(customer.id, providerId);
   }
 
   @Get()

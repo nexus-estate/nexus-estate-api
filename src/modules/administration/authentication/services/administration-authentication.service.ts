@@ -12,10 +12,13 @@ import {
   AuthSessionService,
   newSessionIdentifiers,
 } from '../../../../common/security/auth-session.service';
+import { AdministrationTokenService } from '../../../../common/security/realm-token.service';
 import {
-  AdministrationTokenService,
-  durationToMilliseconds,
-} from '../../../../common/security/realm-token.service';
+  absoluteSessionExpiry,
+  assertRefreshTokenContext,
+  buildRealmTokenPayloads,
+  resolveRefreshExpiry,
+} from '../../../../common/security/authentication-mechanics';
 import { AdminLoginDto } from '../dto/admin-login.dto';
 import { AdministrationErrorCodes } from '../errors/administration-error-codes';
 import { AdministrationAccountRepository } from '../repositories/administration-account.repository';
@@ -65,7 +68,7 @@ export class AdministrationAuthenticationService {
       accountId: account.id,
       refreshToken: tokens.refreshToken,
       expiresAt: this.refreshExpiry(),
-      absoluteExpiresAt: new Date(Date.now() + 30 * 86_400_000),
+      absoluteExpiresAt: absoluteSessionExpiry(),
     });
     await this.accountRepository.updateLastLogin(account.id, new Date());
     return tokens;
@@ -77,14 +80,7 @@ export class AdministrationAuthenticationService {
     try {
       payload =
         await this.tokenService.verifyRefreshToken<JwtPayload>(refreshToken);
-      if (
-        payload.tokenType !== 'refresh' ||
-        payload.realm !== 'administration' ||
-        !payload.sessionId ||
-        !payload.familyId
-      ) {
-        throw new Error('Invalid administration token context');
-      }
+      assertRefreshTokenContext(payload, 'administration');
     } catch {
       throw new BusinessException(AdministrationErrorCodes.TOKEN_INVALID);
     }
@@ -129,12 +125,8 @@ export class AdministrationAuthenticationService {
     try {
       const payload =
         await this.tokenService.verifyRefreshToken<JwtPayload>(refreshToken);
-      if (
-        payload.realm !== 'administration' ||
-        payload.tokenType !== 'refresh' ||
-        payload.sub !== administratorId ||
-        !payload.sessionId
-      ) {
+      assertRefreshTokenContext(payload, 'administration');
+      if (payload.sub !== administratorId) {
         throw new Error('Invalid administration refresh context');
       }
       await this.sessionService.revoke(
@@ -152,18 +144,11 @@ export class AdministrationAuthenticationService {
     principal: AdministrationPrincipal,
     identifiers: { sessionId: string; familyId: string },
   ): Promise<TokenPair> {
-    const accessPayload: JwtPayload = {
-      sub: principal.id,
-      realm: 'administration',
-      sessionId: identifiers.sessionId,
-      familyId: identifiers.familyId,
-    };
-    const refreshPayload: JwtPayload = {
-      sub: principal.id,
-      realm: 'administration',
-      sessionId: identifiers.sessionId,
-      familyId: identifiers.familyId,
-    };
+    const { accessPayload, refreshPayload } = buildRealmTokenPayloads(
+      principal.id,
+      'administration',
+      identifiers,
+    );
     return {
       accessToken: await this.tokenService.signAccessToken(accessPayload),
       refreshToken: await this.tokenService.signRefreshToken(refreshPayload),
@@ -171,11 +156,10 @@ export class AdministrationAuthenticationService {
   }
 
   private refreshExpiry(): Date {
-    const duration = this.configService.get<string>(
+    return resolveRefreshExpiry(
+      this.configService,
       'ADMIN_JWT_REFRESH_EXPIRES_IN',
-      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
     );
-    return new Date(Date.now() + durationToMilliseconds(duration));
   }
 
   private toPrincipal(

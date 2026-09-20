@@ -5,16 +5,19 @@ import {
   ProviderType,
   ProviderVerificationStatus,
 } from '../enums/account.enums';
-import { CurrentProviderContextValue } from '../services/current-provider-context.service';
+import type { ProviderContext } from '../services/provider-context.resolver';
 
 describe('ProviderAccountPolicy', () => {
   const policy = new ProviderAccountPolicy();
-  const context: CurrentProviderContextValue = {
+  const context: ProviderContext = {
     customerId: '10000000-0000-4000-8000-000000000001',
     providerId: '20000000-0000-4000-8000-000000000001',
     providerType: ProviderType.INDIVIDUAL,
     providerStatus: ProviderStatus.ACTIVE,
     verificationStatus: ProviderVerificationStatus.VERIFIED,
+    providerDisplayName: 'Provider',
+    membershipId: '30000000-0000-4000-8000-000000000001',
+    membershipStatus: 'ACTIVE',
   };
 
   const expectPolicyError = (callback: () => void, errorCode: string): void => {

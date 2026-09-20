@@ -24,20 +24,20 @@ mutate supply until an administrator changes them to `VERIFIED`. Profile updates
 initially allow only `display_name`.
 
 Future Property and Listing entities should reference `provider_id`; services
-should resolve the reusable `CurrentProviderContext` rather than repeatedly
+should resolve the reusable `ProviderContextResolver` rather than repeatedly
 reimplementing CustomerAccount-to-ProviderAccount lookup.
 
 Provider platform writes must not require `ROLES.PROVIDER`. The authenticated
 principal remains a `CustomerAccount`; supply capability is resolved through
-`CurrentProviderContext` and enforced by `ProviderAccountPolicy`, which
-requires `status = ACTIVE` and `verification_status = VERIFIED` before
-returning the canonical `providerId` for ownership.
+`ProviderContextResolver` and enforced by `ProviderAccountPolicy` (active and
+verified) plus `ProviderSupplyAccessPolicy` (supply write/read access).
 
 For example, a future Property command should follow this boundary:
 
 ```text
 authenticated CustomerAccount
-  -> ProviderAccountService.requireActiveProvider(customerId)
+  -> ProviderContextResolver.resolve(customerId)
+  -> ProviderSupplyAccessPolicy.requireWriteAccess(context)
   -> providerId
   -> Property.provider_id
 ```

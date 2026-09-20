@@ -1,8 +1,13 @@
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
 import { Estate } from '../../../estate/property/entities/estate.entity';
 import { EstateRepo } from '../../../estate/property/repositories/estate.repo';
-import { ProviderAccountService } from '../../../provider/account/services/provider-account.service';
-import { ProviderAuthorizationService } from '../../../provider/authorization/services/provider-authorization.service';
+import { ProviderContextResolver } from '../../../provider/account/services/provider-context.resolver';
+import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/helpers/provider-supply-access.policy';
+import {
+  ProviderStatus,
+  ProviderType,
+  ProviderVerificationStatus,
+} from '../../../provider/account/enums/account.enums';
 import { CreateListingDto } from '../dto/create-listing.dto';
 import { Listing, ListingStatus } from '../entities';
 import { ListingRepo } from '../repositories/listing.repo';
@@ -53,17 +58,27 @@ describe('ListingService', () => {
     const estateRepository = {
       findById: jest.fn().mockResolvedValue(estate),
     } as unknown as EstateRepo;
-    const providerAccountService = {
-      requireActiveProvider: jest.fn().mockResolvedValue({ providerId }),
-    } as unknown as ProviderAccountService;
-    const providerAuthorizationService = {
-      requireLegacyEstateOwner: jest.fn().mockResolvedValue(undefined),
-    } as unknown as ProviderAuthorizationService;
+    const providerContextResolver = {
+      resolve: jest.fn().mockResolvedValue({
+        customerId,
+        providerId,
+        providerType: ProviderType.INDIVIDUAL,
+        providerStatus: ProviderStatus.ACTIVE,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+        providerDisplayName: 'Provider',
+        membershipId: '80000000-0000-4000-8000-000000000001',
+        membershipStatus: 'ACTIVE',
+      }),
+    } as unknown as ProviderContextResolver;
+    const supplyAccessPolicy = {
+      requireReadAccess: jest.fn(),
+      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
+    } as unknown as ProviderSupplyAccessPolicy;
     const service = new ListingService(
       listingRepository,
       estateRepository,
-      providerAccountService,
-      providerAuthorizationService,
+      providerContextResolver,
+      supplyAccessPolicy,
     );
 
     const dto: CreateListingDto = { estateId };
@@ -86,14 +101,27 @@ describe('ListingService', () => {
         customerId: '70000000-0000-4000-8000-000000000001',
       }),
     } as unknown as EstateRepo;
-    const providerAccountService = {
-      requireActiveProvider: jest.fn().mockResolvedValue({ providerId }),
-    } as unknown as ProviderAccountService;
+    const providerContextResolver = {
+      resolve: jest.fn().mockResolvedValue({
+        customerId,
+        providerId,
+        providerType: ProviderType.INDIVIDUAL,
+        providerStatus: ProviderStatus.ACTIVE,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+        providerDisplayName: 'Provider',
+        membershipId: '80000000-0000-4000-8000-000000000001',
+        membershipStatus: 'ACTIVE',
+      }),
+    } as unknown as ProviderContextResolver;
+    const supplyAccessPolicy = {
+      requireReadAccess: jest.fn(),
+      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
+    } as unknown as ProviderSupplyAccessPolicy;
     const service = new ListingService(
       listingRepository,
       estateRepository,
-      providerAccountService,
-      {} as ProviderAuthorizationService,
+      providerContextResolver,
+      supplyAccessPolicy,
     );
 
     await expect(

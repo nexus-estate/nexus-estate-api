@@ -1,10 +1,6 @@
 import { QueryFailedError } from 'typeorm';
 
-import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
-import { RbacErrorCodes } from '../../../rbac/legacy-global/errors/rbac-error-codes';
-import { RoleService } from '../../../rbac/legacy-global/services/role.service';
-import { Role } from '../../../rbac/legacy-global/entities/role.entity';
 import { CustomerAccount } from '../entities/customer-account.entity';
 import { CustomerAccountErrorCodes } from '../errors/customer-account-error-codes';
 import { CustomerAccountRepository } from '../repositories/customer-account.repository';
@@ -24,27 +20,16 @@ type CustomerAccountRepositoryMock = {
   >;
 };
 
-type RoleServiceMock = {
-  findById: jest.MockedFunction<RoleService['findById']>;
-};
-
 describe('CustomerAccountService', () => {
   let service: CustomerAccountService;
   let customerAccountRepository: CustomerAccountRepositoryMock;
-  let roleService: RoleServiceMock;
 
   const user = {
     id: 'user-id',
     email: 'customer@nexus.test',
-    roleId: 'role-id',
     isEmailVerified: false,
     lastLogin: null,
   } as CustomerAccount;
-
-  const role = {
-    id: 'role-id',
-    name: 'customer',
-  } as Role;
 
   beforeEach(() => {
     customerAccountRepository = {
@@ -54,12 +39,8 @@ describe('CustomerAccountService', () => {
       createCustomerAccount: jest.fn(),
       updateLastLogin: jest.fn(),
     };
-    roleService = {
-      findById: jest.fn(),
-    };
     service = new CustomerAccountService(
       customerAccountRepository as unknown as CustomerAccountRepository,
-      roleService,
     );
   });
 
@@ -73,7 +54,7 @@ describe('CustomerAccountService', () => {
       );
     });
 
-    it('throws USER_NOT_FOUND when the user does not exist', async () => {
+    it('throws CUSTOMER_ACCOUNT_NOT_FOUND when the user does not exist', async () => {
       customerAccountRepository.findSafeById.mockResolvedValue(null);
 
       await expect(service.findById('missing-id')).rejects.toMatchObject({
@@ -106,34 +87,18 @@ describe('CustomerAccountService', () => {
     ).toHaveBeenCalledWith('customer@nexus.test');
   });
 
-  describe('create', () => {
+  describe('handleCreate', () => {
     const input = {
       email: '  CUSTOMER@NEXUS.TEST  ',
       passwordHash: '$2b$10$hashed-password',
-      roleId: role.id,
     };
 
-    it('rejects an empty normalized email without querying dependencies', async () => {
+    it('rejects an empty normalized email without querying persistence', async () => {
       await expect(
         service.handleCreate({ ...input, email: '   ' }),
       ).rejects.toMatchObject({
         errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
       });
-      expect(roleService.findById).not.toHaveBeenCalled();
-      expect(customerAccountRepository.findByEmail).not.toHaveBeenCalled();
-      expect(
-        customerAccountRepository.createCustomerAccount,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('does not create a user when the role does not exist', async () => {
-      const roleError = new BusinessException(
-        RbacErrorCodes.ROLE_NOT_FOUND,
-        input.roleId,
-      );
-      roleService.findById.mockRejectedValue(roleError);
-
-      await expect(service.handleCreate(input)).rejects.toBe(roleError);
       expect(customerAccountRepository.findByEmail).not.toHaveBeenCalled();
       expect(
         customerAccountRepository.createCustomerAccount,
@@ -141,7 +106,6 @@ describe('CustomerAccountService', () => {
     });
 
     it('rejects an existing normalized email without inserting', async () => {
-      roleService.findById.mockResolvedValue(role);
       customerAccountRepository.findByEmail.mockResolvedValue(user);
 
       await expect(service.handleCreate(input)).rejects.toMatchObject({
@@ -156,7 +120,6 @@ describe('CustomerAccountService', () => {
     });
 
     it('persists normalized email with the supplied password hash', async () => {
-      roleService.findById.mockResolvedValue(role);
       customerAccountRepository.findByEmail.mockResolvedValue(null);
       customerAccountRepository.createCustomerAccount.mockResolvedValue(user);
 
@@ -166,11 +129,10 @@ describe('CustomerAccountService', () => {
       ).toHaveBeenCalledWith({
         email: 'customer@nexus.test',
         password: input.passwordHash,
-        roleId: input.roleId,
       });
     });
 
-    it('maps PostgreSQL unique violation 23505 to USER_EMAIL_EXISTS', async () => {
+    it('maps PostgreSQL unique violation 23505 to CUSTOMER_ACCOUNT_EMAIL_EXISTS', async () => {
       const driverError = Object.assign(new Error('duplicate key'), {
         code: '23505',
       });
@@ -179,7 +141,6 @@ describe('CustomerAccountService', () => {
         [],
         driverError,
       );
-      roleService.findById.mockResolvedValue(role);
       customerAccountRepository.findByEmail.mockResolvedValue(null);
       customerAccountRepository.createCustomerAccount.mockRejectedValue(
         queryError,
@@ -192,7 +153,6 @@ describe('CustomerAccountService', () => {
 
     it('rethrows non-duplicate database errors unchanged', async () => {
       const databaseError = new Error('connection lost');
-      roleService.findById.mockResolvedValue(role);
       customerAccountRepository.findByEmail.mockResolvedValue(null);
       customerAccountRepository.createCustomerAccount.mockRejectedValue(
         databaseError,
@@ -217,7 +177,7 @@ describe('CustomerAccountService', () => {
       );
     });
 
-    it('throws USER_NOT_FOUND when the repository does not update a user', async () => {
+    it('throws CUSTOMER_ACCOUNT_NOT_FOUND when the repository does not update a user', async () => {
       customerAccountRepository.updateLastLogin.mockResolvedValue(false);
 
       await expect(

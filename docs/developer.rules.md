@@ -111,9 +111,9 @@ Do not move a feature into `common` merely to avoid choosing an owner.
 - Administration may call Provider application services for review workflows,
   but Administration permissions remain Administration-owned.
 - Estate/property uses customer authentication plus
-  `ProviderAccountService.requireActiveProvider()` and business ownership
-  rules. It must not use `RoleService`, `RoleGuard`, `PermissionsGuard`, or
-  `ROLES.PROVIDER`.
+  `ProviderContextResolver` and `ProviderSupplyAccessPolicy` for provider
+  context and supply access, together with business ownership rules. It must
+  not use `RoleService`, `RoleGuard`, `PermissionsGuard`, or `ROLES.PROVIDER`.
 - The legacy `rbac/legacy-global` feature may be imported only by compatibility
   code, historical migrations, or explicitly quarantined legacy tests.
 - Do not create circular dependencies between feature modules. If a cycle

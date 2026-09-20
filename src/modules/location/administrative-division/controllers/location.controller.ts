@@ -1,17 +1,15 @@
 import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { locationService } from './services/location.service';
-import {
-  Province,
-  Ward,
-} from '../../../modules/location/administrative-division/entities/location.entity';
-import { Public } from '../../../common/decorators/public.decorator';
 
+import { Public } from '../../../../common/decorators/public.decorator';
+import { LocationService } from '../services/location.service';
+import { Province, Ward } from '../entities/location.entity';
+
+/** Serves reference location data used by address selection flows. */
 @ApiTags('Locations')
 @Controller('locations')
-/** Serves reference location data used by address selection flows. */
-export class locationController {
-  constructor(private readonly locationService: locationService) {}
+export class LocationController {
+  constructor(private readonly locationService: LocationService) {}
 
   @Get('provinces')
   @Public()

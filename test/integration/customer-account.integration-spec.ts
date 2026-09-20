@@ -24,7 +24,6 @@ describe('Customer account (PostgreSQL integration)', () => {
   let dataSource: DataSource;
   let userRepository: CustomerAccountRepository;
   let userService: CustomerAccountService;
-  let role: Role;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine')
@@ -57,7 +56,6 @@ describe('Customer account (PostgreSQL integration)', () => {
     dataSource = module.get(DataSource);
     userRepository = module.get(CustomerAccountRepository);
     userService = module.get(CustomerAccountService);
-    role = await dataSource.getRepository(Role).save({ name: 'customer' });
   });
 
   afterAll(async () => {
@@ -65,7 +63,7 @@ describe('Customer account (PostgreSQL integration)', () => {
     await container?.stop();
   });
 
-  it('resolves CustomerAccountService with its RBAC dependency', () => {
+  it('resolves CustomerAccountService without a global RBAC dependency', () => {
     expect(userService).toBeDefined();
   });
 
@@ -75,7 +73,6 @@ describe('Customer account (PostgreSQL integration)', () => {
     const created = await userService.handleCreate({
       email,
       passwordHash,
-      roleId: role.id,
     });
 
     const normalLookup = await userService.findByEmail(
@@ -97,7 +94,6 @@ describe('Customer account (PostgreSQL integration)', () => {
       userRepository.create({
         email: 'customer@nexus.test',
         password: '$2b$10$another-password-hash',
-        roleId: role.id,
       }),
     ).rejects.toBeInstanceOf(QueryFailedError);
   });
