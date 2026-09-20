@@ -2,17 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 import { BusinessException } from '../../../../../common/exceptions/business.exception';
-import { PaginationHelper } from '../../../../../utils/helpers/pagination.helper';
+import { PaginationHelper } from '../../../../../utils';
 import type {
-  AuthorizationPermissionSummary,
   AuthorizationRoleDetail,
   AuthorizationRoleListResult,
   AuthorizationRoleSummary,
 } from '../../types/contracts/authorization-role.contract';
+import type { AuthorizationPermissionSummary } from '../../types/contracts/authorization-permission.contract';
 import { AuthorizationErrorCodes } from '../../errors/authorization-error-codes';
 import {
   AuthorizationPlatform,
   AuthorizationRoleStatus,
+  AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
 import type { AuthorizationRoleListQueryDto } from '../../dto/authorization-management.dto';
 import { platformAuthorizationSqlConfig } from '../../management/platform-authorization-config';
@@ -39,7 +40,7 @@ type PermissionRow = {
   category: string;
   resource: string;
   action: string;
-  risk_level: string;
+  risk_level: AuthorizationRiskLevel;
   is_assignable: boolean;
   deprecated_at: Date | null;
   created_at: Date;

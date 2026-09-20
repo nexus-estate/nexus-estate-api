@@ -63,7 +63,7 @@ import type {
   AuthorizationPermissionRolesResult,
 } from '../types/contracts/authorization-permission.contract';
 import type { AuthorizationSubjectDetail } from '../types/contracts/authorization-subject.contract';
-import type { AuthorizationSubjectListResult } from '../types/contracts/authorization-role.contract';
+import type { AuthorizationSubjectListResult } from '../types/contracts/authorization-subject.contract';
 import type { AuthorizationMatrixResult } from '../types/contracts/authorization-matrix.contract';
 import type {
   AuthorizationAuditResult,

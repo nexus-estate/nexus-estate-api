@@ -3,8 +3,8 @@ import { DataSource } from 'typeorm';
 
 import { BusinessException } from '../../../../../common/exceptions/business.exception';
 import { PaginationHelper } from '../../../../../utils/helpers/pagination.helper';
-import type { AuthorizationPermissionSummary } from '../../types/contracts/authorization-role.contract';
 import type {
+  AuthorizationPermissionSummary,
   AuthorizationPermissionDetail,
   AuthorizationPermissionListResult,
   AuthorizationPermissionRoleReference,
@@ -12,7 +12,10 @@ import type {
 } from '../../types/contracts/authorization-permission.contract';
 import type { AuthorizationPermissionListQueryDto } from '../../dto/authorization-management.dto';
 import { AuthorizationErrorCodes } from '../../errors/authorization-error-codes';
-import { AuthorizationPlatform } from '../../enums/authorization-platform.enum';
+import {
+  AuthorizationPlatform,
+  AuthorizationRiskLevel,
+} from '../../enums/authorization-platform.enum';
 import {
   platformAuthorizationSqlConfig,
   type PlatformAuthorizationSqlConfig,
@@ -26,7 +29,7 @@ type PermissionRow = {
   category: string;
   resource: string;
   action: string;
-  risk_level: string;
+  risk_level: AuthorizationRiskLevel;
   is_assignable: boolean;
   deprecated_at: Date | null;
   created_at: Date;

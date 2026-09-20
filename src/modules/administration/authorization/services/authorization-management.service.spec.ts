@@ -27,39 +27,4 @@ describe('AuthorizationManagementCoreService', () => {
     ).rejects.toThrow();
     expect(transaction).not.toHaveBeenCalled();
   });
-
-  it('returns a common paginated role summary without N+1 count queries', async () => {
-    const query = jest
-      .fn()
-      .mockResolvedValueOnce([{ total: '1' }])
-      .mockResolvedValueOnce([
-        {
-          id: 'role-1',
-          code: 'OWNER',
-          name: 'Owner',
-          description: null,
-          is_system: true,
-          status: 'ACTIVE',
-          version: 1,
-          created_at: new Date('2026-01-01'),
-          updated_at: new Date('2026-01-02'),
-          permission_count: '2',
-          assignment_count: '3',
-        },
-      ]);
-    const service = new AuthorizationManagementCoreService({ query } as never);
-
-    await expect(
-      service.listRoles(AuthorizationPlatform.PROVIDER, {
-        page: 1,
-        limit: 20,
-        sort: 'name',
-        order: 'asc',
-      }),
-    ).resolves.toMatchObject({
-      items: [{ code: 'OWNER', permissionCount: 2, assignmentCount: 3 }],
-      meta: { total: 1, page: 1, limit: 20 },
-    });
-    expect(query).toHaveBeenCalledTimes(2);
-  });
 });

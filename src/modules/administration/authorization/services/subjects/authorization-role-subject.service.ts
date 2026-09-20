@@ -8,17 +8,26 @@ import type {
 } from '../../dto/authorization-management.dto';
 import { AuthorizationPlatform } from '../../enums/authorization-platform.enum';
 import { AuthorizationManagementCoreService } from '../authorization-management.service';
+import { AuthorizationRoleRepository } from '../../repositories/roles/authorization-role.repository';
+import { AuthorizationSubjectRepository } from '../../repositories/subjects/authorization-subject.repository';
 
 @Injectable()
 export class AuthorizationRoleSubjectService {
-  constructor(private readonly core: AuthorizationManagementCoreService) {}
+  constructor(
+    private readonly core: AuthorizationManagementCoreService,
+    private readonly roleRepository: AuthorizationRoleRepository,
+    private readonly subjectRepository: AuthorizationSubjectRepository,
+  ) {}
 
   listForRole(
     platform: AuthorizationPlatform,
     roleId: string,
     query: AuthorizationSubjectListQueryDto,
   ): Promise<AuthorizationRoleSubjectsResult> {
-    return this.core.roleSubjects(platform, roleId, query);
+    return Promise.all([
+      this.roleRepository.findById(platform, roleId),
+      this.subjectRepository.list(platform, query, roleId),
+    ]).then(([role, subjects]) => ({ role, ...subjects }));
   }
 
   replaceRoles(
@@ -28,12 +37,10 @@ export class AuthorizationRoleSubjectService {
     actor: string,
     requestId: string | null,
   ): Promise<AuthorizationSubjectDetail> {
-    return this.core.replaceSubjectRoles(
-      platform,
-      subjectId,
-      dto,
-      actor,
-      requestId,
-    );
+    return this.core
+      .replaceSubjectRoles(platform, subjectId, dto, actor, requestId)
+      .then((updatedSubjectId) =>
+        this.subjectRepository.findById(platform, updatedSubjectId),
+      );
   }
 }

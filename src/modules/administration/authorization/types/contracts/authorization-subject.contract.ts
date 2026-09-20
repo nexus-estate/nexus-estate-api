@@ -1,5 +1,18 @@
-import type { AuthorizationPermissionSummary } from './authorization-role.contract';
-import type { AuthorizationSubjectSummary } from './authorization-role.contract';
+import type { PaginatedResult } from '../../../../../services/abstraction-services/interfaces/pagination.interface';
+import type { AuthorizationPermissionSummary } from './authorization-permission.contract';
+
+export interface AuthorizationSubjectSummary {
+  id: string;
+  subjectType: string;
+  displayName: string;
+  secondaryText: string | null;
+  status: string;
+  roleCount: number;
+  roleIds: string[];
+}
+
+export type AuthorizationSubjectListResult =
+  PaginatedResult<AuthorizationSubjectSummary>;
 
 export interface AuthorizationSubjectRoleReference {
   id: string;

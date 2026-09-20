@@ -1,8 +1,10 @@
 import type { PaginatedResult } from '../../../../../services/abstraction-services/interfaces/pagination.interface';
+import type { AuthorizationRoleStatus } from '../../enums/authorization-platform.enum';
+import type { AuthorizationPermissionSummary } from './authorization-permission.contract';
 import type {
-  AuthorizationPlatform,
-  AuthorizationRoleStatus,
-} from '../../enums/authorization-platform.enum';
+  AuthorizationSubjectListResult,
+  AuthorizationSubjectSummary,
+} from './authorization-subject.contract';
 
 export interface AuthorizationRoleAllowedActions {
   updateMetadata: boolean;
@@ -28,23 +30,6 @@ export interface AuthorizationRoleSummary {
   updatedAt: Date;
 }
 
-export interface AuthorizationPermissionSummary {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  platform: AuthorizationPlatform;
-  category: string;
-  resource: string;
-  action: string;
-  riskLevel: string;
-  isAssignable: boolean;
-  isDeprecated: boolean;
-  deprecatedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface AuthorizationRoleDetail extends AuthorizationRoleSummary {
   permissions: AuthorizationPermissionSummary[];
 }
@@ -56,19 +41,6 @@ export interface AuthorizationRoleDeletionResult {
 
 export type AuthorizationRoleListResult =
   PaginatedResult<AuthorizationRoleSummary>;
-
-export interface AuthorizationSubjectSummary {
-  id: string;
-  subjectType: string;
-  displayName: string;
-  secondaryText: string | null;
-  status: string;
-  roleCount: number;
-  roleIds: string[];
-}
-
-export type AuthorizationSubjectListResult =
-  PaginatedResult<AuthorizationSubjectSummary>;
 
 export interface AuthorizationRoleSubjectsResult {
   role: AuthorizationRoleDetail;

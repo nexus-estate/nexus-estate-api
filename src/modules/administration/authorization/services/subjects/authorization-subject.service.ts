@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
-import type { AuthorizationSubjectListResult } from '../../types/contracts/authorization-role.contract';
-import type { AuthorizationSubjectDetail as SubjectDetail } from '../../types/contracts/authorization-subject.contract';
+import type {
+  AuthorizationSubjectDetail as SubjectDetail,
+  AuthorizationSubjectListResult,
+} from '../../types/contracts/authorization-subject.contract';
 import type { AuthorizationSubjectListQueryDto } from '../../dto/authorization-management.dto';
 import { AuthorizationPlatform } from '../../enums/authorization-platform.enum';
 import { AuthorizationSubjectRepository } from '../../repositories/subjects/authorization-subject.repository';
