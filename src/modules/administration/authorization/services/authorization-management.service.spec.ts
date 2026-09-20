@@ -1,9 +1,9 @@
 import { AuthorizationPlatform } from '../enums/authorization-platform.enum';
-import { AuthorizationManagementService } from './authorization-management.service';
+import { AuthorizationManagementCoreService } from './authorization-management.service';
 
-describe('AuthorizationManagementService', () => {
+describe('AuthorizationManagementCoreService', () => {
   it('advertises all independent management platforms', () => {
-    const service = new AuthorizationManagementService({} as never);
+    const service = new AuthorizationManagementCoreService({} as never);
     expect(service.platforms().items.map((item) => item.platform)).toEqual([
       AuthorizationPlatform.MARKETPLACE,
       AuthorizationPlatform.PROVIDER,
@@ -13,7 +13,7 @@ describe('AuthorizationManagementService', () => {
 
   it('rejects malformed role codes before opening a database transaction', async () => {
     const transaction = jest.fn();
-    const service = new AuthorizationManagementService({
+    const service = new AuthorizationManagementCoreService({
       transaction,
     } as never);
 
@@ -47,7 +47,7 @@ describe('AuthorizationManagementService', () => {
           assignment_count: '3',
         },
       ]);
-    const service = new AuthorizationManagementService({ query } as never);
+    const service = new AuthorizationManagementCoreService({ query } as never);
 
     await expect(
       service.listRoles(AuthorizationPlatform.PROVIDER, {

@@ -4,9 +4,17 @@ import { AuthorizationManagementController } from './authorization-management.co
 describe('AuthorizationManagementController', () => {
   it('delegates platform metadata to the management facade', () => {
     const platforms = jest.fn().mockReturnValue({ items: [] });
-    const controller = new AuthorizationManagementController({
-      platforms,
-    } as never);
+    const controller = new AuthorizationManagementController(
+      {
+        platforms,
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
 
     expect(controller.platforms()).toEqual({ items: [] });
     expect(platforms).toHaveBeenCalledTimes(1);
@@ -14,9 +22,17 @@ describe('AuthorizationManagementController', () => {
 
   it('delegates role creation with administrator identity and request id', async () => {
     const createRole = jest.fn().mockResolvedValue({ id: 'role-1' });
-    const controller = new AuthorizationManagementController({
-      createRole,
-    } as never);
+    const controller = new AuthorizationManagementController(
+      {
+        platforms: jest.fn(),
+      } as never,
+      {} as never,
+      { create: createRole } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     const request = { requestId: 'request-1' };
 
     await expect(

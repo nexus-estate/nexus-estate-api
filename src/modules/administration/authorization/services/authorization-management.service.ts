@@ -26,6 +26,29 @@ import {
   platformAuthorizationSqlConfigs,
   type PlatformAuthorizationSqlConfig,
 } from '../management/platform-authorization-config';
+import type {
+  AuthorizationRoleDetail,
+  AuthorizationRoleDeletionResult,
+  AuthorizationRoleListResult,
+  AuthorizationRoleSummary,
+  AuthorizationRoleSubjectsResult,
+  AuthorizationSubjectListResult,
+} from '../types/contracts/authorization-role.contract';
+import type {
+  AuthorizationPermissionDetail,
+  AuthorizationPermissionListResult,
+  AuthorizationPermissionRolesResult,
+} from '../types/contracts/authorization-permission.contract';
+import type { AuthorizationSubjectDetail } from '../types/contracts/authorization-subject.contract';
+import type {
+  AuthorizationMatrixPermission,
+  AuthorizationMatrixResult,
+} from '../types/contracts/authorization-matrix.contract';
+import type {
+  AuthorizationAuditResult,
+  AuthorizationPlatformsResult,
+  AuthorizationProviderMemberListResult,
+} from '../types/contracts/authorization-management.contract';
 
 type RoleRow = {
   id: string;
@@ -77,7 +100,7 @@ export class AuthorizationManagementCoreService {
     @Optional() private readonly auditService?: AuthorizationAuditService,
   ) {}
 
-  platforms() {
+  platforms(): AuthorizationPlatformsResult {
     return {
       items: [
         {
@@ -109,7 +132,7 @@ export class AuthorizationManagementCoreService {
   async listRoles(
     platform: AuthorizationPlatform,
     query: AuthorizationRoleListQueryDto,
-  ) {
+  ): Promise<AuthorizationRoleListResult> {
     const config = this.config(platform);
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['role.deleted_at IS NULL'];
@@ -170,7 +193,10 @@ export class AuthorizationManagementCoreService {
   }
 
   /** Loads one exact platform role and its non-deleted permission catalogue entries. */
-  async getRole(platform: AuthorizationPlatform, roleId: string) {
+  async getRole(
+    platform: AuthorizationPlatform,
+    roleId: string,
+  ): Promise<AuthorizationRoleDetail> {
     const config = this.config(platform);
     const role = await this.findRole(config, roleId);
     if (!role) {
@@ -208,7 +234,7 @@ export class AuthorizationManagementCoreService {
     dto: CreateAuthorizationRoleDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
+  ): Promise<AuthorizationRoleDetail> {
     const config = this.config(platform);
     const code = this.normalizeRoleCode(dto.code);
     const permissionIds = [...new Set(dto.permissionIds ?? [])];
@@ -264,7 +290,7 @@ export class AuthorizationManagementCoreService {
     dto: UpdateAuthorizationRoleDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
+  ): Promise<AuthorizationRoleDetail> {
     const config = this.config(platform);
     await this.dataSource.transaction(async (manager) => {
       // Serialize recovery-capability changes so two administrators cannot both
@@ -352,8 +378,8 @@ export class AuthorizationManagementCoreService {
         targetType: 'ROLE',
         targetId: roleId,
         requestId,
-        beforeState: this.roleSummary(current, platform),
-        afterState: this.roleSummary(updatedRole, platform),
+        beforeState: { ...this.roleSummary(current, platform) },
+        afterState: { ...this.roleSummary(updatedRole, platform) },
         reason: null,
       });
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
@@ -369,7 +395,7 @@ export class AuthorizationManagementCoreService {
     roleId: string,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
+  ): Promise<AuthorizationRoleDeletionResult> {
     const config = this.config(platform);
     await this.dataSource.transaction(async (manager) => {
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
@@ -413,7 +439,7 @@ export class AuthorizationManagementCoreService {
         targetType: 'ROLE',
         targetId: roleId,
         requestId,
-        beforeState: this.roleSummary(role, platform),
+        beforeState: { ...this.roleSummary(role, platform) },
         afterState: { deletedAt: new Date().toISOString() },
         reason: null,
       });
@@ -431,7 +457,7 @@ export class AuthorizationManagementCoreService {
     dto: ReplaceRolePermissionsDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
+  ): Promise<AuthorizationRoleDetail> {
     const config = this.config(platform);
     const permissionIds = [...new Set(dto.permissionIds)];
     await this.dataSource.transaction(async (manager) => {
@@ -519,7 +545,7 @@ export class AuthorizationManagementCoreService {
   async listPermissions(
     platform: AuthorizationPlatform,
     query: AuthorizationPermissionListQueryDto,
-  ) {
+  ): Promise<AuthorizationPermissionListResult> {
     const config = this.config(platform);
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['permission.deleted_at IS NULL'];
@@ -576,7 +602,10 @@ export class AuthorizationManagementCoreService {
   }
 
   /** Retrieves one exact permission and its platform-local usage information. */
-  async getPermission(platform: AuthorizationPlatform, permissionId: string) {
+  async getPermission(
+    platform: AuthorizationPlatform,
+    permissionId: string,
+  ): Promise<AuthorizationPermissionDetail> {
     const config = this.config(platform);
     const rows = await this.dataSource.query<PermissionRow[]>(
       `SELECT id, code, name, description, category, resource, action,
@@ -607,7 +636,10 @@ export class AuthorizationManagementCoreService {
   }
 
   /** Lists roles using an exact platform permission identifier. */
-  async permissionRoles(platform: AuthorizationPlatform, permissionId: string) {
+  async permissionRoles(
+    platform: AuthorizationPlatform,
+    permissionId: string,
+  ): Promise<AuthorizationPermissionRolesResult> {
     const permission = await this.getPermission(platform, permissionId);
     return { items: permission.rolesUsing };
   }
@@ -617,14 +649,16 @@ export class AuthorizationManagementCoreService {
     platform: AuthorizationPlatform,
     roleId: string,
     query: AuthorizationSubjectListQueryDto,
-  ) {
+  ): Promise<AuthorizationRoleSubjectsResult> {
     const role = await this.getRole(platform, roleId);
     const subjects = await this.listSubjects(platform, query, roleId);
     return { role, ...subjects };
   }
 
   /** Builds the normalized role-permission matrix with deterministic ordering. */
-  async matrix(platform: AuthorizationPlatform) {
+  async matrix(
+    platform: AuthorizationPlatform,
+  ): Promise<AuthorizationMatrixResult> {
     const config = this.config(platform);
     const roles = await this.dataSource.query<
       { id: string; code: string; name: string }[]
@@ -640,7 +674,7 @@ export class AuthorizationManagementCoreService {
     >(
       `SELECT role_id, permission_id FROM ${config.rolePermissionTable} ORDER BY role_id, permission_id`,
     );
-    const permissionGroups = new Map<string, unknown[]>();
+    const permissionGroups = new Map<string, AuthorizationMatrixPermission[]>();
     for (const permission of permissions) {
       const group = permissionGroups.get(permission.category) ?? [];
       group.push({
@@ -672,7 +706,7 @@ export class AuthorizationManagementCoreService {
     platform: AuthorizationPlatform,
     query: AuthorizationSubjectListQueryDto,
     roleId?: string,
-  ) {
+  ): Promise<AuthorizationSubjectListResult> {
     const config = this.config(platform);
     const pagination = PaginationHelper.normalize(query);
     const parameters: unknown[] = [];
@@ -750,7 +784,10 @@ export class AuthorizationManagementCoreService {
   }
 
   /** Loads one exact subject from the platform-owned identity table. */
-  async getSubject(platform: AuthorizationPlatform, subjectId: string) {
+  async getSubject(
+    platform: AuthorizationPlatform,
+    subjectId: string,
+  ): Promise<AuthorizationSubjectDetail> {
     const config = this.config(platform);
     const subjectStatus =
       platform === AuthorizationPlatform.MARKETPLACE
@@ -820,7 +857,7 @@ export class AuthorizationManagementCoreService {
          AND permission.deprecated_at IS NULL ORDER BY permission.code`,
       [roleIds.length ? roleIds : ['00000000-0000-0000-0000-000000000000']],
     );
-    const detail: Record<string, unknown> = {
+    const detail: AuthorizationSubjectDetail = {
       ...subject,
       roles,
       permissions: permissions.map((p) => this.permissionSummary(p, platform)),
@@ -853,7 +890,7 @@ export class AuthorizationManagementCoreService {
     dto: ReplaceSubjectRolesDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
+  ): Promise<AuthorizationSubjectDetail> {
     const config = this.config(platform);
     const roleIds = [...new Set(dto.roleIds)];
     await this.dataSource.transaction(async (manager) => {
@@ -940,7 +977,9 @@ export class AuthorizationManagementCoreService {
   }
 
   /** Returns paginated authorization audit records with bounded, safe filters. */
-  async audit(query: AuthorizationAuditQueryDto) {
+  async audit(
+    query: AuthorizationAuditQueryDto,
+  ): Promise<AuthorizationAuditResult> {
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['1 = 1'];
     const parameters: unknown[] = [];
@@ -997,7 +1036,7 @@ export class AuthorizationManagementCoreService {
   async providerMembers(
     providerId: string,
     query: AuthorizationSubjectListQueryDto,
-  ) {
+  ): Promise<AuthorizationProviderMemberListResult> {
     const pagination = PaginationHelper.normalize(query);
     const parameters: unknown[] = [providerId];
     const where = [
@@ -1358,7 +1397,10 @@ export class AuthorizationManagementCoreService {
     );
   }
 
-  private roleSummary(row: RoleRow, platform?: AuthorizationPlatform) {
+  private roleSummary(
+    row: RoleRow,
+    platform?: AuthorizationPlatform,
+  ): AuthorizationRoleSummary {
     const isProviderOwner =
       platform === AuthorizationPlatform.PROVIDER && row.code === 'OWNER';
     const allowedActions = {
@@ -1469,9 +1511,6 @@ type ProviderMemberRow = {
   email: string;
   role_codes: string[];
 };
-
-/** Backward-compatible export for direct service consumers during extraction. */
-export { AuthorizationManagementCoreService as AuthorizationManagementService };
 
 type SubjectRow = {
   id: string;
