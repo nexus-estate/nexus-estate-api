@@ -24,6 +24,8 @@ const technicalLayerNames = new Set([
   'provider',
   'administration',
   'audit',
+  'context',
+  'scopes',
 ]);
 const lifecycleDirectoryNames = new Set(['migrations', 'data-migrations']);
 

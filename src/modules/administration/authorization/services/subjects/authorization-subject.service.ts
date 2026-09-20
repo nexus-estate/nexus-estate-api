@@ -5,24 +5,27 @@ import type {
   AuthorizationSubjectListResult,
 } from '../../types/contracts/authorization-subject.contract';
 import type { AuthorizationSubjectListQueryDto } from '../../dto/authorization-management.dto';
-import { AuthorizationPlatform } from '../../enums/authorization-platform.enum';
+import type { AuthorizationContextInput } from '../../context/authorization-context';
 import { AuthorizationSubjectRepository } from '../../repositories/subjects/authorization-subject.repository';
 
 @Injectable()
+/** Stateless subject query service operating on explicit contexts. */
 export class AuthorizationSubjectService {
   constructor(private readonly repository: AuthorizationSubjectRepository) {}
 
+  /** Lists subjects using the selected platform's identity semantics. */
   list(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContextInput,
     query: AuthorizationSubjectListQueryDto,
   ): Promise<AuthorizationSubjectListResult> {
-    return this.repository.list(platform, query);
+    return this.repository.list(context, query);
   }
 
+  /** Loads one subject with assigned roles and effective permissions. */
   get(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContextInput,
     subjectId: string,
   ): Promise<SubjectDetail> {
-    return this.repository.findById(platform, subjectId);
+    return this.repository.findById(context, subjectId);
   }
 }

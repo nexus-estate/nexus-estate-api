@@ -16,9 +16,10 @@ import {
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
 import {
-  platformAuthorizationSqlConfig,
-  type PlatformAuthorizationSqlConfig,
-} from '../../management/platform-authorization-config';
+  authorizationContext,
+  type AuthorizationContextInput,
+} from '../../context/authorization-context';
+import type { PlatformAuthorizationSqlConfig } from '../../management/platform-authorization-config';
 
 type SubjectRow = {
   id: string;
@@ -45,15 +46,18 @@ type PermissionRow = {
 };
 
 @Injectable()
+/** SQL read repository for platform-specific authorization subjects. */
 export class AuthorizationSubjectRepository {
   constructor(private readonly dataSource: DataSource) {}
 
+  /** Lists subjects, optionally filtered to those assigned to a role. */
   async list(
-    platform: AuthorizationPlatform,
+    contextInput: AuthorizationContextInput,
     query: AuthorizationSubjectListQueryDto,
     roleId?: string,
   ): Promise<AuthorizationSubjectListResult> {
-    const config = this.config(platform);
+    const context = authorizationContext(contextInput);
+    const { platform, config } = context;
     const pagination = PaginationHelper.normalize(query);
     const parameters: unknown[] = [];
     const where: string[] = ['subject.deleted_at IS NULL'];
@@ -104,11 +108,13 @@ export class AuthorizationSubjectRepository {
     );
   }
 
+  /** Loads one subject with roles and effective permissions. */
   async findById(
-    platform: AuthorizationPlatform,
+    contextInput: AuthorizationContextInput,
     subjectId: string,
   ): Promise<AuthorizationSubjectDetail> {
-    const config = this.config(platform);
+    const context = authorizationContext(contextInput);
+    const { platform, config } = context;
     const { statusExpression, displayName, secondaryText } =
       this.subjectExpressions(platform);
     const joinSql = this.providerJoin(platform);
@@ -180,18 +186,6 @@ export class AuthorizationSubjectRepository {
       Object.assign(detail, membership[0] ?? {});
     }
     return detail;
-  }
-
-  private config(
-    platform: AuthorizationPlatform,
-  ): PlatformAuthorizationSqlConfig {
-    const config = platformAuthorizationSqlConfig(platform);
-    if (!config) {
-      throw new BusinessException(AuthorizationErrorCodes.PLATFORM_NOT_FOUND, {
-        platform,
-      });
-    }
-    return config;
   }
 
   private subjectExpressions(platform: AuthorizationPlatform): {

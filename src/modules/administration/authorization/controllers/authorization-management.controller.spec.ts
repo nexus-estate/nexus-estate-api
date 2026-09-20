@@ -10,10 +10,6 @@ describe('AuthorizationManagementController', () => {
       } as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
     );
 
     expect(controller.platforms()).toEqual({ items: [] });
@@ -22,15 +18,16 @@ describe('AuthorizationManagementController', () => {
 
   it('delegates role creation with administrator identity and request id', async () => {
     const createRole = jest.fn().mockResolvedValue({ id: 'role-1' });
+    const authorization = {
+      for: jest.fn().mockReturnValue({
+        roles: { create: createRole },
+      }),
+    };
     const controller = new AuthorizationManagementController(
       {
         platforms: jest.fn(),
       } as never,
-      {} as never,
-      { create: createRole } as never,
-      {} as never,
-      {} as never,
-      {} as never,
+      authorization as never,
       {} as never,
     );
     const request = { requestId: 'request-1' };
@@ -43,8 +40,10 @@ describe('AuthorizationManagementController', () => {
         request as never,
       ),
     ).resolves.toEqual({ id: 'role-1' });
-    expect(createRole).toHaveBeenCalledWith(
+    expect(authorization.for).toHaveBeenCalledWith(
       AuthorizationPlatform.PROVIDER,
+    );
+    expect(createRole).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'MANAGER' }),
       'admin-1',
       'request-1',

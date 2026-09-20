@@ -17,9 +17,9 @@ import {
   AuthorizationRiskLevel,
 } from '../../enums/authorization-platform.enum';
 import {
-  platformAuthorizationSqlConfig,
-  type PlatformAuthorizationSqlConfig,
-} from '../../management/platform-authorization-config';
+  authorizationContext,
+  type AuthorizationContextInput,
+} from '../../context/authorization-context';
 
 type PermissionRow = {
   id: string;
@@ -47,14 +47,17 @@ const SORT_COLUMNS: Record<string, string> = {
 };
 
 @Injectable()
+/** SQL read repository for platform-scoped authorization permissions. */
 export class AuthorizationPermissionRepository {
   constructor(private readonly dataSource: DataSource) {}
 
+  /** Lists permission catalogue entries for a context. */
   async list(
-    platform: AuthorizationPlatform,
+    contextInput: AuthorizationContextInput,
     query: AuthorizationPermissionListQueryDto,
   ): Promise<AuthorizationPermissionListResult> {
-    const config = this.config(platform);
+    const context = authorizationContext(contextInput);
+    const { platform, config } = context;
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['permission.deleted_at IS NULL'];
     const parameters: unknown[] = [];
@@ -111,11 +114,13 @@ export class AuthorizationPermissionRepository {
     );
   }
 
+  /** Loads one permission and the roles that use it. */
   async findById(
-    platform: AuthorizationPlatform,
+    contextInput: AuthorizationContextInput,
     permissionId: string,
   ): Promise<AuthorizationPermissionDetail> {
-    const config = this.config(platform);
+    const context = authorizationContext(contextInput);
+    const { platform, config } = context;
     const rows = await this.dataSource.query<PermissionRow[]>(
       `SELECT id, code, name, description, category, resource, action,
               risk_level, is_assignable, deprecated_at, created_at, updated_at
@@ -147,24 +152,13 @@ export class AuthorizationPermissionRepository {
     };
   }
 
+  /** Lists role references associated with a permission. */
   async roles(
-    platform: AuthorizationPlatform,
+    contextInput: AuthorizationContextInput,
     permissionId: string,
   ): Promise<AuthorizationPermissionRolesResult> {
-    const permission = await this.findById(platform, permissionId);
+    const permission = await this.findById(contextInput, permissionId);
     return { items: permission.rolesUsing };
-  }
-
-  private config(
-    platform: AuthorizationPlatform,
-  ): PlatformAuthorizationSqlConfig {
-    const config = platformAuthorizationSqlConfig(platform);
-    if (!config) {
-      throw new BusinessException(AuthorizationErrorCodes.PLATFORM_NOT_FOUND, {
-        platform,
-      });
-    }
-    return config;
   }
 
   private toSummary(
