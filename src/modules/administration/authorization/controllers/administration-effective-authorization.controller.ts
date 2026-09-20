@@ -5,6 +5,7 @@ import { CurrentUser } from '../../../../common/decorators/current-user.decorato
 import type { AdministrationPrincipal } from '../../../../common/security/auth.types';
 import { AdministrationJwtAuthGuard } from '../../authentication/guards/administration-jwt-auth.guard';
 import { AuthorizationEffectiveService } from '../services/authorization-effective.service';
+import type { AuthorizationEffectiveResult } from '../types/contracts/authorization-effective.contract';
 
 /** Returns only the current administrator's effective authorization state. */
 @Controller('administration/me')
@@ -17,7 +18,9 @@ export class AdministrationEffectiveAuthorizationController {
   @Get('authorization')
   @ApiOperation({ summary: 'Get current administrator effective permissions' })
   /** Returns the current administrator's effective, database-backed authority. */
-  effective(@CurrentUser() principal: AdministrationPrincipal) {
+  effective(
+    @CurrentUser() principal: AdministrationPrincipal,
+  ): Promise<AuthorizationEffectiveResult> {
     return this.service.effective(principal.id);
   }
 }

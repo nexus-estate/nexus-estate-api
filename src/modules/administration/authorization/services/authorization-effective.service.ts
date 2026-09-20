@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import type { AuthorizationEffectiveResult } from '../types/contracts/authorization-effective.contract';
 
 /** Resolves current administration roles and permissions for /me/authorization. */
 @Injectable()
@@ -7,7 +8,9 @@ export class AdministrationAuthorizationService {
   constructor(private readonly dataSource: DataSource) {}
 
   /** Returns current administration authority from active, non-deleted assignments and permissions. */
-  async effective(administratorId: string) {
+  async effective(
+    administratorId: string,
+  ): Promise<AuthorizationEffectiveResult> {
     const state = await this.dataSource.query<{ is_active: boolean }[]>(
       `SELECT is_active FROM tbl_administrator_account WHERE id = $1 AND deleted_at IS NULL`,
       [administratorId],
