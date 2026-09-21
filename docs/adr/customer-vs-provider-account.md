@@ -40,6 +40,15 @@ resolve the provider context from the authenticated customer and assert
 `estate.providerId === context.providerId`; the legacy customer column is kept
 only for provenance and must not be exposed in API responses.
 
+The contract migration is lifecycle-safe: it only inserts missing
+compatibility rows (provider accounts, owner memberships, OWNER assignments)
+and never updates an existing row. A `SUSPENDED` or `REJECTED` provider stays
+suspended/rejected; a `SUSPENDED`, `REMOVED`, or soft-deleted membership keeps
+its authorization state — the runtime denies supply access for those rows.
+Every estate row, soft-deleted rows included, must resolve a provider before
+`fk_provider_id` is contracted `NOT NULL`; the migration fails with an
+explicit error listing unresolved estates instead of silently skipping them.
+
 Provider platform writes must not require `ROLES.PROVIDER`. The authenticated
 principal remains a `CustomerAccount`; supply capability is resolved through
 `ProviderContextResolver` and enforced by `ProviderAccountPolicy` (active and

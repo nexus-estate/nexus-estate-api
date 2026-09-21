@@ -34,4 +34,8 @@ be both `ACTIVE` and `VERIFIED`.
 Existing Estate owners are migrated with the controlled, idempotent
 `npm run backfill:provider-account` operation before supply gating is enabled.
 Legacy providers are grandfathered as verified so an infrastructure rollout does
-not unexpectedly lock existing supply owners out of their inventory.
+not unexpectedly lock existing supply owners out of their inventory. Both the
+backfill operation and the contract migration only ever insert missing rows:
+they never unsuspend a provider, never verify a rejected provider, and never
+reactivate or undelete a membership — blocked lifecycle states remain blocked
+and the runtime denies access for them.

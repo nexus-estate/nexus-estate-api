@@ -78,6 +78,16 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
     return columns[0]?.is_nullable ?? null;
   };
 
+  /** Empties estate/provider state and relaxes the NOT NULL contract. */
+  const resetToPreContractState = async (): Promise<void> => {
+    await dataSource.query(
+      `TRUNCATE TABLE tbl_estate, tbl_provider_membership,
+        tbl_provider_membership_role, tbl_provider_account,
+        tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE`,
+    );
+    await runContractDown();
+  };
+
   /** Seeds the minimum referenced rows and returns the customer id. */
   const seedEstateOwner = async (): Promise<string> => {
     const customerId = '20000000-0000-4000-8000-000000000001';
@@ -111,6 +121,47 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
     );
     return estateId;
   };
+
+  /** Inserts a legacy provider account with explicit lifecycle states. */
+  const seedProviderAccount = async (
+    customerId: string,
+    status = 'ACTIVE',
+  ): Promise<string> => {
+    const rows: { id: string }[] = await dataSource.query(
+      `INSERT INTO tbl_provider_account
+         (owner_customer_id, type, display_name, status, verification_status)
+       VALUES ($1, 'INDIVIDUAL', 'Legacy Provider', $2, 'VERIFIED')
+       RETURNING id`,
+      [customerId, status],
+    );
+    return rows[0].id;
+  };
+
+  /** Inserts a membership row with explicit lifecycle states. */
+  const seedMembership = async (
+    providerId: string,
+    customerId: string,
+    status: 'ACTIVE' | 'SUSPENDED' | 'REMOVED',
+    softDeleted = false,
+  ): Promise<void> => {
+    await dataSource.query(
+      `INSERT INTO tbl_provider_membership (provider_id, customer_id, status, deleted_at)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        providerId,
+        customerId,
+        status,
+        softDeleted ? new Date().toISOString() : null,
+      ],
+    );
+  };
+
+  const estateRows = async (): Promise<
+    Array<{ id: string; fk_provider_id: string | null }>
+  > =>
+    dataSource.query(
+      `SELECT id::text, fk_provider_id FROM tbl_estate ORDER BY id`,
+    );
 
   it('discovers the module-owned migration exactly once', () => {
     const migrationNames = dataSource.migrations.map(
@@ -189,6 +240,146 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
 
     // Restore the contracted state for the rest of the suite.
     await runContractUp();
+    await expect(estateNullability('fk_provider_id')).resolves.toBe('NO');
+  });
+
+  it('backfills soft-deleted estates and contracts every row before NOT NULL', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    const estateId = await insertEstateWithoutProvider(customerId);
+    await dataSource.query(
+      `UPDATE tbl_estate SET deleted_at = now() WHERE id = $1`,
+      [estateId],
+    );
+
+    await runContractUp();
+
+    // Even the soft-deleted estate row must carry canonical ownership.
+    const rows = await estateRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].fk_provider_id).not.toBeNull();
+    await expect(estateNullability('fk_provider_id')).resolves.toBe('NO');
+  });
+
+  it('fails explicitly when an estate cannot resolve a provider', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    await insertEstateWithoutProvider(customerId);
+    const providerId = await seedProviderAccount(customerId);
+    // Sever the resolution path: the only candidate provider is deleted, so
+    // neither grandfathering nor the backfill can bind the estate.
+    await dataSource.query(
+      `UPDATE tbl_provider_account SET deleted_at = now() WHERE id = $1`,
+      [providerId],
+    );
+
+    await expect(runContractUp()).rejects.toThrow(
+      /estate\(s\) have no resolvable provider/i,
+    );
+    // The contract phase must not have happened.
+    await expect(estateNullability('fk_provider_id')).resolves.toBe('YES');
+  });
+
+  it.each(['SUSPENDED', 'REMOVED'] as const)(
+    'preserves a %s membership instead of reactivating it',
+    async (membershipStatus) => {
+      await resetToPreContractState();
+      const customerId = await seedEstateOwner();
+      await insertEstateWithoutProvider(customerId);
+      const providerId = await seedProviderAccount(customerId);
+      await seedMembership(providerId, customerId, membershipStatus);
+
+      await runContractUp();
+
+      const memberships: Array<{
+        status: string;
+        deleted_at: string | null;
+      }> = await dataSource.query(
+        `SELECT status, deleted_at FROM tbl_provider_membership
+         WHERE provider_id = $1 AND customer_id = $2`,
+        [providerId, customerId],
+      );
+      expect(memberships).toHaveLength(1);
+      expect(memberships[0].status).toBe(membershipStatus);
+      expect(memberships[0].deleted_at).toBeNull();
+    },
+  );
+
+  it('preserves soft-deleted memberships instead of restoring them', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    await insertEstateWithoutProvider(customerId);
+    const providerId = await seedProviderAccount(customerId);
+    await seedMembership(providerId, customerId, 'ACTIVE', true);
+
+    await runContractUp();
+
+    const memberships: Array<{ status: string; deleted_at: string | null }> =
+      await dataSource.query(
+        `SELECT status, deleted_at FROM tbl_provider_membership
+         WHERE provider_id = $1 AND customer_id = $2`,
+        [providerId, customerId],
+      );
+    expect(memberships).toHaveLength(1);
+    expect(memberships[0].status).toBe('ACTIVE');
+    expect(memberships[0].deleted_at).not.toBeNull();
+  });
+
+  it('preserves suspended provider accounts instead of unsuspending them', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    await insertEstateWithoutProvider(customerId);
+    const providerId = await seedProviderAccount(customerId, 'SUSPENDED');
+
+    await runContractUp();
+
+    const providers: Array<{ status: string; verification_status: string }> =
+      await dataSource.query(
+        `SELECT status, verification_status FROM tbl_provider_account WHERE id = $1`,
+        [providerId],
+      );
+    expect(providers).toHaveLength(1);
+    expect(providers[0].status).toBe('SUSPENDED');
+    expect(providers[0].verification_status).toBe('VERIFIED');
+
+    // The estate is still bound to the provider — runtime denies access.
+    const rows = await estateRows();
+    expect(rows[0].fk_provider_id).toBe(providerId);
+  });
+
+  it('inserts only missing memberships and keeps active ones untouched', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    await insertEstateWithoutProvider(customerId);
+    const providerId = await seedProviderAccount(customerId);
+    await seedMembership(providerId, customerId, 'ACTIVE');
+    const before: Array<{ joined_at: string }> = await dataSource.query(
+      `SELECT joined_at FROM tbl_provider_membership
+       WHERE provider_id = $1 AND customer_id = $2`,
+      [providerId, customerId],
+    );
+
+    await runContractUp();
+
+    const memberships: Array<{ joined_at: string }> = await dataSource.query(
+      `SELECT joined_at FROM tbl_provider_membership
+       WHERE provider_id = $1 AND customer_id = $2`,
+      [providerId, customerId],
+    );
+    expect(memberships).toHaveLength(1);
+    expect(memberships[0].joined_at).toEqual(before[0].joined_at);
+  });
+
+  it('is safe to rerun after a completed contract', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    await insertEstateWithoutProvider(customerId);
+
+    await runContractUp();
+    const afterFirstRun = await estateRows();
+
+    await expect(runContractUp()).resolves.toBeUndefined();
+    expect(await estateRows()).toEqual(afterFirstRun);
     await expect(estateNullability('fk_provider_id')).resolves.toBe('NO');
   });
 });
