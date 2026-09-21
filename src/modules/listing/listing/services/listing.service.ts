@@ -34,7 +34,7 @@ export class ListingService {
         CommonErrorCodes.RESOURCE_NOT_FOUND,
         dto.estateId,
       );
-    this.assertEstateOwnership(estate, customerId, context.providerId);
+    this.assertEstateOwnership(estate, context.providerId);
     await this.supplyAccessPolicy.requireWriteAccess(context);
     if (await this.listingRepository.findByEstateId(dto.estateId)) {
       throw new BusinessException(
@@ -138,12 +138,12 @@ export class ListingService {
     return context;
   }
 
+  /** A listing may only be created from an estate owned by the same provider. */
   private assertEstateOwnership(
-    estate: { customerId: string; providerId: string | null },
-    customerId: string,
+    estate: { providerId: string | null },
     providerId: string,
   ): void {
-    if (estate.customerId !== customerId || estate.providerId !== providerId) {
+    if (estate.providerId !== providerId) {
       throw new BusinessException(CommonErrorCodes.FORBIDDEN, providerId);
     }
   }

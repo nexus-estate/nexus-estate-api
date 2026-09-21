@@ -16,6 +16,12 @@ must not import Marketplace, ERP Internal, Search, or Commerce modules. Future
 Property and Listing records should use `provider_id` as their canonical owner,
 not `customer_id`.
 
+Estate (Property) rows now enforce that rule at the database level:
+`tbl_estate.fk_provider_id` is `NOT NULL` and is the only ownership column used
+for authorization. `tbl_estate.fk_customer_id` remains as provenance for rows
+created before the provider cutover; it is never read as an owner and never
+returned by the Estate API.
+
 The current phase intentionally assumes one ProviderAccount per CustomerAccount.
 The unique `owner_customer_id` constraint makes that invariant database-enforced.
 A customer keeps the customer authentication identity after provider approval;

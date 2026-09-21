@@ -17,11 +17,12 @@ import { ProviderId } from '../../../../common/decorators/provider-id.decorator'
 import { CustomerJwtAuthGuard } from '../../../customer/authentication/guards/customer-jwt-auth.guard';
 import { CreateEstateDto } from '../dto/create-estate-dto';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
-import { Estate } from '../entities';
+import { EstateResponse } from '../dto/estate.response';
 import { EstateService } from '../services/estate.service';
 import {
   ApiBearerAuth,
   ApiHeader,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
@@ -51,28 +52,31 @@ export class EstateController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreateEstateDto,
     @ProviderId() providerId?: string,
-  ): Promise<Estate> {
-    return providerId
-      ? this.estateService.createEstate(req.user.id, dto, providerId)
-      : this.estateService.createEstate(req.user.id, dto);
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.createEstate(
+      req.user.id,
+      dto,
+      providerId,
+    );
+    return EstateResponse.toResponse(estate);
   }
 
-  /** Lists the authenticated customer's estates. */
+  /** Lists the provider-scoped estates of the authenticated customer. */
   @Get('mine')
   @ApiBearerAuth()
-  @ApiOperation({ summary: "List the authenticated customer's estates" })
+  @ApiOperation({ summary: "List the resolved provider context's estates" })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,
-    description: 'Provider context used to scope the legacy Estate list.',
+    description: 'Provider context used to scope the estate list.',
   })
+  @ApiOkResponse({ type: [EstateResponse] })
   async findEstateMine(
     @Req() req: AuthenticatedRequest,
     @ProviderId() providerId?: string,
-  ): Promise<Estate[]> {
-    return providerId
-      ? this.estateService.findByCustomerId(req.user.id, providerId)
-      : this.estateService.findByCustomerId(req.user.id);
+  ): Promise<EstateResponse[]> {
+    const estates = await this.estateService.listMine(req.user.id, providerId);
+    return estates.map((estate) => EstateResponse.toResponse(estate));
   }
 
   /** Returns one public estate by exact identifier. */
@@ -80,10 +84,12 @@ export class EstateController {
   @Public()
   @ApiOperation({ summary: 'Get an estate by id' })
   @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: EstateResponse })
   async findEstateById(
     @Param('id', new ParseUUIDPipe()) estateId: string,
-  ): Promise<Estate> {
-    return this.estateService.findById(estateId);
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.findById(estateId);
+    return EstateResponse.toResponse(estate);
   }
 
   /** Updates one estate after service-level ownership and provider checks. */
@@ -102,10 +108,14 @@ export class EstateController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateEstateDto,
     @ProviderId() providerId?: string,
-  ): Promise<Estate> {
-    return providerId
-      ? this.estateService.updateEstate(dto, req.user.id, estateId, providerId)
-      : this.estateService.updateEstate(dto, req.user.id, estateId);
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.updateEstate(
+      dto,
+      req.user.id,
+      estateId,
+      providerId,
+    );
+    return EstateResponse.toResponse(estate);
   }
 
   /** Soft-deletes one estate after service-level ownership and provider checks. */
@@ -124,8 +134,10 @@ export class EstateController {
     @Req() req: AuthenticatedRequest,
     @ProviderId() providerId?: string,
   ): Promise<boolean> {
-    return providerId
-      ? this.estateService.softDeleteEstate(req.user.id, estateId, providerId)
-      : this.estateService.softDeleteEstate(req.user.id, estateId);
+    return this.estateService.softDeleteEstate(
+      req.user.id,
+      estateId,
+      providerId,
+    );
   }
 }

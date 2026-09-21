@@ -86,7 +86,29 @@ export class EstateService {
     }
     return estate;
   }
-  /** Creates an estate owned by the authenticated provider/customer context. */
+
+  /** Loads one estate owned by the exact provider context or raises not-found. */
+  private async requireOwnedEstate(
+    estateId: string,
+    context: ProviderContext,
+  ): Promise<Estate> {
+    const estate = await this.estateRepository.findById(estateId);
+    if (!estate) {
+      throw new BusinessException(
+        CommonErrorCodes.RESOURCE_NOT_FOUND,
+        estateId,
+      );
+    }
+    if (estate.providerId !== context.providerId) {
+      throw new BusinessException(
+        CommonErrorCodes.FORBIDDEN,
+        context.providerId,
+      );
+    }
+    return estate;
+  }
+
+  /** Creates an estate owned by the authenticated provider context. */
   async createEstate(
     customerId: string,
     dto: CreateEstateDto,
@@ -112,7 +134,7 @@ export class EstateService {
     });
   }
 
-  /** Updates an estate only after ownership and active-provider policy checks. */
+  /** Updates an estate only after provider ownership and supply policy checks. */
   async updateEstate(
     dto: UpdateEstateDto,
     customerId: string,
@@ -123,19 +145,7 @@ export class EstateService {
       customerId,
       providerId,
     );
-    const estate = await this.estateRepository.findById(estateId);
-    if (!estate) {
-      throw new BusinessException(
-        CommonErrorCodes.RESOURCE_NOT_FOUND,
-        estateId,
-      );
-    }
-    if (estate.providerId && estate.providerId !== context.providerId) {
-      throw new BusinessException(
-        CommonErrorCodes.FORBIDDEN,
-        context.providerId,
-      );
-    }
+    const estate = await this.requireOwnedEstate(estateId, context);
     const checkedLocation = await this.validateLocation(
       dto.wardId ?? estate.wardId,
       dto.provinceId ?? estate.provinceId,
@@ -143,12 +153,6 @@ export class EstateService {
     if (!checkedLocation) {
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
     }
-    // 3. check owner:
-    if (customerId !== estate.customerId) {
-      throw new BusinessException(CommonErrorCodes.FORBIDDEN, customerId);
-    }
-
-    // 5. gọi repository.updateEstate(estateId, dto)
     const updatedEstate = await this.estateRepository.updateEstate(
       estateId,
       dto,
@@ -159,7 +163,6 @@ export class EstateService {
         estateId,
       );
     }
-    // 6. return Estate
     return updatedEstate;
   }
 
@@ -173,21 +176,10 @@ export class EstateService {
       customerId,
       providerId,
     );
-    const estate = await this.estateRepository.findById(estateId);
-    if (!estate) {
-      throw new BusinessException(
-        CommonErrorCodes.RESOURCE_NOT_FOUND,
-        estateId,
-      );
-    }
-    if (
-      customerId !== estate.customerId ||
-      (estate.providerId && estate.providerId !== context.providerId)
-    ) {
-      throw new BusinessException(CommonErrorCodes.FORBIDDEN, customerId);
-    }
-    const deletedEstate =
-      await this.estateRepository.softDeleteEstate(estateId);
+    const estate = await this.requireOwnedEstate(estateId, context);
+    const deletedEstate = await this.estateRepository.softDeleteEstate(
+      estate.id,
+    );
 
     if (!deletedEstate) {
       throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
@@ -195,15 +187,9 @@ export class EstateService {
     return true;
   }
 
-  /** Lists estates belonging to one exact customer/provider owner. */
-  async findByCustomerId(
-    customerId: string,
-    providerId?: string,
-  ): Promise<Estate[]> {
+  /** Lists estates belonging to the resolved provider context. */
+  async listMine(customerId: string, providerId?: string): Promise<Estate[]> {
     const context = await this.requireSupplyReadContext(customerId, providerId);
-    return this.estateRepository.findByCustomerId(
-      customerId,
-      context.providerId,
-    );
+    return this.estateRepository.findByProviderId(context.providerId);
   }
 }

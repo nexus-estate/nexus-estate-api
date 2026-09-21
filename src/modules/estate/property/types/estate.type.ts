@@ -22,7 +22,8 @@ export enum EstatePurpose {
   SALE_OR_RENT = 'SALE_OR_RENT',
 }
 
+/** Provider is the canonical Estate owner; customer id is provenance only. */
 export type CreateEstateData = CreateEstateDto & {
   customerId: string;
-  providerId?: string;
+  providerId: string;
 };

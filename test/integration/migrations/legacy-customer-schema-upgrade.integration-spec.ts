@@ -352,9 +352,11 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
         ),
       ).resolves.toEqual([{ table_name: 'tbl_customer_account' }]);
 
+      // The contract migration already grandfathered this owner, so the
+      // operator backfill is a no-op returning zero new accounts.
       await expect(
         backfillLegacyEstateProviders(upgradeDataSource),
-      ).resolves.toBe(1);
+      ).resolves.toBe(0);
       const provider = await upgradeDataSource.query<
         Array<{
           id: string;

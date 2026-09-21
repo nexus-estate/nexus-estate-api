@@ -27,6 +27,19 @@ Future Property and Listing entities should reference `provider_id`; services
 should resolve the reusable `ProviderContextResolver` rather than repeatedly
 reimplementing CustomerAccount-to-ProviderAccount lookup.
 
+Estate (Property) ownership is contracted as of
+`ContractEstateProviderOwnership1789584000000`:
+
+```text
+fk_provider_id = canonical ownership (NOT NULL)
+fk_customer_id = compatibility/provenance only
+```
+
+Estate services never authorize through `fk_customer_id`. Supply commands
+resolve the provider context from the authenticated customer and assert
+`estate.providerId === context.providerId`; the legacy customer column is kept
+only for provenance and must not be exposed in API responses.
+
 Provider platform writes must not require `ROLES.PROVIDER`. The authenticated
 principal remains a `CustomerAccount`; supply capability is resolved through
 `ProviderContextResolver` and enforced by `ProviderAccountPolicy` (active and

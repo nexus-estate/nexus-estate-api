@@ -26,7 +26,7 @@ import { ProviderAccountErrorCodes } from '../../../provider/account/errors/prov
 
 type EstateRepoMock = {
   findById: jest.MockedFunction<EstateRepo['findById']>;
-  findByCustomerId: jest.MockedFunction<EstateRepo['findByCustomerId']>;
+  findByProviderId: jest.MockedFunction<EstateRepo['findByProviderId']>;
   createEstate: jest.MockedFunction<EstateRepo['createEstate']>;
   updateEstate: jest.MockedFunction<EstateRepo['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateRepo['softDeleteEstate']>;
@@ -62,9 +62,10 @@ describe('EstateService', () => {
   let supplyAccessPolicy: ProviderSupplyAccessPolicyMock;
 
   const customerId = '10000000-0000-4000-8000-000000000001';
-  const otherUserId = '10000000-0000-4000-8000-000000000002';
+  const otherCustomerId = '10000000-0000-4000-8000-000000000002';
   const estateId = '20000000-0000-4000-8000-000000000001';
   const providerId = '20000000-0000-4000-8000-000000000002';
+  const otherProviderId = '20000000-0000-4000-8000-000000000003';
   const provinceId = '30000000-0000-4000-8000-000000000001';
   const wardId = '40000000-0000-4000-8000-000000000001';
   const newProvinceId = '30000000-0000-4000-8000-000000000002';
@@ -87,7 +88,8 @@ describe('EstateService', () => {
 
   const estate = {
     id: estateId,
-    customerId: customerId,
+    customerId,
+    providerId,
     title: createDto.title,
     type: createDto.type,
     purpose: createDto.purpose,
@@ -100,7 +102,7 @@ describe('EstateService', () => {
   beforeEach(() => {
     estateRepository = {
       findById: jest.fn(),
-      findByCustomerId: jest.fn(),
+      findByProviderId: jest.fn(),
       createEstate: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
@@ -135,7 +137,7 @@ describe('EstateService', () => {
   });
 
   describe('createEstate', () => {
-    it('validates the location and persists the authenticated user id', async () => {
+    it('validates the location and stores the current provider id', async () => {
       provinceRepository.findById.mockResolvedValue(province);
       wardRepository.findById.mockResolvedValue(ward);
       estateRepository.createEstate.mockResolvedValue(estate);
@@ -230,23 +232,24 @@ describe('EstateService', () => {
     expect(estateRepository.createEstate).not.toHaveBeenCalled();
   });
 
-  describe('findByCustomerId', () => {
-    it('returns the repository results', async () => {
-      estateRepository.findByCustomerId.mockResolvedValue([estate]);
+  describe('listMine', () => {
+    it('queries the repository by the resolved provider only', async () => {
+      estateRepository.findByProviderId.mockResolvedValue([estate]);
 
-      await expect(service.findByCustomerId(customerId)).resolves.toEqual([
-        estate,
-      ]);
-      expect(estateRepository.findByCustomerId).toHaveBeenCalledWith(
+      await expect(service.listMine(customerId)).resolves.toEqual([estate]);
+      expect(providerContextResolver.resolve).toHaveBeenCalledWith(
         customerId,
+        undefined,
+      );
+      expect(estateRepository.findByProviderId).toHaveBeenCalledWith(
         providerId,
       );
     });
 
     it('returns an empty array without throwing', async () => {
-      estateRepository.findByCustomerId.mockResolvedValue([]);
+      estateRepository.findByProviderId.mockResolvedValue([]);
 
-      await expect(service.findByCustomerId(customerId)).resolves.toEqual([]);
+      await expect(service.listMine(customerId)).resolves.toEqual([]);
     });
   });
 
@@ -262,13 +265,36 @@ describe('EstateService', () => {
       expect(estateRepository.updateEstate).not.toHaveBeenCalled();
     });
 
-    it('throws FORBIDDEN for a non-owner without updating', async () => {
-      estateRepository.findById.mockResolvedValue(estate);
+    it('allows a member of the same provider to update regardless of legacy customer owner', async () => {
+      const memberEstate = {
+        ...estate,
+        customerId: otherCustomerId,
+      };
+      estateRepository.findById.mockResolvedValue(memberEstate);
       provinceRepository.findById.mockResolvedValue(province);
       wardRepository.findById.mockResolvedValue(ward);
+      estateRepository.updateEstate.mockResolvedValue({
+        ...memberEstate,
+        title: 'Updated',
+      });
 
       await expect(
-        service.updateEstate({ title: 'Updated' }, otherUserId, estateId),
+        service.updateEstate({ title: 'Updated' }, customerId, estateId),
+      ).resolves.toMatchObject({ title: 'Updated' });
+      expect(estateRepository.updateEstate).toHaveBeenCalledWith(
+        estateId,
+        expect.anything(),
+      );
+    });
+
+    it('throws FORBIDDEN for another provider without updating', async () => {
+      estateRepository.findById.mockResolvedValue({
+        ...estate,
+        providerId: otherProviderId,
+      });
+
+      await expect(
+        service.updateEstate({ title: 'Updated' }, customerId, estateId),
       ).rejects.toMatchObject({ errorCode: CommonErrorCodes.FORBIDDEN.code });
       expect(estateRepository.updateEstate).not.toHaveBeenCalled();
     });
@@ -353,11 +379,14 @@ describe('EstateService', () => {
       expect(estateRepository.softDeleteEstate).not.toHaveBeenCalled();
     });
 
-    it('throws FORBIDDEN for a non-owner', async () => {
-      estateRepository.findById.mockResolvedValue(estate);
+    it('throws FORBIDDEN for another provider', async () => {
+      estateRepository.findById.mockResolvedValue({
+        ...estate,
+        providerId: otherProviderId,
+      });
 
       await expect(
-        service.softDeleteEstate(otherUserId, estateId),
+        service.softDeleteEstate(customerId, estateId),
       ).rejects.toMatchObject({ errorCode: CommonErrorCodes.FORBIDDEN.code });
       expect(estateRepository.softDeleteEstate).not.toHaveBeenCalled();
     });
@@ -373,7 +402,7 @@ describe('EstateService', () => {
       });
     });
 
-    it('returns true after soft-deleting the owner estate', async () => {
+    it('returns true after soft-deleting the provider-owned estate', async () => {
       estateRepository.findById.mockResolvedValue(estate);
       estateRepository.softDeleteEstate.mockResolvedValue(true);
 

@@ -26,10 +26,10 @@ capabilities must remain removed or explicitly blocked until implemented.
 | POST   | `/provider/account`                                                       | Customer JWT                    | Optional `X-Provider-Id` | `CreateProviderAccountDto`                                         | Provider account response      |
 | GET    | `/provider/account`                                                       | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Provider account response      |
 | PATCH  | `/provider/account`                                                       | Customer JWT                    | Optional `X-Provider-Id` | `UpdateProviderAccountDto`                                         | Provider account response      |
-| POST   | `/estates`                                                                | Customer JWT                    | Optional `X-Provider-Id` | `CreateEstateDto`                                                  | Estate                         |
-| GET    | `/estates/mine`                                                           | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Estate[]                       |
-| GET    | `/estates/:id`                                                            | Public                          | None                     | UUID route parameter                                               | Estate                         |
-| PATCH  | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | `UpdateEstateDto`                                                  | Estate                         |
+| POST   | `/estates`                                                                | Customer JWT                    | Optional `X-Provider-Id` | `CreateEstateDto`                                                  | Estate response                |
+| GET    | `/estates/mine`                                                           | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Estate response[]              |
+| GET    | `/estates/:id`                                                            | Public                          | None                     | UUID route parameter                                               | Estate response                |
+| PATCH  | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | `UpdateEstateDto`                                                  | Estate response                |
 | DELETE | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | `boolean`                      |
 | POST   | `/listings`                                                               | Customer JWT                    | Optional `X-Provider-Id` | `CreateListingDto` (`estateId`)                                    | Listing response               |
 | GET    | `/listings/mine`                                                          | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Listing response[]             |
@@ -77,6 +77,21 @@ capabilities must remain removed or explicitly blocked until implemented.
 The API rejects unknown request fields through the global validation pipe. The
 customer ID and provider ID are derived from authentication and provider
 context; clients must not submit them as ownership fields.
+
+### Estate ownership contract
+
+`fk_provider_id` is the canonical Estate owner and is enforced `NOT NULL` by
+the `ContractEstateProviderOwnership1789584000000` migration. Estate
+authorization is provider-only: the resolved provider context must match
+`estate.providerId`, and the legacy `fk_customer_id` column is provenance-only.
+
+Estate responses use an explicit `EstateResponse` contract that exposes
+`id`, `providerId`, physical attributes, location, and timestamps. It never
+exposes `customerId`, the customer/provider relations, `deletedAt`,
+`createdBy`, or `updatedBy`.
+
+Listing creation accepts only estates owned by the same provider context
+(`estate.providerId === context.providerId`).
 
 ## Feature gates
 
