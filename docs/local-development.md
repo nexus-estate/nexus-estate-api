@@ -64,10 +64,30 @@ DB_POSTGRES_NAME=nexus_estate
 #### Option A: Using Docker Compose (Recommended)
 
 ```bash
-docker compose up --build
+LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose up --build
 ```
 
 This starts PostgreSQL and the API development container together.
+
+If your host user already has UID/GID 1000:1000, the defaults are sufficient and
+you can run `docker compose up --build` directly. Override only when your identity
+differs from 1000:1000.
+
+### Step 5a: Recovering from an old node_modules volume
+
+If you previously ran the API in Docker with the old configuration and now see
+permission errors after rebuilding, the stale anonymous `node_modules` volume may
+still be owned by the old container UID. Recreate only that volume, not the
+PostgreSQL data:
+
+```bash
+docker compose down
+docker volume rm api_nexus_api_node_modules
+LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose up --build -d
+```
+
+If `api_nexus_api_node_modules` does not match the volume shown by `docker volume ls`,
+replace it with the exact volume name reported for your project.
 
 #### Option B: Using Local PostgreSQL
 
