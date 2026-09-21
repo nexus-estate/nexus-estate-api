@@ -21,6 +21,9 @@ services:
     build:
       context: .
       target: development
+      args:
+        APP_UID: ${LOCAL_UID:-1000}
+        APP_GID: ${LOCAL_GID:-1000}
     container_name: nexus-api
     restart: unless-stopped
     ports:
@@ -32,11 +35,7 @@ services:
       - DB_POSTGRES_PORT=5432
     volumes:
       - .:/app
-      - /app/node_modules
-    # Keep watch-mode build output writable by the container user without
-    # changing ownership of the host workspace bind mount.
-    tmpfs:
-      - /app/dist:uid=1001,gid=1001,mode=755
+      - nexus_api_node_modules:/app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,6 +45,7 @@ services:
 volumes:
   postgres_data:
     driver: local
+  nexus_api_node_modules:
 
 networks:
   nexus-network:
