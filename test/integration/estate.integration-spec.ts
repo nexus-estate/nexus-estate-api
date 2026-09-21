@@ -27,6 +27,11 @@ import { RolePermission } from '../../src/modules/rbac/legacy-global/entities/ro
 import { Role } from '../../src/modules/rbac/legacy-global/entities/role.entity';
 import { CustomerAccount } from '../../src/modules/customer/account/entities/customer-account.entity';
 import { ProviderAccount } from '../../src/modules/provider/account/entities/provider-account.entity';
+import {
+  ProviderStatus,
+  ProviderType,
+  ProviderVerificationStatus,
+} from '../../src/modules/provider/account/enums/account.enums';
 
 jest.setTimeout(120_000);
 
@@ -37,11 +42,14 @@ describe('EstateRepo (PostgreSQL integration)', () => {
   let estateRepository: EstateRepo;
   let owner: CustomerAccount;
   let otherCustomer: CustomerAccount;
+  let provider: ProviderAccount;
+  let otherProvider: ProviderAccount;
   let province: Province;
   let ward: Ward;
 
   const createData = (): CreateEstateData => ({
     customerId: owner.id,
+    providerId: provider.id,
     title: 'Riverside apartment',
     description: 'River view',
     type: EstateType.APARTMENT,
@@ -120,6 +128,20 @@ describe('EstateRepo (PostgreSQL integration)', () => {
       password: 'hashed-password',
       roleId: role.id,
     });
+    provider = await dataSource.getRepository(ProviderAccount).save({
+      ownerCustomerId: owner.id,
+      type: ProviderType.INDIVIDUAL,
+      displayName: 'Owner Provider',
+      status: ProviderStatus.ACTIVE,
+      verificationStatus: ProviderVerificationStatus.VERIFIED,
+    });
+    otherProvider = await dataSource.getRepository(ProviderAccount).save({
+      ownerCustomerId: otherCustomer.id,
+      type: ProviderType.INDIVIDUAL,
+      displayName: 'Other Provider',
+      status: ProviderStatus.ACTIVE,
+      verificationStatus: ProviderVerificationStatus.VERIFIED,
+    });
     province = await dataSource.getRepository(Province).save({
       code: '79',
       name: 'Ho Chi Minh City',
@@ -138,12 +160,13 @@ describe('EstateRepo (PostgreSQL integration)', () => {
     await container?.stop();
   });
 
-  it('persists an estate and returns the saved entity', async () => {
+  it('persists an estate with provider ownership and returns the saved entity', async () => {
     const created = await estateRepository.createEstate(createData());
 
     expect(created).toMatchObject({
       id: expect.any(String) as string,
       customerId: owner.id,
+      providerId: provider.id,
       title: 'Riverside apartment',
       provinceId: province.id,
       wardId: ward.id,
@@ -157,7 +180,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
     expect(found).toMatchObject({
       id: created.id,
-      customer: { id: owner.id, email: owner.email },
+      providerId: provider.id,
       province: { id: province.id },
       ward: { id: ward.id, provinceId: province.id },
     });
@@ -165,7 +188,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
     await expect(estateRepository.findById(created.id)).resolves.toBeNull();
   });
 
-  it('finds only non-deleted estates belonging to a user', async () => {
+  it('finds only non-deleted estates belonging to the provider', async () => {
     const visible = await estateRepository.createEstate(createData());
     const deleted = await estateRepository.createEstate({
       ...createData(),
@@ -173,15 +196,30 @@ describe('EstateRepo (PostgreSQL integration)', () => {
     });
     await estateRepository.createEstate({
       ...createData(),
+      providerId: otherProvider.id,
       customerId: otherCustomer.id,
-      title: 'Other owner estate',
+      title: 'Other provider estate',
     });
     await dataSource.getRepository(Estate).softDelete(deleted.id);
 
-    const found = await estateRepository.findByCustomerId(owner.id);
+    const found = await estateRepository.findByProviderId(provider.id);
 
     expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ id: visible.id, customerId: owner.id });
+    expect(found[0]).toMatchObject({
+      id: visible.id,
+      providerId: provider.id,
+    });
+  });
+
+  it('lists provider estates regardless of the legacy customer owner', async () => {
+    await estateRepository.createEstate({
+      ...createData(),
+      customerId: otherCustomer.id,
+    });
+
+    const found = await estateRepository.findByProviderId(provider.id);
+
+    expect(found).toHaveLength(1);
   });
 
   it('updates an existing estate and returns null for a missing id', async () => {
@@ -192,10 +230,12 @@ describe('EstateRepo (PostgreSQL integration)', () => {
       price: 3_750_000_000,
     });
 
+    // The hydrated entity is reloaded from the database, where the bigint
+    // price arrives as a string; the HTTP mapper coerces it back to number.
     expect(updated).toMatchObject({
       id: created.id,
       title: 'Updated riverside apartment',
-      price: 3_750_000_000,
+      price: '3750000000',
     });
     await expect(
       estateRepository.updateEstate('00000000-0000-4000-8000-000000000000', {

@@ -1,151 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, QueryFailedError } from 'typeorm';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
-import { BaseService } from '../../../../services/abstraction-services';
-import {
-  CurrentProviderContext,
-  type CurrentProviderContextValue,
-} from './current-provider-context.service';
-import {
-  CreateProviderAccountDto,
-  UpdateProviderAccountDto,
-} from '../dto/index';
+import { ProviderContextResolver } from './provider-context.resolver';
+import { UpdateProviderAccountDto } from '../dto/index';
 import { ProviderAccountResponse } from '../dto/provider-account.response';
 import { ProviderAccountErrorCodes } from '../errors/provider-account-error-codes';
 import { ProviderAccountMapper } from '../helpers/provider-account.mapper';
-import { ProviderAccountPolicy } from '../helpers/provider-account.policy';
-import { ProviderAccount } from '../entities/provider-account.entity';
+import { normalizeProviderDisplayName } from '../helpers/provider-account.validation';
 import { ProviderAccountRepository } from '../repositories/provider-account.repository';
-import {
-  ProviderStatus,
-  ProviderType,
-  ProviderVerificationStatus,
-} from '../enums/account.enums';
-import { ProviderAuthorizationService } from '../../authorization/services/provider-authorization.service';
 
-/** Application service for provider-account lifecycle and provider context rules. */
+/** Application service exposing explicit read/update provider profile use cases. */
 @Injectable()
-export class ProviderAccountService extends BaseService<
-  ProviderAccount,
-  ProviderAccountCreateData,
-  ProviderAccountUpdateData
-> {
+export class ProviderAccountService {
   constructor(
     private readonly providerAccountRepository: ProviderAccountRepository,
-    private readonly currentProviderContext: CurrentProviderContext,
-    private readonly providerAccountPolicy: ProviderAccountPolicy,
-    private readonly dataSource: DataSource,
-    private readonly providerAuthorizationService: ProviderAuthorizationService,
-  ) {
-    super(providerAccountRepository, 'ProviderAccount');
-  }
+    private readonly providerContextResolver: ProviderContextResolver,
+  ) {}
 
-  /** Creates a provider request for the authenticated customer. */
-  /** Creates the authenticated customer's provider account in pending-verification state. */
-  async createForCustomer(
-    customerId: string,
-    dto: CreateProviderAccountDto,
-  ): Promise<ProviderAccountResponse> {
-    return this.createForCustomerWithVerification(
-      customerId,
-      dto,
-      ProviderVerificationStatus.PENDING,
-    );
-  }
-
-  /** Creates a provider account that is waiting for administrator approval. */
-  /** Creates a provider onboarding record explicitly waiting for administrator review. */
-  async createPendingForCustomer(
-    customerId: string,
-    dto: CreateProviderAccountDto,
-  ): Promise<ProviderAccountResponse> {
-    return this.createForCustomerWithVerification(
-      customerId,
-      dto,
-      ProviderVerificationStatus.PENDING,
-    );
-  }
-
-  /** Persists a provider account with the requested onboarding state. */
-  private async createForCustomerWithVerification(
-    customerId: string,
-    dto: CreateProviderAccountDto,
-    verificationStatus: ProviderVerificationStatus,
-  ): Promise<ProviderAccountResponse> {
-    this.validateType(dto.type);
-    const displayName = this.validateDisplayName(dto.displayName);
-
-    if (
-      await this.providerAccountRepository.existsByOwnerCustomerId(customerId)
-    ) {
-      this.logger.warn(
-        JSON.stringify({
-          operation: 'provider_account.create_duplicate',
-          customer_id: customerId,
-        }),
-      );
-      throw new BusinessException(
-        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_ALREADY_EXISTS,
-      );
-    }
-
-    try {
-      const createAccount = async (
-        manager: import('typeorm').EntityManager,
-      ) => {
-        const repository = manager.getRepository(ProviderAccount);
-        const account = repository.create({
-          ownerCustomerId: customerId,
-          type: dto.type,
-          displayName,
-          status: ProviderStatus.ACTIVE,
-          verificationStatus,
-        });
-        const saved = await repository.save(account);
-        if (!this.providerAuthorizationService) {
-          throw new Error('Provider authorization service is required');
-        }
-        await this.providerAuthorizationService.ensureOwnerMembership(
-          manager,
-          saved.id,
-          customerId,
-        );
-        return saved;
-      };
-      const account = await this.dataSource.transaction(createAccount);
-
-      this.logger.log(
-        JSON.stringify({
-          operation: 'provider_account.created',
-          customer_id: customerId,
-          provider_id: account.id,
-          verification_status: account.verificationStatus,
-        }),
-      );
-
-      return ProviderAccountMapper.toResponse(account);
-    } catch (error) {
-      if (error instanceof QueryFailedError) {
-        const driverError = error.driverError as { code?: string };
-        if (driverError.code === '23505') {
-          throw new BusinessException(
-            ProviderAccountErrorCodes.PROVIDER_ACCOUNT_ALREADY_EXISTS,
-          );
-        }
-      }
-
-      throw error;
-    }
-  }
-
-  /** Returns the current customer's account without creating one implicitly. */
   /** Loads the selected provider account after server-side membership/context validation. */
   async getCurrent(
     customerId: string,
     providerId?: string,
   ): Promise<ProviderAccountResponse> {
-    const context = await this.currentProviderContext.resolve(
+    const context = await this.providerContextResolver.resolve(
       customerId,
       providerId,
     );
@@ -162,14 +39,13 @@ export class ProviderAccountService extends BaseService<
     return ProviderAccountMapper.toResponse(account);
   }
 
-  /** Updates only fields that are editable through the provider profile API. */
   /** Updates only the selected provider profile after context and ownership checks. */
   async updateCurrent(
     customerId: string,
     dto: UpdateProviderAccountDto,
     providerId?: string,
   ): Promise<ProviderAccountResponse> {
-    const context = await this.currentProviderContext.resolve(
+    const context = await this.providerContextResolver.resolve(
       customerId,
       providerId,
     );
@@ -183,65 +59,12 @@ export class ProviderAccountService extends BaseService<
       );
     }
 
-    const updated = await super.update(context.providerId, {
-      displayName: this.validateDisplayName(dto.displayName),
-    });
-    this.logger.log(
-      JSON.stringify({
-        operation: 'provider_account.profile_updated',
-        customer_id: customerId,
-        provider_id: updated.id,
-      }),
+    const updated = await this.providerAccountRepository.update(
+      context.providerId,
+      {
+        displayName: normalizeProviderDisplayName(dto.displayName),
+      },
     );
     return ProviderAccountMapper.toResponse(updated);
   }
-
-  /** Resolves provider context for callers that need identity without supply policy checks. */
-  resolveCurrentProvider(
-    customerId: string,
-    providerId?: string,
-  ): Promise<CurrentProviderContextValue> {
-    return this.currentProviderContext.resolve(customerId, providerId);
-  }
-
-  /** Rejects supply mutations unless the provider is active and verified. */
-  /** Resolves context and rejects suspended, unverified, or otherwise unusable provider supply access. */
-  requireActiveProvider(
-    customerId: string,
-    providerId?: string,
-  ): Promise<CurrentProviderContextValue> {
-    return this.resolveCurrentProvider(customerId, providerId).then(
-      (context) => {
-        this.providerAccountPolicy.requireActiveProvider(context);
-        return context;
-      },
-    );
-  }
-
-  private validateType(
-    type: ProviderType | undefined,
-  ): asserts type is ProviderType {
-    if (!Object.values(ProviderType).includes(type as ProviderType)) {
-      throw new BusinessException(
-        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_INVALID_TYPE,
-      );
-    }
-  }
-
-  private validateDisplayName(displayName: string | undefined): string {
-    const normalized = displayName?.trim();
-    if (!normalized) {
-      throw new BusinessException(
-        ProviderAccountErrorCodes.PROVIDER_ACCOUNT_INVALID_DISPLAY_NAME,
-      );
-    }
-    return normalized;
-  }
 }
-
-type ProviderAccountCreateData = Pick<
-  ProviderAccount,
-  'ownerCustomerId' | 'type' | 'displayName' | 'status' | 'verificationStatus'
->;
-
-type ProviderAccountUpdateData = Pick<ProviderAccount, 'displayName'>;

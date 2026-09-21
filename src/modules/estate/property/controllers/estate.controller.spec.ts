@@ -8,7 +8,7 @@ import { EstateController } from './estate.controller';
 
 type EstateServiceMock = {
   createEstate: jest.MockedFunction<EstateService['createEstate']>;
-  findByCustomerId: jest.MockedFunction<EstateService['findByCustomerId']>;
+  listMine: jest.MockedFunction<EstateService['listMine']>;
   findById: jest.MockedFunction<EstateService['findById']>;
   updateEstate: jest.MockedFunction<EstateService['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateService['softDeleteEstate']>;
@@ -26,6 +26,7 @@ describe('EstateController', () => {
   };
   const request = { user };
   const estateId = '20000000-0000-4000-8000-000000000001';
+  const providerId = '20000000-0000-4000-8000-000000000002';
   const createDto: CreateEstateDto = {
     title: 'Riverside apartment',
     type: EstateType.APARTMENT,
@@ -35,12 +36,42 @@ describe('EstateController', () => {
     provinceId: '30000000-0000-4000-8000-000000000001',
     wardId: '40000000-0000-4000-8000-000000000001',
   };
-  const estate = { id: estateId, customerId: user.id } as Estate;
+  const estate = {
+    id: estateId,
+    customerId: user.id,
+    providerId,
+    title: 'Riverside apartment',
+    description: null,
+    type: EstateType.APARTMENT,
+    purpose: EstatePurpose.SALE,
+    price: '3500000000',
+    area: null,
+    bedrooms: null,
+    bathrooms: null,
+    floors: null,
+    addressLine: '1 Nguyen Hue',
+    provinceId: '30000000-0000-4000-8000-000000000001',
+    wardId: '40000000-0000-4000-8000-000000000001',
+    latitude: null,
+    longitude: null,
+    province: {
+      id: '30000000-0000-4000-8000-000000000001',
+      code: '79',
+      name: 'HCMC',
+    },
+    ward: {
+      id: '40000000-0000-4000-8000-000000000001',
+      code: '26734',
+      name: 'Ben Nghe',
+    },
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    updatedAt: new Date('2026-01-02T00:00:00Z'),
+  } as unknown as Estate;
 
   beforeEach(() => {
     estateService = {
       createEstate: jest.fn(),
-      findByCustomerId: jest.fn(),
+      listMine: jest.fn(),
       findById: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
@@ -50,41 +81,65 @@ describe('EstateController', () => {
     );
   });
 
-  it('creates an estate for the authenticated principal', async () => {
+  it('creates an estate and maps it to the response contract', async () => {
     estateService.createEstate.mockResolvedValue(estate);
 
-    await expect(controller.createEstate(request, createDto)).resolves.toBe(
-      estate,
+    const result = await controller.createEstate(request, createDto);
+
+    expect(estateService.createEstate).toHaveBeenCalledWith(
+      user.id,
+      createDto,
+      undefined,
     );
-    expect(estateService.createEstate).toHaveBeenCalledWith(user.id, createDto);
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: estateId,
+        providerId,
+        title: 'Riverside apartment',
+        price: 3_500_000_000,
+      }),
+    );
+    expect(result).not.toHaveProperty('customerId');
+    expect(result).not.toHaveProperty('deletedAt');
   });
 
-  it('returns estates belonging to the authenticated principal', async () => {
-    estateService.findByCustomerId.mockResolvedValue([estate]);
+  it('lists estates through the provider-scoped listMine', async () => {
+    estateService.listMine.mockResolvedValue([estate]);
 
-    await expect(controller.findEstateMine(request)).resolves.toEqual([estate]);
-    expect(estateService.findByCustomerId).toHaveBeenCalledWith(user.id);
+    const result = await controller.findEstateMine(request);
+
+    expect(estateService.listMine).toHaveBeenCalledWith(user.id, undefined);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(
+      expect.objectContaining({ id: estateId, providerId }),
+    );
   });
 
-  it('finds an estate by the route id', async () => {
+  it('finds an estate by the route id and hides legacy ownership', async () => {
     estateService.findById.mockResolvedValue(estate);
 
-    await expect(controller.findEstateById(estateId)).resolves.toBe(estate);
+    const result = await controller.findEstateById(estateId);
+
     expect(estateService.findById).toHaveBeenCalledWith(estateId);
+    expect(result).not.toHaveProperty('customerId');
   });
 
   it('updates an estate using body, principal id, and route id', async () => {
     const dto: UpdateEstateDto = { title: 'Updated title' };
-    estateService.updateEstate.mockResolvedValue(estate);
+    estateService.updateEstate.mockResolvedValue({
+      ...estate,
+      title: 'Updated title',
+    });
 
-    await expect(controller.updateEstate(estateId, request, dto)).resolves.toBe(
-      estate,
-    );
+    const result = await controller.updateEstate(estateId, request, dto);
+
     expect(estateService.updateEstate).toHaveBeenCalledWith(
       dto,
       user.id,
       estateId,
+      undefined,
     );
+    expect(result.title).toBe('Updated title');
   });
 
   it('soft-deletes an estate using principal id and route id', async () => {
@@ -96,6 +151,7 @@ describe('EstateController', () => {
     expect(estateService.softDeleteEstate).toHaveBeenCalledWith(
       user.id,
       estateId,
+      undefined,
     );
   });
 });

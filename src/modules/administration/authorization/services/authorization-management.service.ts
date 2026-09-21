@@ -9,12 +9,11 @@ import { AuthorizationAuditService } from '../audit/authorization-audit.service'
 import type { AuthorizationAuditEvent } from '../audit/authorization-audit.repository';
 import {
   AuthorizationPlatform,
+  AuthorizationRiskLevel,
   AuthorizationRoleStatus,
 } from '../enums/authorization-platform.enum';
 import type {
   AuthorizationAuditQueryDto,
-  AuthorizationPermissionListQueryDto,
-  AuthorizationRoleListQueryDto,
   AuthorizationSubjectListQueryDto,
   CreateAuthorizationRoleDto,
   ReplaceRolePermissionsDto,
@@ -22,10 +21,23 @@ import type {
   UpdateAuthorizationRoleDto,
 } from '../dto/authorization-management.dto';
 import {
-  platformAuthorizationSqlConfig,
   platformAuthorizationSqlConfigs,
   type PlatformAuthorizationSqlConfig,
 } from '../management/platform-authorization-config';
+import { type AuthorizationContext } from '../context/authorization-context';
+import type {
+  AuthorizationRoleDeletionResult,
+  AuthorizationRoleSummary,
+} from '../types/contracts/authorization-role.contract';
+import type {
+  AuthorizationMatrixPermission,
+  AuthorizationMatrixResult,
+} from '../types/contracts/authorization-matrix.contract';
+import type {
+  AuthorizationAuditResult,
+  AuthorizationPlatformsResult,
+  AuthorizationProviderMemberListResult,
+} from '../types/contracts/authorization-management.contract';
 
 type RoleRow = {
   id: string;
@@ -41,35 +53,13 @@ type RoleRow = {
   updated_at: Date;
 };
 
-const ROLE_SORT_COLUMNS: Record<string, string> = {
-  name: 'role.name',
-  code: 'role.code',
-  createdAt: 'role.created_at',
-  updatedAt: 'role.updated_at',
-  assignmentCount: 'assignment_count',
-  permissionCount: 'permission_count',
-};
-
-const PERMISSION_SORT_COLUMNS: Record<string, string> = {
-  name: 'permission.name',
-  code: 'permission.code',
-  category: 'permission.category',
-  resource: 'permission.resource',
-  action: 'permission.action',
-  createdAt: 'permission.created_at',
-  updatedAt: 'permission.updated_at',
-};
-
 @Injectable()
 /**
- * Platform SQL kernel used by the management adapters.
+ * Legacy mutation kernel for authorization management.
  *
- * The HTTP-facing facade lives under management/; keeping this class injectable
- * separately makes the platform boundary explicit while preserving the
- * existing transaction and error behavior during the RC-02 extraction. Use it
- * only through the platform adapters/facade so trusted table configuration,
- * cross-platform mismatch classification, invariant locks, and audit writes
- * remain centralized and consistent.
+ * Feature services use this class for transaction boundaries, invariant locks,
+ * audit writes, and mutation validation. Read endpoints use feature-owned
+ * repositories directly.
  */
 export class AuthorizationManagementCoreService {
   constructor(
@@ -77,7 +67,7 @@ export class AuthorizationManagementCoreService {
     @Optional() private readonly auditService?: AuthorizationAuditService,
   ) {}
 
-  platforms() {
+  platforms(): AuthorizationPlatformsResult {
     return {
       items: [
         {
@@ -105,111 +95,14 @@ export class AuthorizationManagementCoreService {
     };
   }
 
-  /** Lists roles for one platform with bounded filtering, sorting, and usage metadata. */
-  async listRoles(
-    platform: AuthorizationPlatform,
-    query: AuthorizationRoleListQueryDto,
-  ) {
-    const config = this.config(platform);
-    const pagination = PaginationHelper.normalize(query);
-    const where: string[] = ['role.deleted_at IS NULL'];
-    const parameters: unknown[] = [];
-    if (query.q) {
-      parameters.push(`%${query.q.trim()}%`);
-      where.push(
-        `(role.code ILIKE $${parameters.length} OR role.name ILIKE $${parameters.length} OR COALESCE(role.description, '') ILIKE $${parameters.length})`,
-      );
-    }
-    if (query.status) {
-      parameters.push(query.status);
-      where.push(`role.status = $${parameters.length}`);
-    }
-    if (query.isSystem !== undefined) {
-      parameters.push(query.isSystem);
-      where.push(`role.is_system = $${parameters.length}`);
-    }
-    if (query.permissionCode) {
-      parameters.push(query.permissionCode.trim());
-      where.push(`EXISTS (
-        SELECT 1 FROM ${config.rolePermissionTable} filter_mapping
-        INNER JOIN ${config.permissionTable} filter_permission
-          ON filter_permission.id = filter_mapping.permission_id
-        WHERE filter_mapping.role_id = role.id
-          AND filter_permission.code = $${parameters.length}
-          AND filter_permission.deleted_at IS NULL
-      )`);
-    }
-    const whereSql = where.join(' AND ');
-    const orderBy = ROLE_SORT_COLUMNS[query.sort ?? 'name'] ?? 'role.name';
-    const order = query.order === 'desc' ? 'DESC' : 'ASC';
-    const offset = (pagination.page - 1) * pagination.limit;
-    const countRows = await this.dataSource.query<{ total: string }[]>(
-      `SELECT COUNT(*)::text AS total FROM ${config.roleTable} role WHERE ${whereSql}`,
-      parameters,
-    );
-    const rows = await this.dataSource.query<RoleRow[]>(
-      `
-        SELECT role.id, role.code, role.name, role.description,
-               role.is_system, role.status, role.version,
-               role.created_at, role.updated_at,
-               (SELECT COUNT(*) FROM ${config.rolePermissionTable} mapping WHERE mapping.role_id = role.id) AS permission_count,
-               (SELECT COUNT(*) FROM ${config.assignmentTable} assignment WHERE assignment.role_id = role.id) AS assignment_count
-        FROM ${config.roleTable} role
-        WHERE ${whereSql}
-        ORDER BY ${orderBy} ${order}, role.id ASC
-        LIMIT ${pagination.limit} OFFSET ${offset}
-      `,
-      parameters,
-    );
-    const total = Number(countRows[0]?.total ?? 0);
-    return PaginationHelper.buildMeta(
-      rows.map((row) => this.roleSummary(row, platform)),
-      total,
-      pagination,
-    );
-  }
-
-  /** Loads one exact platform role and its non-deleted permission catalogue entries. */
-  async getRole(platform: AuthorizationPlatform, roleId: string) {
-    const config = this.config(platform);
-    const role = await this.findRole(config, roleId);
-    if (!role) {
-      throw new BusinessException(AuthorizationErrorCodes.ROLE_NOT_FOUND, {
-        roleId,
-        platform,
-      });
-    }
-    const permissions = await this.dataSource.query<PermissionRow[]>(
-      `
-        SELECT permission.id, permission.code, permission.name,
-               permission.description, permission.category,
-               permission.resource, permission.action, permission.risk_level,
-               permission.is_assignable, permission.deprecated_at,
-               permission.created_at, permission.updated_at
-        FROM ${config.permissionTable} permission
-        INNER JOIN ${config.rolePermissionTable} mapping
-          ON mapping.permission_id = permission.id
-        WHERE mapping.role_id = $1 AND permission.deleted_at IS NULL
-        ORDER BY permission.category ASC, permission.code ASC
-      `,
-      [roleId],
-    );
-    return {
-      ...this.roleSummary(role, platform),
-      permissions: permissions.map((permission) =>
-        this.permissionSummary(permission, platform),
-      ),
-    };
-  }
-
   /** Creates a custom role, validates platform ownership, and records one atomic audit event. */
   async createRole(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     dto: CreateAuthorizationRoleDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
-    const config = this.config(platform);
+  ): Promise<string> {
+    const { platform, config } = context;
     const code = this.normalizeRoleCode(dto.code);
     const permissionIds = [...new Set(dto.permissionIds ?? [])];
     try {
@@ -245,7 +138,7 @@ export class AuthorizationManagementCoreService {
         });
         return id;
       });
-      return this.getRole(platform, roleId);
+      return roleId;
     } catch (error) {
       if (this.isUniqueViolation(error)) {
         throw new BusinessException(AuthorizationErrorCodes.ROLE_CODE_EXISTS, {
@@ -259,13 +152,13 @@ export class AuthorizationManagementCoreService {
 
   /** Updates role metadata with optimistic locking and post-mutation safety validation. */
   async updateRole(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     roleId: string,
     dto: UpdateAuthorizationRoleDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
-    const config = this.config(platform);
+  ): Promise<string> {
+    const { platform, config } = context;
     await this.dataSource.transaction(async (manager) => {
       // Serialize recovery-capability changes so two administrators cannot both
       // observe a safe state and then remove the final recovery path.
@@ -352,25 +245,25 @@ export class AuthorizationManagementCoreService {
         targetType: 'ROLE',
         targetId: roleId,
         requestId,
-        beforeState: this.roleSummary(current, platform),
-        afterState: this.roleSummary(updatedRole, platform),
+        beforeState: { ...this.roleSummary(current, platform) },
+        afterState: { ...this.roleSummary(updatedRole, platform) },
         reason: null,
       });
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
         await this.assertRecoveryCapability(manager);
       }
     });
-    return this.getRole(platform, roleId);
+    return roleId;
   }
 
   /** Soft-deletes an unused non-system role after checking platform invariants. */
   async deleteRole(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     roleId: string,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
-    const config = this.config(platform);
+  ): Promise<AuthorizationRoleDeletionResult> {
+    const { platform, config } = context;
     await this.dataSource.transaction(async (manager) => {
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
         await this.lockAdministrationRecovery(manager);
@@ -413,7 +306,7 @@ export class AuthorizationManagementCoreService {
         targetType: 'ROLE',
         targetId: roleId,
         requestId,
-        beforeState: this.roleSummary(role, platform),
+        beforeState: { ...this.roleSummary(role, platform) },
         afterState: { deletedAt: new Date().toISOString() },
         reason: null,
       });
@@ -426,13 +319,13 @@ export class AuthorizationManagementCoreService {
 
   /** Replaces a role's complete permission set and validates effective authority before commit. */
   async replaceRolePermissions(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     roleId: string,
     dto: ReplaceRolePermissionsDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
-    const config = this.config(platform);
+  ): Promise<string> {
+    const { platform, config } = context;
     const permissionIds = [...new Set(dto.permissionIds)];
     await this.dataSource.transaction(async (manager) => {
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
@@ -512,120 +405,14 @@ export class AuthorizationManagementCoreService {
         await this.assertProviderOwnerRole(manager, roleId);
       }
     });
-    return this.getRole(platform, roleId);
-  }
-
-  /** Lists the platform-owned permission catalogue, excluding deleted entries. */
-  async listPermissions(
-    platform: AuthorizationPlatform,
-    query: AuthorizationPermissionListQueryDto,
-  ) {
-    const config = this.config(platform);
-    const pagination = PaginationHelper.normalize(query);
-    const where: string[] = ['permission.deleted_at IS NULL'];
-    const parameters: unknown[] = [];
-    if (query.q) {
-      parameters.push(`%${query.q.trim()}%`);
-      where.push(
-        `(permission.code ILIKE $${parameters.length} OR permission.name ILIKE $${parameters.length} OR permission.description ILIKE $${parameters.length})`,
-      );
-    }
-    for (const [field, value] of [
-      ['category', query.category],
-      ['resource', query.resource],
-      ['action', query.action],
-      ['risk_level', query.riskLevel],
-    ] as const) {
-      if (value) {
-        parameters.push(value);
-        where.push(`permission.${field} = $${parameters.length}`);
-      }
-    }
-    if (query.isAssignable !== undefined) {
-      parameters.push(query.isAssignable);
-      where.push(`permission.is_assignable = $${parameters.length}`);
-    }
-    if (!query.includeDeprecated) {
-      where.push('permission.deprecated_at IS NULL');
-    }
-    const orderBy =
-      PERMISSION_SORT_COLUMNS[query.sort ?? 'category'] ??
-      'permission.category';
-    const order = query.order === 'desc' ? 'DESC' : 'ASC';
-    const offset = (pagination.page - 1) * pagination.limit;
-    const whereSql = where.join(' AND ');
-    const countRows = await this.dataSource.query<{ total: string }[]>(
-      `SELECT COUNT(*)::text AS total FROM ${config.permissionTable} permission WHERE ${whereSql}`,
-      parameters,
-    );
-    const rows = await this.dataSource.query<PermissionRow[]>(
-      `SELECT permission.id, permission.code, permission.name, permission.description,
-              permission.category, permission.resource, permission.action,
-              permission.risk_level, permission.is_assignable, permission.deprecated_at,
-              permission.created_at, permission.updated_at
-       FROM ${config.permissionTable} permission WHERE ${whereSql}
-       ORDER BY ${orderBy} ${order}, permission.id ASC
-       LIMIT ${pagination.limit} OFFSET ${offset}`,
-      parameters,
-    );
-    return PaginationHelper.buildMeta(
-      rows.map((row) => this.permissionSummary(row, platform)),
-      Number(countRows[0]?.total ?? 0),
-      pagination,
-    );
-  }
-
-  /** Retrieves one exact permission and its platform-local usage information. */
-  async getPermission(platform: AuthorizationPlatform, permissionId: string) {
-    const config = this.config(platform);
-    const rows = await this.dataSource.query<PermissionRow[]>(
-      `SELECT id, code, name, description, category, resource, action,
-              risk_level, is_assignable, deprecated_at, created_at, updated_at
-       FROM ${config.permissionTable} WHERE id = $1 AND deleted_at IS NULL`,
-      [permissionId],
-    );
-    const permission = rows[0];
-    if (!permission) {
-      throw new BusinessException(
-        AuthorizationErrorCodes.PERMISSION_NOT_FOUND,
-        { permissionId, platform },
-      );
-    }
-    const rolesUsing = await this.dataSource.query<
-      { id: string; code: string; name: string }[]
-    >(
-      `SELECT role.id, role.code, role.name FROM ${config.roleTable} role
-       INNER JOIN ${config.rolePermissionTable} mapping ON mapping.role_id = role.id
-       WHERE mapping.permission_id = $1 AND role.deleted_at IS NULL ORDER BY role.code`,
-      [permissionId],
-    );
-    return {
-      ...this.permissionSummary(permission, platform),
-      rolesUsingCount: rolesUsing.length,
-      rolesUsing,
-    };
-  }
-
-  /** Lists roles using an exact platform permission identifier. */
-  async permissionRoles(platform: AuthorizationPlatform, permissionId: string) {
-    const permission = await this.getPermission(platform, permissionId);
-    return { items: permission.rolesUsing };
-  }
-
-  /** Lists subjects assigned to one exact role, using platform-specific subject joins. */
-  async roleSubjects(
-    platform: AuthorizationPlatform,
-    roleId: string,
-    query: AuthorizationSubjectListQueryDto,
-  ) {
-    const role = await this.getRole(platform, roleId);
-    const subjects = await this.listSubjects(platform, query, roleId);
-    return { role, ...subjects };
+    return roleId;
   }
 
   /** Builds the normalized role-permission matrix with deterministic ordering. */
-  async matrix(platform: AuthorizationPlatform) {
-    const config = this.config(platform);
+  async matrix(
+    context: AuthorizationContext,
+  ): Promise<AuthorizationMatrixResult> {
+    const { config } = context;
     const roles = await this.dataSource.query<
       { id: string; code: string; name: string }[]
     >(
@@ -640,7 +427,7 @@ export class AuthorizationManagementCoreService {
     >(
       `SELECT role_id, permission_id FROM ${config.rolePermissionTable} ORDER BY role_id, permission_id`,
     );
-    const permissionGroups = new Map<string, unknown[]>();
+    const permissionGroups = new Map<string, AuthorizationMatrixPermission[]>();
     for (const permission of permissions) {
       const group = permissionGroups.get(permission.category) ?? [];
       group.push({
@@ -667,194 +454,15 @@ export class AuthorizationManagementCoreService {
     };
   }
 
-  /** Lists authorization subjects without allowing searchable text to replace exact identity lookup. */
-  async listSubjects(
-    platform: AuthorizationPlatform,
-    query: AuthorizationSubjectListQueryDto,
-    roleId?: string,
-  ) {
-    const config = this.config(platform);
-    const pagination = PaginationHelper.normalize(query);
-    const parameters: unknown[] = [];
-    const where: string[] = ['subject.deleted_at IS NULL'];
-    const subjectStatus =
-      platform === AuthorizationPlatform.MARKETPLACE
-        ? "'ACTIVE'"
-        : platform === AuthorizationPlatform.PROVIDER
-          ? 'subject.status'
-          : "CASE WHEN subject.is_active THEN 'ACTIVE' ELSE 'DISABLED' END";
-    let displayName = 'subject.id::text';
-    let secondaryText = 'NULL::text';
-    if (platform === AuthorizationPlatform.MARKETPLACE) {
-      displayName = 'subject.email';
-      secondaryText = 'subject.email';
-    } else if (platform === AuthorizationPlatform.PROVIDER) {
-      displayName = 'provider.display_name';
-      secondaryText = 'customer.email';
-    } else {
-      displayName = 'subject.email';
-      secondaryText = 'subject.email';
-    }
-    if (query.q) {
-      parameters.push(`%${query.q.trim()}%`);
-      where.push(
-        `(${displayName} ILIKE $${parameters.length} OR ${secondaryText} ILIKE $${parameters.length} OR subject.id::text ILIKE $${parameters.length})`,
-      );
-    }
-    if (query.status) {
-      parameters.push(query.status);
-      where.push(`${subjectStatus} = $${parameters.length}`);
-    }
-    if (roleId) {
-      parameters.push(roleId);
-      where.push(
-        `EXISTS (SELECT 1 FROM ${config.assignmentTable} role_filter WHERE role_filter.${config.assignmentSubjectColumn} = subject.id AND role_filter.role_id = $${parameters.length})`,
-      );
-    }
-    const joinSql =
-      platform === AuthorizationPlatform.PROVIDER
-        ? `INNER JOIN tbl_provider_account provider ON provider.id = subject.provider_id
-         INNER JOIN tbl_customer_account customer ON customer.id = subject.customer_id`
-        : '';
-    const whereSql = where.join(' AND ');
-    const offset = (pagination.page - 1) * pagination.limit;
-    const countRows = await this.dataSource.query<{ total: string }[]>(
-      `SELECT COUNT(*)::text AS total FROM ${config.subjectTable} subject ${joinSql} WHERE ${whereSql}`,
-      parameters,
-    );
-    const rows = await this.dataSource.query<SubjectRow[]>(
-      `SELECT subject.id, ${displayName} AS display_name, ${secondaryText} AS secondary_text,
-              ${subjectStatus} AS status, COUNT(assignment.role_id)::int AS role_count,
-              COALESCE(array_agg(assignment.role_id) FILTER (WHERE assignment.role_id IS NOT NULL), ARRAY[]::uuid[]) AS role_ids
-       FROM ${config.subjectTable} subject ${joinSql}
-       LEFT JOIN ${config.assignmentTable} assignment ON assignment.${config.assignmentSubjectColumn} = subject.id
-       WHERE ${whereSql}
-       GROUP BY subject.id, ${displayName}, ${secondaryText}, ${subjectStatus}
-       ORDER BY display_name, subject.id
-       LIMIT ${pagination.limit} OFFSET ${offset}`,
-      parameters,
-    );
-    return PaginationHelper.buildMeta(
-      rows.map((row) => ({
-        id: row.id,
-        subjectType: config.subjectType,
-        displayName: row.display_name,
-        secondaryText: row.secondary_text,
-        status: row.status,
-        roleCount: row.role_count,
-        roleIds: row.role_ids,
-      })),
-      Number(countRows[0]?.total ?? 0),
-      pagination,
-    );
-  }
-
-  /** Loads one exact subject from the platform-owned identity table. */
-  async getSubject(platform: AuthorizationPlatform, subjectId: string) {
-    const config = this.config(platform);
-    const subjectStatus =
-      platform === AuthorizationPlatform.MARKETPLACE
-        ? "'ACTIVE'"
-        : platform === AuthorizationPlatform.PROVIDER
-          ? 'subject.status'
-          : "CASE WHEN subject.is_active THEN 'ACTIVE' ELSE 'DISABLED' END";
-    let displayName = 'subject.id::text';
-    let secondaryText = 'NULL::text';
-    if (platform === AuthorizationPlatform.MARKETPLACE) {
-      displayName = 'subject.email';
-      secondaryText = 'subject.email';
-    } else if (platform === AuthorizationPlatform.PROVIDER) {
-      displayName = 'provider.display_name';
-      secondaryText = 'customer.email';
-    } else {
-      displayName = 'subject.email';
-      secondaryText = 'subject.email';
-    }
-    const joinSql =
-      platform === AuthorizationPlatform.PROVIDER
-        ? `INNER JOIN tbl_provider_account provider ON provider.id = subject.provider_id
-           INNER JOIN tbl_customer_account customer ON customer.id = subject.customer_id`
-        : '';
-    const subjectRows = await this.dataSource.query<SubjectRow[]>(
-      `SELECT subject.id, ${displayName} AS display_name, ${secondaryText} AS secondary_text,
-              ${subjectStatus} AS status, COUNT(assignment.role_id)::int AS role_count,
-              COALESCE(array_agg(assignment.role_id) FILTER (WHERE assignment.role_id IS NOT NULL), ARRAY[]::uuid[]) AS role_ids
-       FROM ${config.subjectTable} subject ${joinSql}
-       LEFT JOIN ${config.assignmentTable} assignment ON assignment.${config.assignmentSubjectColumn} = subject.id
-       WHERE subject.id = $1 AND subject.deleted_at IS NULL
-       GROUP BY subject.id, ${displayName}, ${secondaryText}, ${subjectStatus}`,
-      [subjectId],
-    );
-    const subjectRow = subjectRows[0];
-    if (!subjectRow) {
-      throw new BusinessException(AuthorizationErrorCodes.SUBJECT_NOT_FOUND, {
-        subjectId,
-        platform,
-      });
-    }
-    const subject = {
-      id: subjectRow.id,
-      subjectType: config.subjectType,
-      displayName: subjectRow.display_name,
-      secondaryText: subjectRow.secondary_text,
-      status: subjectRow.status,
-      roleCount: subjectRow.role_count,
-      roleIds: subjectRow.role_ids,
-    };
-    const roleIds = await this.roleIds(config, subjectId);
-    const roles = roleIds.length
-      ? await this.dataSource.query<
-          { id: string; code: string; name: string; status: string }[]
-        >(
-          `SELECT id, code, name, status FROM ${config.roleTable} WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL ORDER BY code`,
-          [roleIds],
-        )
-      : [];
-    const permissions = await this.dataSource.query<PermissionRow[]>(
-      `SELECT DISTINCT permission.id, permission.code, permission.name, permission.description, permission.category,
-              permission.resource, permission.action, permission.risk_level, permission.is_assignable,
-              permission.deprecated_at, permission.created_at, permission.updated_at
-       FROM ${config.permissionTable} permission
-       INNER JOIN ${config.rolePermissionTable} mapping ON mapping.permission_id = permission.id
-       WHERE mapping.role_id = ANY($1::uuid[]) AND permission.deleted_at IS NULL
-         AND permission.deprecated_at IS NULL ORDER BY permission.code`,
-      [roleIds.length ? roleIds : ['00000000-0000-0000-0000-000000000000']],
-    );
-    const detail: Record<string, unknown> = {
-      ...subject,
-      roles,
-      permissions: permissions.map((p) => this.permissionSummary(p, platform)),
-    };
-    if (platform === AuthorizationPlatform.PROVIDER) {
-      const rows = await this.dataSource.query<
-        {
-          provider_id: string;
-          provider_display_name: string;
-          customer_id: string;
-          customer_email: string;
-        }[]
-      >(
-        `SELECT membership.provider_id, provider.display_name AS provider_display_name, membership.customer_id, customer.email AS customer_email
-         FROM tbl_provider_membership membership
-         INNER JOIN tbl_provider_account provider ON provider.id = membership.provider_id
-         INNER JOIN tbl_customer_account customer ON customer.id = membership.customer_id
-         WHERE membership.id = $1`,
-        [subjectId],
-      );
-      Object.assign(detail, rows[0] ?? {});
-    }
-    return detail;
-  }
-
   /** Replaces one subject's complete role set and protects affected recovery/owner invariants. */
   async replaceSubjectRoles(
-    platform: AuthorizationPlatform,
+    context: AuthorizationContext,
     subjectId: string,
     dto: ReplaceSubjectRolesDto,
     actorAdministratorId: string,
     requestId: string | null,
-  ) {
-    const config = this.config(platform);
+  ): Promise<string> {
+    const { platform, config } = context;
     const roleIds = [...new Set(dto.roleIds)];
     await this.dataSource.transaction(async (manager) => {
       if (platform === AuthorizationPlatform.ADMINISTRATION) {
@@ -936,11 +544,13 @@ export class AuthorizationManagementCoreService {
         reason: dto.reason ?? null,
       });
     });
-    return this.getSubject(platform, subjectId);
+    return subjectId;
   }
 
   /** Returns paginated authorization audit records with bounded, safe filters. */
-  async audit(query: AuthorizationAuditQueryDto) {
+  async audit(
+    query: AuthorizationAuditQueryDto,
+  ): Promise<AuthorizationAuditResult> {
     const pagination = PaginationHelper.normalize(query);
     const where: string[] = ['1 = 1'];
     const parameters: unknown[] = [];
@@ -997,7 +607,7 @@ export class AuthorizationManagementCoreService {
   async providerMembers(
     providerId: string,
     query: AuthorizationSubjectListQueryDto,
-  ) {
+  ): Promise<AuthorizationProviderMemberListResult> {
     const pagination = PaginationHelper.normalize(query);
     const parameters: unknown[] = [providerId];
     const where = [
@@ -1049,18 +659,6 @@ export class AuthorizationManagementCoreService {
       Number(countRows[0]?.total ?? 0),
       pagination,
     );
-  }
-
-  private config(
-    platform: AuthorizationPlatform,
-  ): PlatformAuthorizationSqlConfig {
-    const config = platformAuthorizationSqlConfig(platform);
-    if (!config) {
-      throw new BusinessException(AuthorizationErrorCodes.PLATFORM_NOT_FOUND, {
-        platform,
-      });
-    }
-    return config;
   }
 
   private async findRole(
@@ -1358,7 +956,10 @@ export class AuthorizationManagementCoreService {
     );
   }
 
-  private roleSummary(row: RoleRow, platform?: AuthorizationPlatform) {
+  private roleSummary(
+    row: RoleRow,
+    platform?: AuthorizationPlatform,
+  ): AuthorizationRoleSummary {
     const isProviderOwner =
       platform === AuthorizationPlatform.PROVIDER && row.code === 'OWNER';
     const allowedActions = {
@@ -1439,7 +1040,7 @@ type PermissionRow = {
   category: string;
   resource: string;
   action: string;
-  risk_level: string;
+  risk_level: AuthorizationRiskLevel;
   is_assignable: boolean;
   deprecated_at: Date | null;
   created_at: Date;
@@ -1468,16 +1069,4 @@ type ProviderMemberRow = {
   joined_at: Date;
   email: string;
   role_codes: string[];
-};
-
-/** Backward-compatible export for direct service consumers during extraction. */
-export { AuthorizationManagementCoreService as AuthorizationManagementService };
-
-type SubjectRow = {
-  id: string;
-  display_name: string;
-  secondary_text: string | null;
-  status: string;
-  role_count: number;
-  role_ids: string[];
 };

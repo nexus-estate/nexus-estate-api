@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { BusinessException } from '../../../../common/exceptions/business.exception';
-import { CurrentProviderContextValue } from '../services/current-provider-context.service';
+import type { ProviderContext } from '../services/provider-context.resolver';
 import {
   ProviderStatus,
   ProviderVerificationStatus,
@@ -13,9 +13,8 @@ import { ProviderAccountErrorCodes } from '../errors/provider-account-error-code
 export class ProviderAccountPolicy {
   private readonly logger = new Logger(ProviderAccountPolicy.name);
 
-  /** Throws unless the provider is active and approved for supply mutations. */
   /** Rejects supply operations unless provider status and verification permit mutation. */
-  requireActiveProvider(context: CurrentProviderContextValue): void {
+  requireActiveProvider(context: ProviderContext): void {
     if (context.membershipStatus && context.membershipStatus !== 'ACTIVE') {
       throw new BusinessException(
         ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
@@ -51,10 +50,9 @@ export class ProviderAccountPolicy {
     }
   }
 
-  /** Throws when a provider attempts to mutate another provider's resource. */
   /** Rejects access when the resolved provider context does not belong to the customer. */
   requireProviderOwnership(
-    context: CurrentProviderContextValue,
+    context: ProviderContext,
     resourceProviderId: string,
   ): void {
     if (context.providerId !== resourceProviderId) {

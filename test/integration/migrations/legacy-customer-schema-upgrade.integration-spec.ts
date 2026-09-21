@@ -9,7 +9,7 @@ import { assertAllMigrationsApplied } from '../../../src/database/migration-runn
 import { typeOrmConfig } from '../../../src/database/type.config';
 import { MigrateLegacyUserSchemaToCustomerAccount1789307935990 } from '../../../src/modules/customer/account/migrations/1789307935990-MigrateLegacyUserSchemaToCustomerAccount';
 import { backfillLegacyEstateProviders } from '../../../src/modules/provider/registration/data-migrations/backfill-legacy-estate-providers';
-import { CurrentProviderContext } from '../../../src/modules/provider/account/services/current-provider-context.service';
+import { ProviderContextResolver } from '../../../src/modules/provider/account/services/provider-context.resolver';
 
 jest.setTimeout(120_000);
 
@@ -352,9 +352,11 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
         ),
       ).resolves.toEqual([{ table_name: 'tbl_customer_account' }]);
 
+      // The contract migration already grandfathered this owner, so the
+      // operator backfill is a no-op returning zero new accounts.
       await expect(
         backfillLegacyEstateProviders(upgradeDataSource),
-      ).resolves.toBe(1);
+      ).resolves.toBe(0);
       const provider = await upgradeDataSource.query<
         Array<{
           id: string;
@@ -398,7 +400,7 @@ describe('legacy User -> CustomerAccount schema upgrade', () => {
           `SELECT fk_provider_id FROM tbl_estate WHERE id = '30000000-0000-4000-8000-000000000001'`,
         ),
       ).resolves.toEqual([{ fk_provider_id: provider[0].id }]);
-      const context = new CurrentProviderContext(
+      const context = new ProviderContextResolver(
         {} as never,
         upgradeDataSource,
       );

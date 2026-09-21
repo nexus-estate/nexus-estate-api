@@ -12,8 +12,10 @@ import { typeormConfig } from './database/type.config';
 import { CommonModule } from './common/common.module';
 
 import { Public } from './common/decorators/public.decorator';
-import { LocationModule } from './database/seed/locations/location.module';
+import { LocationModule } from './modules/location/location.module';
 import { EstateModule } from './modules/estate/estate.module';
+import { ListingModule } from './modules/listing/listing.module';
+import { LeadModule } from './modules/lead/lead.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { ProviderModule } from './modules/provider/provider.module';
 import { AdministrationModule } from './modules/administration/administration.module';
@@ -76,6 +78,8 @@ export class LegacyHealthController {
     CommonModule,
     LocationModule,
     EstateModule,
+    ListingModule,
+    LeadModule,
     CustomerModule,
     ProviderModule,
     AdministrationModule,

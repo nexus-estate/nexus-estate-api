@@ -13,7 +13,8 @@ import { AdministrationPermissionRequire } from '../decorators/administration-pe
 import { AdministrationPermissionsGuard } from '../guards/administration-permissions.guard';
 import { ADMINISTRATION_PERMISSIONS } from '../constants/administration-permission.constant';
 import { AuthorizationSubjectListQueryDto } from '../dto/authorization-management.dto';
-import { AuthorizationManagementService } from '../management/authorization-management.service';
+import { AuthorizationProviderMembershipService } from '../services/subjects/authorization-provider-membership.service';
+import type { AuthorizationProviderMemberListResult } from '../types/contracts/authorization-management.contract';
 
 /** Read-only provider membership view required by authorization management UI. */
 @ApiTags('Administration Provider Memberships')
@@ -21,7 +22,9 @@ import { AuthorizationManagementService } from '../management/authorization-mana
 @Controller('administration/providers')
 @UseGuards(AdministrationJwtAuthGuard, AdministrationPermissionsGuard)
 export class ProviderMembershipAuthorizationController {
-  constructor(private readonly service: AuthorizationManagementService) {}
+  constructor(
+    private readonly service: AuthorizationProviderMembershipService,
+  ) {}
 
   @Get(':providerId/members')
   @ApiOperation({
@@ -34,7 +37,7 @@ export class ProviderMembershipAuthorizationController {
   members(
     @Param('providerId', new ParseUUIDPipe()) providerId: string,
     @Query() query: AuthorizationSubjectListQueryDto,
-  ) {
-    return this.service.providerMembers(providerId, query);
+  ): Promise<AuthorizationProviderMemberListResult> {
+    return this.service.list(providerId, query);
   }
 }

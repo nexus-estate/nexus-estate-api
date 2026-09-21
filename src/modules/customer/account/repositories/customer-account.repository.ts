@@ -48,7 +48,6 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
     };
   }
 
-  /** Loads a safe customer projection by identifier. */
   /** Loads a safe customer projection by exact identifier. */
   async findSafeById(id: string): Promise<SafeCustomerAccount | null> {
     const rows = await this.repository.query<CustomerAccountWithRoleRow[]>(
@@ -75,7 +74,6 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
     return row ? this.mapRowToCustomerAccount(row) : null;
   }
 
-  /** Loads a safe customer projection by normalized email. */
   /** Finds a safe customer projection by exact normalized email. */
   async findByEmail(email: string): Promise<SafeCustomerAccount | null> {
     const rows = await this.repository.query<CustomerAccountWithRoleRow[]>(
@@ -102,7 +100,6 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
     return row ? this.mapRowToCustomerAccount(row) : null;
   }
 
-  /** Loads the password-bearing projection used only by authentication. */
   /** Loads password data only for the credential-verification boundary. */
   async findByEmailForAuthentication(
     email: string,
@@ -134,34 +131,19 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
     return row ? this.mapAuthenticationRowToCustomerAccount(row) : null;
   }
 
-  /** Creates an account and returns the safe projection after persistence. */
   /** Creates a customer record and returns its safe projection. */
   async createCustomerAccount(data: {
     email: string;
     password: string;
-    roleId?: string;
   }): Promise<SafeCustomerAccount> {
-    const query = data.roleId
-      ? `
-        INSERT INTO tbl_customer_account (
-          email,
-          password,
-          role_id
-        )
-        VALUES ($1, $2, $3)
-        RETURNING id
-      `
-      : `
+    const query = `
         INSERT INTO tbl_customer_account (email, password)
         VALUES ($1, $2)
         RETURNING id
       `;
-    const parameters = data.roleId
-      ? [data.email, data.password, data.roleId]
-      : [data.email, data.password];
     const rows = await this.repository.query<CreatedCustomerAccountIdRow[]>(
       query,
-      parameters,
+      [data.email, data.password],
     );
 
     const row = rows[0];
@@ -179,7 +161,6 @@ export class CustomerAccountRepository extends BaseRepository<CustomerAccount> {
     return customerAccount;
   }
 
-  /** Updates the last-login timestamp for an active customer account. */
   /** Updates the last-login timestamp for one exact customer account. */
   async updateLastLogin(customerId: string, lastLogin: Date): Promise<boolean> {
     const rows = await this.repository.query<UpdatedCustomerAccountIdRow[]>(

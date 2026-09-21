@@ -18,10 +18,14 @@ export class Estate extends BaseEntity {
   @JoinColumn({ name: 'fk_customer_id' })
   customer: Relation<CustomerAccount>;
 
-  @Column({ name: 'fk_provider_id', type: 'uuid', nullable: true })
-  providerId: string | null;
+  /**
+   * Canonical supply owner. Contracted NOT NULL by
+   * ContractEstateProviderOwnership1789999894372.
+   */
+  @Column({ name: 'fk_provider_id', type: 'uuid', nullable: false })
+  providerId: string;
 
-  @ManyToOne(() => ProviderAccount, { nullable: true, onDelete: 'RESTRICT' })
+  @ManyToOne(() => ProviderAccount, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'fk_provider_id' })
   provider: Relation<ProviderAccount>;
 

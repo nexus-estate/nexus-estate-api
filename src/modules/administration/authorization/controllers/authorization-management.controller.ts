@@ -45,6 +45,26 @@ import {
   UpdateAuthorizationRoleDto,
 } from '../dto/authorization-management.dto';
 import { AuthorizationManagementService } from '../management/authorization-management.service';
+import { AuthorizationService } from '../services/authorization.service';
+import { AuthorizationAuditQueryService } from '../audit/authorization-audit-query.service';
+import type {
+  AuthorizationRoleDetail,
+  AuthorizationRoleDeletionResult,
+  AuthorizationRoleListResult,
+  AuthorizationRoleSubjectsResult,
+} from '../types/contracts/authorization-role.contract';
+import type {
+  AuthorizationPermissionDetail,
+  AuthorizationPermissionListResult,
+  AuthorizationPermissionRolesResult,
+} from '../types/contracts/authorization-permission.contract';
+import type { AuthorizationSubjectDetail } from '../types/contracts/authorization-subject.contract';
+import type { AuthorizationSubjectListResult } from '../types/contracts/authorization-subject.contract';
+import type { AuthorizationMatrixResult } from '../types/contracts/authorization-matrix.contract';
+import type {
+  AuthorizationAuditResult,
+  AuthorizationPlatformsResult,
+} from '../types/contracts/authorization-management.contract';
 
 /** UI-ready Administration-only management API for all platform auth domains. */
 @ApiTags('Administration Authorization')
@@ -52,7 +72,11 @@ import { AuthorizationManagementService } from '../management/authorization-mana
 @Controller('administration/authorization')
 @UseGuards(AdministrationJwtAuthGuard, AdministrationPermissionsGuard)
 export class AuthorizationManagementController {
-  constructor(private readonly service: AuthorizationManagementService) {}
+  constructor(
+    private readonly service: AuthorizationManagementService,
+    private readonly authorization: AuthorizationService,
+    private readonly auditQueryService: AuthorizationAuditQueryService,
+  ) {}
 
   /** Lists the platform domains available to administration management. */
   @Get('platforms')
@@ -60,7 +84,7 @@ export class AuthorizationManagementController {
   @AdministrationPermissionRequire(
     ADMINISTRATION_PERMISSIONS.AUTHORIZATION_PLATFORM_READ,
   )
-  platforms() {
+  platforms(): AuthorizationPlatformsResult {
     return this.service.platforms();
   }
 
@@ -70,8 +94,10 @@ export class AuthorizationManagementController {
   @AdministrationPermissionRequire(
     ADMINISTRATION_PERMISSIONS.AUTHORIZATION_AUDIT_READ,
   )
-  audit(@Query() query: AuthorizationAuditQueryDto) {
-    return this.service.audit(query);
+  audit(
+    @Query() query: AuthorizationAuditQueryDto,
+  ): Promise<AuthorizationAuditResult> {
+    return this.auditQueryService.search(query);
   }
 
   /** Lists platform roles with counts and truthful allowed actions. */
@@ -88,8 +114,8 @@ export class AuthorizationManagementController {
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
     @Query() query: AuthorizationRoleListQueryDto,
-  ) {
-    return this.service.listRoles(platform, query);
+  ): Promise<AuthorizationRoleListResult> {
+    return this.authorization.for(platform).roles.list(query);
   }
 
   /** Creates one custom role in the selected platform. */
@@ -108,13 +134,10 @@ export class AuthorizationManagementController {
     @Body() dto: CreateAuthorizationRoleDto,
     @CurrentUser() principal: AdministrationPrincipal,
     @Req() request: Request,
-  ) {
-    return this.service.createRole(
-      platform,
-      dto,
-      principal.id,
-      this.requestId(request),
-    );
+  ): Promise<AuthorizationRoleDetail> {
+    return this.authorization
+      .for(platform)
+      .roles.create(dto, principal.id, this.requestId(request));
   }
 
   /** Returns one exact role and its current platform permissions. */
@@ -132,8 +155,8 @@ export class AuthorizationManagementController {
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
     @Param('roleId', new ParseUUIDPipe()) roleId: string,
-  ) {
-    return this.service.getRole(platform, roleId);
+  ): Promise<AuthorizationRoleDetail> {
+    return this.authorization.for(platform).roles.get(roleId);
   }
 
   /** Updates role metadata using the caller's expected version. */
@@ -155,14 +178,10 @@ export class AuthorizationManagementController {
     @Body() dto: UpdateAuthorizationRoleDto,
     @CurrentUser() principal: AdministrationPrincipal,
     @Req() request: Request,
-  ) {
-    return this.service.updateRole(
-      platform,
-      roleId,
-      dto,
-      principal.id,
-      this.requestId(request),
-    );
+  ): Promise<AuthorizationRoleDetail> {
+    return this.authorization
+      .for(platform)
+      .roles.update(roleId, dto, principal.id, this.requestId(request));
   }
 
   /** Soft-deletes an unused custom role when platform safety allows it. */
@@ -183,13 +202,10 @@ export class AuthorizationManagementController {
     @Param('roleId', new ParseUUIDPipe()) roleId: string,
     @CurrentUser() principal: AdministrationPrincipal,
     @Req() request: Request,
-  ) {
-    return this.service.deleteRole(
-      platform,
-      roleId,
-      principal.id,
-      this.requestId(request),
-    );
+  ): Promise<AuthorizationRoleDeletionResult> {
+    return this.authorization
+      .for(platform)
+      .roles.delete(roleId, principal.id, this.requestId(request));
   }
 
   /** Replaces the complete permission set for one role. */
@@ -212,14 +228,15 @@ export class AuthorizationManagementController {
     @Body() dto: ReplaceRolePermissionsDto,
     @CurrentUser() principal: AdministrationPrincipal,
     @Req() request: Request,
-  ) {
-    return this.service.replaceRolePermissions(
-      platform,
-      roleId,
-      dto,
-      principal.id,
-      this.requestId(request),
-    );
+  ): Promise<AuthorizationRoleDetail> {
+    return this.authorization
+      .for(platform)
+      .roles.replacePermissions(
+        roleId,
+        dto,
+        principal.id,
+        this.requestId(request),
+      );
   }
 
   /** Lists subjects currently assigned to one exact role. */
@@ -235,8 +252,8 @@ export class AuthorizationManagementController {
     platform: AuthorizationPlatform,
     @Param('roleId', new ParseUUIDPipe()) roleId: string,
     @Query() query: AuthorizationSubjectListQueryDto,
-  ) {
-    return this.service.roleSubjects(platform, roleId, query);
+  ): Promise<AuthorizationRoleSubjectsResult> {
+    return this.authorization.for(platform).subjects.listForRole(roleId, query);
   }
 
   /** Lists the platform-owned permission catalogue. */
@@ -253,8 +270,8 @@ export class AuthorizationManagementController {
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
     @Query() query: AuthorizationPermissionListQueryDto,
-  ) {
-    return this.service.listPermissions(platform, query);
+  ): Promise<AuthorizationPermissionListResult> {
+    return this.authorization.for(platform).permissions.list(query);
   }
 
   /** Returns one exact permission and its role usage. */
@@ -270,8 +287,8 @@ export class AuthorizationManagementController {
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
     @Param('permissionId', new ParseUUIDPipe()) permissionId: string,
-  ) {
-    return this.service.getPermission(platform, permissionId);
+  ): Promise<AuthorizationPermissionDetail> {
+    return this.authorization.for(platform).permissions.get(permissionId);
   }
 
   /** Lists platform roles that use one exact permission. */
@@ -287,8 +304,8 @@ export class AuthorizationManagementController {
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
     @Param('permissionId', new ParseUUIDPipe()) permissionId: string,
-  ) {
-    return this.service.permissionRoles(platform, permissionId);
+  ): Promise<AuthorizationPermissionRolesResult> {
+    return this.authorization.for(platform).permissions.roles(permissionId);
   }
 
   /** Returns the deterministic role-permission matrix for a platform. */
@@ -304,8 +321,8 @@ export class AuthorizationManagementController {
   matrix(
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
-  ) {
-    return this.service.matrix(platform);
+  ): Promise<AuthorizationMatrixResult> {
+    return this.authorization.for(platform).matrix();
   }
 
   /** Lists subjects using platform-specific identity semantics. */
@@ -320,8 +337,8 @@ export class AuthorizationManagementController {
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
     @Query() query: AuthorizationSubjectListQueryDto,
-  ) {
-    return this.service.listSubjects(platform, query);
+  ): Promise<AuthorizationSubjectListResult> {
+    return this.authorization.for(platform).subjects.list(query);
   }
 
   /** Returns one exact subject from the selected platform. */
@@ -339,8 +356,8 @@ export class AuthorizationManagementController {
     @Param('platform', new ParseEnumPipe(AuthorizationPlatform))
     platform: AuthorizationPlatform,
     @Param('subjectId', new ParseUUIDPipe()) subjectId: string,
-  ) {
-    return this.service.getSubject(platform, subjectId);
+  ): Promise<AuthorizationSubjectDetail> {
+    return this.authorization.for(platform).subjects.get(subjectId);
   }
 
   /** Replaces the complete role set for one exact subject. */
@@ -363,14 +380,15 @@ export class AuthorizationManagementController {
     @Body() dto: ReplaceSubjectRolesDto,
     @CurrentUser() principal: AdministrationPrincipal,
     @Req() request: Request,
-  ) {
-    return this.service.replaceSubjectRoles(
-      platform,
-      subjectId,
-      dto,
-      principal.id,
-      this.requestId(request),
-    );
+  ): Promise<AuthorizationSubjectDetail> {
+    return this.authorization
+      .for(platform)
+      .subjects.replaceRoles(
+        subjectId,
+        dto,
+        principal.id,
+        this.requestId(request),
+      );
   }
 
   private requestId(request: Request): string | null {

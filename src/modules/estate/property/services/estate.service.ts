@@ -1,33 +1,55 @@
 import { Injectable } from '@nestjs/common';
-import { BaseService } from '../../../../services/abstraction-services';
 import { EstateRepo } from '../repositories/estate.repo';
 import { Estate } from '../entities';
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
 import { CreateEstateDto } from '../dto/create-estate-dto';
-import { ProvinceRepo } from '../../../../database/seed/locations/repositories/province.repo';
-import { WardRepository } from '../../../../database/seed/locations/repositories/ward.repo';
+import { ProvinceRepo } from '../../../location/administrative-division/repositories/province.repo';
+import { WardRepository } from '../../../location/administrative-division/repositories/ward.repo';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
-import type { CreateEstateData } from '../types/estate.type';
-import { ProviderAccountService } from '../../../provider/account/services/provider-account.service';
-import { ProviderAuthorizationService } from '../../../provider/authorization/services/provider-authorization.service';
+import {
+  ProviderContextResolver,
+  type ProviderContext,
+} from '../../../provider/account/services/provider-context.resolver';
+import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/helpers/provider-supply-access.policy';
 
 @Injectable()
-export class EstateService extends BaseService<
-  Estate,
-  CreateEstateData,
-  UpdateEstateDto
-> {
+export class EstateService {
   constructor(
     private readonly estateRepository: EstateRepo,
     private readonly provinceRepository: ProvinceRepo,
     private readonly wardRepository: WardRepository,
-    private readonly providerAccountService: ProviderAccountService,
-    private readonly providerAuthorizationService?: ProviderAuthorizationService,
-  ) {
-    super(estateRepository, 'Estate');
+    private readonly providerContextResolver: ProviderContextResolver,
+    private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
+  ) {}
+
+  /** Resolves the provider context and enforces supply read access. */
+  private async requireSupplyReadContext(
+    customerId: string,
+    providerId?: string,
+  ): Promise<ProviderContext> {
+    const context = await this.providerContextResolver.resolve(
+      customerId,
+      providerId,
+    );
+    this.supplyAccessPolicy.requireReadAccess(context);
+    return context;
   }
-  private async validateLocaion(
+
+  /** Resolves the provider context and enforces supply write access. */
+  private async requireSupplyWriteContext(
+    customerId: string,
+    providerId?: string,
+  ): Promise<ProviderContext> {
+    const context = await this.providerContextResolver.resolve(
+      customerId,
+      providerId,
+    );
+    await this.supplyAccessPolicy.requireWriteAccess(context);
+    return context;
+  }
+
+  private async validateLocation(
     wardId: string,
     provinceId: string,
   ): Promise<boolean> {
@@ -64,25 +86,41 @@ export class EstateService extends BaseService<
     }
     return estate;
   }
-  /** Creates an estate owned by the authenticated provider/customer context. */
+
+  /** Loads one estate owned by the exact provider context or raises not-found. */
+  private async requireOwnedEstate(
+    estateId: string,
+    context: ProviderContext,
+  ): Promise<Estate> {
+    const estate = await this.estateRepository.findById(estateId);
+    if (!estate) {
+      throw new BusinessException(
+        CommonErrorCodes.RESOURCE_NOT_FOUND,
+        estateId,
+      );
+    }
+    if (estate.providerId !== context.providerId) {
+      throw new BusinessException(
+        CommonErrorCodes.FORBIDDEN,
+        context.providerId,
+      );
+    }
+    return estate;
+  }
+
+  /** Creates an estate owned by the authenticated provider context. */
   async createEstate(
     customerId: string,
     dto: CreateEstateDto,
     providerId?: string,
   ): Promise<Estate> {
-    const context = providerId
-      ? await this.providerAccountService.requireActiveProvider(
-          customerId,
-          providerId,
-        )
-      : await this.providerAccountService.requireActiveProvider(customerId);
-    await this.providerAuthorizationService?.requireLegacyEstateOwner(
+    const context = await this.requireSupplyWriteContext(
       customerId,
-      context.providerId,
+      providerId,
     );
 
     // 1. find province
-    const checkedLocation = await this.validateLocaion(
+    const checkedLocation = await this.validateLocation(
       dto.wardId,
       dto.provinceId,
     );
@@ -96,50 +134,25 @@ export class EstateService extends BaseService<
     });
   }
 
-  /** Updates an estate only after ownership and active-provider policy checks. */
+  /** Updates an estate only after provider ownership and supply policy checks. */
   async updateEstate(
     dto: UpdateEstateDto,
     customerId: string,
     estateId: string,
     providerId?: string,
   ): Promise<Estate> {
-    const context = providerId
-      ? await this.providerAccountService.requireActiveProvider(
-          customerId,
-          providerId,
-        )
-      : await this.providerAccountService.requireActiveProvider(customerId);
-    const estate = await this.estateRepository.findById(estateId);
-    if (!estate) {
-      throw new BusinessException(
-        CommonErrorCodes.RESOURCE_NOT_FOUND,
-        estateId,
-      );
-    }
-    if (estate.providerId && estate.providerId !== context.providerId) {
-      throw new BusinessException(
-        CommonErrorCodes.FORBIDDEN,
-        context.providerId,
-      );
-    }
-    await this.providerAuthorizationService?.requireLegacyEstateOwner(
+    const context = await this.requireSupplyWriteContext(
       customerId,
-      context.providerId,
+      providerId,
     );
-
-    const checkedLocation = await this.validateLocaion(
+    const estate = await this.requireOwnedEstate(estateId, context);
+    const checkedLocation = await this.validateLocation(
       dto.wardId ?? estate.wardId,
       dto.provinceId ?? estate.provinceId,
     );
     if (!checkedLocation) {
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
     }
-    // 3. check owner:
-    if (customerId !== estate.customerId) {
-      throw new BusinessException(CommonErrorCodes.FORBIDDEN, customerId);
-    }
-
-    // 5. gọi repository.updateEstate(estateId, dto)
     const updatedEstate = await this.estateRepository.updateEstate(
       estateId,
       dto,
@@ -150,7 +163,6 @@ export class EstateService extends BaseService<
         estateId,
       );
     }
-    // 6. return Estate
     return updatedEstate;
   }
 
@@ -160,31 +172,14 @@ export class EstateService extends BaseService<
     estateId: string,
     providerId?: string,
   ): Promise<boolean> {
-    const context = providerId
-      ? await this.providerAccountService.requireActiveProvider(
-          customerId,
-          providerId,
-        )
-      : await this.providerAccountService.requireActiveProvider(customerId);
-    const estate = await this.estateRepository.findById(estateId);
-    if (!estate) {
-      throw new BusinessException(
-        CommonErrorCodes.RESOURCE_NOT_FOUND,
-        estateId,
-      );
-    }
-    if (
-      customerId !== estate.customerId ||
-      (estate.providerId && estate.providerId !== context.providerId)
-    ) {
-      throw new BusinessException(CommonErrorCodes.FORBIDDEN, customerId);
-    }
-    await this.providerAuthorizationService?.requireLegacyEstateOwner(
+    const context = await this.requireSupplyWriteContext(
       customerId,
-      context.providerId,
+      providerId,
     );
-    const deletedEstate =
-      await this.estateRepository.softDeleteEstate(estateId);
+    const estate = await this.requireOwnedEstate(estateId, context);
+    const deletedEstate = await this.estateRepository.softDeleteEstate(
+      estate.id,
+    );
 
     if (!deletedEstate) {
       throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
@@ -192,20 +187,9 @@ export class EstateService extends BaseService<
     return true;
   }
 
-  /** Lists estates belonging to one exact customer/provider owner. */
-  async findByCustomerId(
-    customerId: string,
-    providerId?: string,
-  ): Promise<Estate[]> {
-    const context = providerId
-      ? await this.providerAccountService.requireActiveProvider(
-          customerId,
-          providerId,
-        )
-      : await this.providerAccountService.requireActiveProvider(customerId);
-    return this.estateRepository.findByCustomerId(
-      customerId,
-      context.providerId,
-    );
+  /** Lists estates belonging to the resolved provider context. */
+  async listMine(customerId: string, providerId?: string): Promise<Estate[]> {
+    const context = await this.requireSupplyReadContext(customerId, providerId);
+    return this.estateRepository.findByProviderId(context.providerId);
   }
 }
