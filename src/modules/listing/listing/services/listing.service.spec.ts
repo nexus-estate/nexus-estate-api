@@ -16,6 +16,7 @@ import { ListingService } from './listing.service';
 describe('ListingService', () => {
   const customerId = '10000000-0000-4000-8000-000000000001';
   const providerId = '20000000-0000-4000-8000-000000000001';
+  const otherProviderId = '20000000-0000-4000-8000-000000000002';
   const estateId = '30000000-0000-4000-8000-000000000001';
   const listingId = '40000000-0000-4000-8000-000000000001';
   const estateData = {
@@ -41,7 +42,7 @@ describe('ListingService', () => {
   };
   const estate = estateData as unknown as Estate;
 
-  it('creates a draft that references an owned estate', async () => {
+  const buildService = (estate: unknown) => {
     const listingRepository = {
       findByEstateId: jest.fn().mockResolvedValue(null),
       create: jest.fn(
@@ -74,12 +75,16 @@ describe('ListingService', () => {
       requireReadAccess: jest.fn(),
       requireWriteAccess: jest.fn().mockResolvedValue(undefined),
     } as unknown as ProviderSupplyAccessPolicy;
-    const service = new ListingService(
+    return new ListingService(
       listingRepository,
       estateRepository,
       providerContextResolver,
       supplyAccessPolicy,
     );
+  };
+
+  it('creates a draft that references an estate owned by the same provider', async () => {
+    const service = buildService(estate);
 
     const dto: CreateListingDto = { estateId };
     const result = await service.create(customerId, dto);
@@ -93,36 +98,35 @@ describe('ListingService', () => {
     });
   });
 
+  it('accepts an estate with a different legacy customer owner but the same provider', async () => {
+    const service = buildService({
+      ...estateData,
+      customerId: '70000000-0000-4000-8000-000000000001',
+    });
+
+    await expect(
+      service.create(customerId, { estateId }),
+    ).resolves.toMatchObject({ id: listingId, status: ListingStatus.DRAFT });
+  });
+
   it('rejects an estate owned by another provider', async () => {
-    const listingRepository = {} as ListingRepo;
-    const estateRepository = {
-      findById: jest.fn().mockResolvedValue({
-        ...estateData,
-        customerId: '70000000-0000-4000-8000-000000000001',
-      }),
-    } as unknown as EstateRepo;
-    const providerContextResolver = {
-      resolve: jest.fn().mockResolvedValue({
-        customerId,
-        providerId,
-        providerType: ProviderType.INDIVIDUAL,
-        providerStatus: ProviderStatus.ACTIVE,
-        verificationStatus: ProviderVerificationStatus.VERIFIED,
-        providerDisplayName: 'Provider',
-        membershipId: '80000000-0000-4000-8000-000000000001',
-        membershipStatus: 'ACTIVE',
-      }),
-    } as unknown as ProviderContextResolver;
-    const supplyAccessPolicy = {
-      requireReadAccess: jest.fn(),
-      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
-    } as unknown as ProviderSupplyAccessPolicy;
-    const service = new ListingService(
-      listingRepository,
-      estateRepository,
-      providerContextResolver,
-      supplyAccessPolicy,
-    );
+    const service = buildService({
+      ...estateData,
+      providerId: otherProviderId,
+    });
+
+    await expect(
+      service.create(customerId, { estateId }),
+    ).rejects.toMatchObject({
+      errorCode: CommonErrorCodes.FORBIDDEN.code,
+    });
+  });
+
+  it('rejects a legacy estate without a provider binding', async () => {
+    const service = buildService({
+      ...estateData,
+      providerId: null,
+    });
 
     await expect(
       service.create(customerId, { estateId }),

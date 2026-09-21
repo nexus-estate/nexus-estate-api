@@ -72,11 +72,27 @@ type TokenPair = {
 
 type EstateResponse = {
   id: string;
-  customerId: string;
+  providerId: string;
   title: string;
   provinceId: string;
   wardId: string;
+  province: { id: string; code: string; name: string };
+  ward: { id: string; code: string; name: string };
   deletedAt: string | null;
+  customerId?: unknown;
+  customer?: unknown;
+  provider?: unknown;
+  createdBy?: unknown;
+  updatedBy?: unknown;
+};
+
+const expectNoLegacyOwnershipLeakage = (estate: EstateResponse): void => {
+  expect(estate).not.toHaveProperty('customerId');
+  expect(estate).not.toHaveProperty('customer');
+  expect(estate).not.toHaveProperty('provider');
+  expect(estate).not.toHaveProperty('deletedAt');
+  expect(estate).not.toHaveProperty('createdBy');
+  expect(estate).not.toHaveProperty('updatedBy');
 };
 
 describe('Estate API (e2e)', () => {
@@ -88,10 +104,25 @@ describe('Estate API (e2e)', () => {
   let otherUser: CustomerAccount;
   let normalUser: CustomerAccount;
   let province: Province;
+  let ownerProviderId: string;
+  let otherProviderId: string;
   let ward: Ward;
   let ownerToken: string;
   let otherToken: string;
   let normalToken: string;
+
+  const expectLocationHydrated = (estate: EstateResponse): void => {
+    expect(estate.province).toEqual({
+      id: province.id,
+      code: province.code,
+      name: province.name,
+    });
+    expect(estate.ward).toEqual({
+      id: ward.id,
+      code: ward.code,
+      name: ward.name,
+    });
+  };
 
   const password = 'correct-password';
 
@@ -226,22 +257,26 @@ describe('Estate API (e2e)', () => {
       password: passwordHash,
       roleId: role.id,
     });
-    const providers = await dataSource.getRepository(ProviderAccount).save([
-      {
-        ownerCustomerId: owner.id,
-        type: ProviderType.INDIVIDUAL,
-        displayName: 'Owner Provider',
-        status: ProviderStatus.ACTIVE,
-        verificationStatus: ProviderVerificationStatus.VERIFIED,
-      },
-      {
-        ownerCustomerId: otherUser.id,
-        type: ProviderType.INDIVIDUAL,
-        displayName: 'Other Provider',
-        status: ProviderStatus.ACTIVE,
-        verificationStatus: ProviderVerificationStatus.VERIFIED,
-      },
-    ]);
+    const providers: ProviderAccount[] = await dataSource
+      .getRepository(ProviderAccount)
+      .save([
+        {
+          ownerCustomerId: owner.id,
+          type: ProviderType.INDIVIDUAL,
+          displayName: 'Owner Provider',
+          status: ProviderStatus.ACTIVE,
+          verificationStatus: ProviderVerificationStatus.VERIFIED,
+        },
+        {
+          ownerCustomerId: otherUser.id,
+          type: ProviderType.INDIVIDUAL,
+          displayName: 'Other Provider',
+          status: ProviderStatus.ACTIVE,
+          verificationStatus: ProviderVerificationStatus.VERIFIED,
+        },
+      ]);
+    ownerProviderId = providers[0].id;
+    otherProviderId = providers[1].id;
     const ownerRole = await dataSource
       .getRepository(ProviderRole)
       .findOneByOrFail({
@@ -281,7 +316,7 @@ describe('Estate API (e2e)', () => {
     await container?.stop();
   });
 
-  it('creates an authenticated estate using the principal user id', async () => {
+  it('creates an authenticated estate owned by the active provider context', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/estates')
       .set('Authorization', `Bearer ${ownerToken}`)
@@ -291,11 +326,13 @@ describe('Estate API (e2e)', () => {
 
     expect(body.status).toBe(true);
     expect(body.data).toMatchObject({
-      customerId: owner.id,
       title: estateBody().title,
       provinceId: province.id,
       wardId: ward.id,
     });
+    expect(body.data.providerId).toBe(ownerProviderId);
+    expectLocationHydrated(body.data);
+    expectNoLegacyOwnershipLeakage(body.data);
   });
 
   it('lists wards for a selected province without authentication', async () => {
@@ -386,13 +423,14 @@ describe('Estate API (e2e)', () => {
     expect(body.message).toContain('property customerId should not exist');
   });
 
-  it('lists only estates belonging to the authenticated principal', async () => {
+  it('lists only estates belonging to the resolved provider context', async () => {
     const created = await createEstate();
     await dataSource.getRepository(Estate).save({
       ...estateBody(),
       id: undefined,
       customerId: otherUser.id,
-      title: 'Other owner estate',
+      providerId: otherProviderId,
+      title: 'Other provider estate',
     });
 
     const response = await request(app.getHttpServer())
@@ -403,9 +441,12 @@ describe('Estate API (e2e)', () => {
 
     expect(body.data).toHaveLength(1);
     expect(body.data[0].id).toBe(created.id);
+    expect(body.data[0].providerId).toBe(ownerProviderId);
+    expectLocationHydrated(body.data[0]);
+    expectNoLegacyOwnershipLeakage(body.data[0]);
   });
 
-  it('gets an estate by id', async () => {
+  it('gets an estate by id without exposing legacy ownership', async () => {
     const created = await createEstate();
 
     const response = await request(app.getHttpServer())
@@ -414,7 +455,10 @@ describe('Estate API (e2e)', () => {
       .expect(200);
     const body = response.body as ApiSuccess<EstateResponse>;
 
-    expect(body.data).toMatchObject({ id: created.id, customerId: owner.id });
+    expect(body.data).toMatchObject({ id: created.id });
+    expect(body.data.providerId).toBe(ownerProviderId);
+    expectLocationHydrated(body.data);
+    expectNoLegacyOwnershipLeakage(body.data);
   });
 
   it('allows the owner to update an estate', async () => {
@@ -431,9 +475,11 @@ describe('Estate API (e2e)', () => {
       id: created.id,
       title: 'Updated title',
     });
+    expectLocationHydrated(body.data);
+    expectNoLegacyOwnershipLeakage(body.data);
   });
 
-  it('forbids a non-owner from updating an estate', async () => {
+  it('forbids another provider from updating an estate', async () => {
     const created = await createEstate();
 
     const response = await request(app.getHttpServer())
@@ -480,7 +526,7 @@ describe('Estate API (e2e)', () => {
     ).resolves.toBeNull();
   });
 
-  it('forbids a non-owner from deleting an estate', async () => {
+  it('forbids another provider from deleting an estate', async () => {
     const created = await createEstate();
 
     const response = await request(app.getHttpServer())

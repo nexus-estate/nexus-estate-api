@@ -155,6 +155,12 @@ describe('ProviderAccount migration (PostgreSQL integration)', () => {
   });
 
   it('backfills legacy Estate providers idempotently', async () => {
+    // The estate being simulated predates provider ownership. Relax the
+    // contracted NOT NULL column exactly like a pre-contract deployment
+    // window, then let the backfill restore canonical ownership.
+    await dataSource.query(
+      `ALTER TABLE tbl_estate ALTER COLUMN fk_provider_id DROP NOT NULL`,
+    );
     const roleRows: CatalogRow[] = await dataSource.query(
       `SELECT id FROM tbl_role WHERE name = 'customer'`,
     );

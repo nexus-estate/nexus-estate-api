@@ -1,0 +1,16 @@
+---
+description: Nexus Estate API canonical repository instructions
+alwaysApply: true
+---
+
+Read and follow `/AGENTS.md` before planning, reviewing, or modifying code.
+
+`/AGENTS.md` is the repository's canonical operational rulebook.
+
+Requirements:
+
+- apply every relevant MUST/MUST NOT rule;
+- apply all `MIG-*` rules before creating or renaming migrations;
+- consult `docs/developer.rules.md` only for deeper architecture rationale;
+- do not treat existing code or green CI as permission to violate
+  `/AGENTS.md`.
