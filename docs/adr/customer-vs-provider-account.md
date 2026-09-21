@@ -28,7 +28,7 @@ should resolve the reusable `ProviderContextResolver` rather than repeatedly
 reimplementing CustomerAccount-to-ProviderAccount lookup.
 
 Estate (Property) ownership is contracted as of
-`ContractEstateProviderOwnership1789584000000`:
+`ContractEstateProviderOwnership1789999894372`:
 
 ```text
 fk_provider_id = canonical ownership (NOT NULL)

@@ -81,7 +81,7 @@ context; clients must not submit them as ownership fields.
 ### Estate ownership contract
 
 `fk_provider_id` is the canonical Estate owner and is enforced `NOT NULL` by
-the `ContractEstateProviderOwnership1789584000000` migration. Estate
+the `ContractEstateProviderOwnership1789999894372` migration. Estate
 authorization is provider-only: the resolved provider context must match
 `estate.providerId`, and the legacy `fk_customer_id` column is provenance-only.
 

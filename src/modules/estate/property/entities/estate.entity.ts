@@ -20,7 +20,7 @@ export class Estate extends BaseEntity {
 
   /**
    * Canonical supply owner. Contracted NOT NULL by
-   * ContractEstateProviderOwnership1789584000000.
+   * ContractEstateProviderOwnership1789999894372.
    */
   @Column({ name: 'fk_provider_id', type: 'uuid', nullable: false })
   providerId: string;

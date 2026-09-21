@@ -6,13 +6,13 @@ import { DataSource } from 'typeorm';
 import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
 import { typeOrmConfig } from '../../../src/database/type.config';
-import { ContractEstateProviderOwnership1789584000000 } from '../../../src/modules/estate/property/migrations/1789584000000-ContractEstateProviderOwnership';
+import { ContractEstateProviderOwnership1789999894372 } from '../../../src/modules/estate/property/migrations/1789999894372-ContractEstateProviderOwnership';
 
 jest.setTimeout(120_000);
 
 type CatalogRow = Record<string, string | null>;
 
-const MIGRATION_NAME = 'ContractEstateProviderOwnership1789584000000';
+const MIGRATION_NAME = 'ContractEstateProviderOwnership1789999894372';
 
 describe('Estate provider ownership contract migration (PostgreSQL integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -49,7 +49,7 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      await new ContractEstateProviderOwnership1789584000000().up(queryRunner);
+      await new ContractEstateProviderOwnership1789999894372().up(queryRunner);
     } finally {
       await queryRunner.release();
     }
@@ -59,7 +59,7 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
     try {
-      await new ContractEstateProviderOwnership1789584000000().down(
+      await new ContractEstateProviderOwnership1789999894372().down(
         queryRunner,
       );
     } finally {

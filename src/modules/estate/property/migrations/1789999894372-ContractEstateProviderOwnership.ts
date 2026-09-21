@@ -26,7 +26,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * for blocked lifecycle states, which is the intended behavior. Re-running the
  * migration is a no-op.
  */
-export class ContractEstateProviderOwnership1789584000000 implements MigrationInterface {
+export class ContractEstateProviderOwnership1789999894372 implements MigrationInterface {
   async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Grandfather estate owners into provider accounts (idempotent,
     //    insert-only). Existing accounts keep their status/verification.
