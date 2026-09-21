@@ -21,6 +21,7 @@ import { EstateResponse } from '../dto/estate.response';
 import { EstateService } from '../services/estate.service';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -42,6 +43,10 @@ export class EstateController {
   @Post()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create an estate' })
+  @ApiCreatedResponse({
+    type: EstateResponse,
+    description: 'Estate created with hydrated province and ward.',
+  })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,
@@ -97,6 +102,10 @@ export class EstateController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an estate' })
   @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({
+    type: EstateResponse,
+    description: 'Estate updated with hydrated province and ward.',
+  })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,

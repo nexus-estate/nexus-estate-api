@@ -163,6 +163,74 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
       `SELECT id::text, fk_provider_id FROM tbl_estate ORDER BY id`,
     );
 
+  /** Seeds the OWNER provider role (idempotent) and returns its id. */
+  const seedProviderOwnerRole = async (): Promise<string> => {
+    const rows: { id: string }[] = await dataSource.query(
+      `INSERT INTO tbl_provider_role (code, name, is_system)
+       VALUES ('OWNER', 'Owner', true)
+       ON CONFLICT (code) DO NOTHING
+       RETURNING id`,
+    );
+    if (rows[0]?.id) {
+      return rows[0].id;
+    }
+    const existing: { id: string }[] = await dataSource.query(
+      `SELECT id FROM tbl_provider_role WHERE code = 'OWNER'`,
+    );
+    return existing[0].id;
+  };
+
+  /** Inserts a membership-role assignment row. */
+  const seedMembershipRole = async (
+    membershipId: string,
+    roleId: string,
+  ): Promise<void> => {
+    await dataSource.query(
+      `INSERT INTO tbl_provider_membership_role (membership_id, role_id)
+       VALUES ($1, $2)
+       ON CONFLICT (membership_id, role_id) DO NOTHING`,
+      [membershipId, roleId],
+    );
+  };
+
+  /** Returns the membership row for one provider/customer pair. */
+  const getMembership = async (
+    providerId: string,
+    customerId: string,
+  ): Promise<
+    | {
+        id: string;
+        status: string;
+        deleted_at: string | null;
+      }
+    | undefined
+  > => {
+    const rows: Array<{
+      id: string;
+      status: string;
+      deleted_at: string | null;
+    }> = await dataSource.query(
+      `SELECT id::text, status, deleted_at FROM tbl_provider_membership
+       WHERE provider_id = $1 AND customer_id = $2`,
+      [providerId, customerId],
+    );
+    return rows[0];
+  };
+
+  /** Returns the role codes assigned to one membership. */
+  const getMembershipRoleCodes = async (
+    membershipId: string,
+  ): Promise<string[]> => {
+    const rows: Array<{ code: string }> = await dataSource.query(
+      `SELECT role.code FROM tbl_provider_membership_role assignment
+       INNER JOIN tbl_provider_role role ON role.id = assignment.role_id
+       WHERE assignment.membership_id = $1
+       ORDER BY role.code`,
+      [membershipId],
+    );
+    return rows.map((row) => row.code);
+  };
+
   it('discovers the module-owned migration exactly once', () => {
     const migrationNames = dataSource.migrations.map(
       (migration) => migration.constructor.name,
@@ -368,6 +436,76 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
     );
     expect(memberships).toHaveLength(1);
     expect(memberships[0].joined_at).toEqual(before[0].joined_at);
+  });
+
+  it('does not restore OWNER to an existing membership when ownership was transferred', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    await insertEstateWithoutProvider(customerId);
+    const providerId = await seedProviderAccount(customerId);
+    const ownerRoleId = await seedProviderOwnerRole();
+
+    // Another customer holds the active membership WITH the OWNER role, while
+    // the legacy owner_customer_id keeps an active membership WITHOUT it —
+    // authorization was already transferred and must not silently revert.
+    const transferredCustomerId = '20000000-0000-4000-8000-000000000002';
+    await dataSource.query(
+      `INSERT INTO tbl_customer_account (id, email, password, role_id)
+       VALUES ($1, 'transferred-owner@nexus.test', 'hash', '10000000-0000-4000-8000-000000000001')`,
+      [transferredCustomerId],
+    );
+    await seedMembership(providerId, customerId, 'ACTIVE');
+    await seedMembership(providerId, transferredCustomerId, 'ACTIVE');
+    const legacyOwnerMembership = await getMembership(providerId, customerId);
+    const transferredMembership = await getMembership(
+      providerId,
+      transferredCustomerId,
+    );
+    expect(legacyOwnerMembership).toBeDefined();
+    expect(transferredMembership).toBeDefined();
+    await seedMembershipRole(transferredMembership!.id, ownerRoleId);
+
+    await runContractUp();
+
+    const estateAfter = await estateRows();
+    expect(estateAfter[0].fk_provider_id).toBe(providerId);
+
+    const legacyRoles = await getMembershipRoleCodes(legacyOwnerMembership!.id);
+    expect(legacyRoles).not.toContain('OWNER');
+
+    const transferredRoles = await getMembershipRoleCodes(
+      transferredMembership!.id,
+    );
+    expect(transferredRoles).toEqual(['OWNER']);
+
+    // Both memberships keep their original lifecycle state.
+    expect((await getMembership(providerId, customerId))!.status).toBe(
+      'ACTIVE',
+    );
+    expect(
+      (await getMembership(providerId, transferredCustomerId))!.status,
+    ).toBe('ACTIVE');
+  });
+
+  it('creates the missing owner membership with the OWNER role', async () => {
+    await resetToPreContractState();
+    const customerId = await seedEstateOwner();
+    await insertEstateWithoutProvider(customerId);
+    const providerId = await seedProviderAccount(customerId);
+    await seedProviderOwnerRole();
+    expect(await getMembership(providerId, customerId)).toBeUndefined();
+
+    await runContractUp();
+
+    const created = await getMembership(providerId, customerId);
+    expect(created).toBeDefined();
+    expect(created!.status).toBe('ACTIVE');
+    expect(created!.deleted_at).toBeNull();
+    expect(await getMembershipRoleCodes(created!.id)).toEqual(['OWNER']);
+
+    // Estate is bound to the same provider the new membership belongs to.
+    const rows = await estateRows();
+    expect(rows[0].fk_provider_id).toBe(providerId);
   });
 
   it('is safe to rerun after a completed contract', async () => {

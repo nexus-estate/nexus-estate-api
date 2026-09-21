@@ -32,10 +32,10 @@ export class EstateResponse {
   @ApiProperty({ format: 'uuid' }) wardId: string;
   @ApiPropertyOptional({ nullable: true }) latitude: number | null;
   @ApiPropertyOptional({ nullable: true }) longitude: number | null;
-  @ApiProperty({ type: () => EstateLocationResponse })
-  province: EstateLocationResponse | null;
-  @ApiProperty({ type: () => EstateLocationResponse })
-  ward: EstateLocationResponse | null;
+  @ApiProperty({ type: () => EstateLocationResponse, nullable: false })
+  province: EstateLocationResponse;
+  @ApiProperty({ type: () => EstateLocationResponse, nullable: false })
+  ward: EstateLocationResponse;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
   @ApiProperty({ type: String, format: 'date-time' }) updatedAt: Date;
 
@@ -58,20 +58,18 @@ export class EstateResponse {
       wardId: estate.wardId,
       latitude: estate.latitude === null ? null : Number(estate.latitude),
       longitude: estate.longitude === null ? null : Number(estate.longitude),
-      province: estate.province
-        ? {
-            id: estate.province.id,
-            code: estate.province.code,
-            name: estate.province.name,
-          }
-        : null,
-      ward: estate.ward
-        ? {
-            id: estate.ward.id,
-            code: estate.ward.code,
-            name: estate.ward.name,
-          }
-        : null,
+      // Province/Ward are NOT NULL schema relations and every response passes
+      // through the repository hydration path, so they are always present.
+      province: {
+        id: estate.province.id,
+        code: estate.province.code,
+        name: estate.province.name,
+      },
+      ward: {
+        id: estate.ward.id,
+        code: estate.ward.code,
+        name: estate.ward.name,
+      },
       createdAt: estate.createdAt,
       updatedAt: estate.updatedAt,
     };

@@ -18,9 +18,13 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Lifecycle safety: this migration only ever INSERTS missing compatibility
  * rows and never updates an existing one. A SUSPENDED or REJECTED provider
  * stays suspended/rejected; a SUSPENDED, REMOVED, or soft-deleted membership
- * keeps its authorization state. Estate rows are still bound to their provider
- * normally — the runtime denies access for blocked lifecycle states, which is
- * the intended behavior. Re-running the migration is a no-op.
+ * keeps its authorization state. The migration creates missing compatibility
+ * memberships; OWNER is assigned only to memberships created by this
+ * migration — existing membership role assignments remain untouched, so an
+ * OWNER previously transferred to another membership is never restored. Estate
+ * rows are still bound to their provider normally — the runtime denies access
+ * for blocked lifecycle states, which is the intended behavior. Re-running the
+ * migration is a no-op.
  */
 export class ContractEstateProviderOwnership1789584000000 implements MigrationInterface {
   async up(queryRunner: QueryRunner): Promise<void> {
@@ -39,36 +43,35 @@ export class ContractEstateProviderOwnership1789584000000 implements MigrationIn
       ON CONFLICT (owner_customer_id) DO NOTHING
     `);
 
-    // 2. Ensure every estate-owning provider account has an owner membership
-    //    and the OWNER role. Both inserts are insert-only: an existing
-    //    membership is never reactivated, unsuspended, or undeleted.
+    // 2. Ensure every estate-owning provider account has an owner membership.
+    //    The CTE captures exactly the memberships inserted by this run, and the
+    //    OWNER role is assigned only to those captured rows. An existing
+    //    membership is never reactivated, unsuspended, undeleted, or granted
+    //    roles — so a transferred OWNER is not restored and authorization is
+    //    never changed for memberships that predate the migration.
     await queryRunner.query(`
-      INSERT INTO tbl_provider_membership (provider_id, customer_id, status)
-      SELECT DISTINCT provider.id, provider.owner_customer_id, 'ACTIVE'
-      FROM tbl_provider_account provider
-      INNER JOIN tbl_estate estate
-        ON estate.fk_customer_id = provider.owner_customer_id
-      WHERE provider.deleted_at IS NULL
-      ON CONFLICT (provider_id, customer_id) DO NOTHING
-    `);
-    await queryRunner.query(
-      `
+      WITH inserted_memberships AS (
+        INSERT INTO tbl_provider_membership (provider_id, customer_id, status)
+        SELECT DISTINCT provider.id, provider.owner_customer_id, 'ACTIVE'
+        FROM tbl_provider_account provider
+        INNER JOIN tbl_estate estate
+          ON estate.fk_customer_id = provider.owner_customer_id
+        WHERE provider.deleted_at IS NULL
+        ON CONFLICT (provider_id, customer_id) DO NOTHING
+        RETURNING id, provider_id, customer_id
+      )
       INSERT INTO tbl_provider_membership_role (membership_id, role_id)
-      SELECT DISTINCT membership.id, owner_role.id
-      FROM tbl_provider_membership membership
+      SELECT inserted.id, owner_role.id
+      FROM inserted_memberships inserted
       INNER JOIN tbl_provider_account provider
-        ON provider.id = membership.provider_id
-        AND provider.owner_customer_id = membership.customer_id
-      INNER JOIN tbl_estate estate
-        ON estate.fk_customer_id = provider.owner_customer_id
+        ON provider.id = inserted.provider_id
+        AND provider.owner_customer_id = inserted.customer_id
       INNER JOIN tbl_provider_role owner_role
         ON owner_role.code = 'OWNER'
         AND owner_role.status = 'ACTIVE'
         AND owner_role.deleted_at IS NULL
-      WHERE membership.status = 'ACTIVE' AND membership.deleted_at IS NULL
       ON CONFLICT (membership_id, role_id) DO NOTHING
-      `,
-    );
+    `);
 
     // 3. Backfill estates that predate the provider binding (idempotent).
     //    Soft-deleted estates are backfilled too: the NOT NULL contract below

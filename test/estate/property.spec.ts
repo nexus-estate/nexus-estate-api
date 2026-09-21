@@ -76,7 +76,23 @@ type EstateResponse = {
   title: string;
   provinceId: string;
   wardId: string;
+  province: { id: string; code: string; name: string };
+  ward: { id: string; code: string; name: string };
   deletedAt: string | null;
+  customerId?: unknown;
+  customer?: unknown;
+  provider?: unknown;
+  createdBy?: unknown;
+  updatedBy?: unknown;
+};
+
+const expectNoLegacyOwnershipLeakage = (estate: EstateResponse): void => {
+  expect(estate).not.toHaveProperty('customerId');
+  expect(estate).not.toHaveProperty('customer');
+  expect(estate).not.toHaveProperty('provider');
+  expect(estate).not.toHaveProperty('deletedAt');
+  expect(estate).not.toHaveProperty('createdBy');
+  expect(estate).not.toHaveProperty('updatedBy');
 };
 
 describe('Estate API (e2e)', () => {
@@ -94,6 +110,19 @@ describe('Estate API (e2e)', () => {
   let ownerToken: string;
   let otherToken: string;
   let normalToken: string;
+
+  const expectLocationHydrated = (estate: EstateResponse): void => {
+    expect(estate.province).toEqual({
+      id: province.id,
+      code: province.code,
+      name: province.name,
+    });
+    expect(estate.ward).toEqual({
+      id: ward.id,
+      code: ward.code,
+      name: ward.name,
+    });
+  };
 
   const password = 'correct-password';
 
@@ -302,7 +331,8 @@ describe('Estate API (e2e)', () => {
       wardId: ward.id,
     });
     expect(body.data.providerId).toBe(ownerProviderId);
-    expect(body.data).not.toHaveProperty('customerId');
+    expectLocationHydrated(body.data);
+    expectNoLegacyOwnershipLeakage(body.data);
   });
 
   it('lists wards for a selected province without authentication', async () => {
@@ -412,6 +442,8 @@ describe('Estate API (e2e)', () => {
     expect(body.data).toHaveLength(1);
     expect(body.data[0].id).toBe(created.id);
     expect(body.data[0].providerId).toBe(ownerProviderId);
+    expectLocationHydrated(body.data[0]);
+    expectNoLegacyOwnershipLeakage(body.data[0]);
   });
 
   it('gets an estate by id without exposing legacy ownership', async () => {
@@ -425,7 +457,8 @@ describe('Estate API (e2e)', () => {
 
     expect(body.data).toMatchObject({ id: created.id });
     expect(body.data.providerId).toBe(ownerProviderId);
-    expect(body.data).not.toHaveProperty('customerId');
+    expectLocationHydrated(body.data);
+    expectNoLegacyOwnershipLeakage(body.data);
   });
 
   it('allows the owner to update an estate', async () => {
@@ -442,6 +475,8 @@ describe('Estate API (e2e)', () => {
       id: created.id,
       title: 'Updated title',
     });
+    expectLocationHydrated(body.data);
+    expectNoLegacyOwnershipLeakage(body.data);
   });
 
   it('forbids another provider from updating an estate', async () => {

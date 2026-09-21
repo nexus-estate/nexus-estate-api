@@ -230,10 +230,12 @@ describe('EstateRepo (PostgreSQL integration)', () => {
       price: 3_750_000_000,
     });
 
+    // The hydrated entity is reloaded from the database, where the bigint
+    // price arrives as a string; the HTTP mapper coerces it back to number.
     expect(updated).toMatchObject({
       id: created.id,
       title: 'Updated riverside apartment',
-      price: 3_750_000_000,
+      price: '3750000000',
     });
     await expect(
       estateRepository.updateEstate('00000000-0000-4000-8000-000000000000', {

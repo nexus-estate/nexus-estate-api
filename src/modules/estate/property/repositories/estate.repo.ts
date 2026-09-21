@@ -11,7 +11,10 @@ export class EstateRepo extends BaseRepository<Estate> {
     super(dataSource, Estate, 'Estate');
   }
 
-  /** Finds one non-deleted estate by exact identifier. */
+  /**
+   * Loads one non-deleted estate with its required location relations.
+   * This is the canonical hydration path for every Estate response.
+   */
   async findById(id: string): Promise<Estate | null> {
     return this.repository
       .createQueryBuilder('estate')
@@ -34,12 +37,22 @@ export class EstateRepo extends BaseRepository<Estate> {
       .getMany();
   }
 
-  /** Persists a new estate with the caller-provided ownership fields. */
+  /**
+   * Persists a new estate with the caller-provided ownership fields, then
+   * reloads it through the canonical hydration path so the caller always
+   * receives the province/ward relations the response contract requires.
+   */
   async createEstate(data: CreateEstateData): Promise<Estate> {
     const estate = this.repository.create(data);
-    return this.repository.save(estate);
+    const saved = await this.repository.save(estate);
+    return this.requireHydratedEstate(saved.id);
   }
-  /** Updates one exact estate and returns the refreshed persisted entity. */
+
+  /**
+   * Updates one exact estate and returns the refreshed entity reloaded
+   * through the canonical hydration path, guaranteeing the province/ward
+   * relations required by the response contract.
+   */
   async updateEstate(
     id: string,
     data: UpdateEstateDto,
@@ -48,7 +61,24 @@ export class EstateRepo extends BaseRepository<Estate> {
     if (!estate) {
       return null;
     }
-    return this.repository.save(estate);
+    await this.repository.save(estate);
+    return this.requireHydratedEstate(id);
+  }
+
+  /**
+   * Reloads a just-persisted estate through {@link findById}. The province
+   * and ward relations are NOT NULL in the schema, so a missing row here can
+   * only mean the row was removed concurrently — fail loudly instead of
+   * returning a response that silently violates the wire contract.
+   */
+  private async requireHydratedEstate(id: string): Promise<Estate> {
+    const hydrated = await this.findById(id);
+    if (!hydrated) {
+      throw new Error(
+        `Estate ${id} disappeared after persistence; cannot hydrate the response contract.`,
+      );
+    }
+    return hydrated;
   }
   /** Marks one exact estate deleted and reports whether a row changed. */
   async softDeleteEstate(id: string): Promise<boolean> {
