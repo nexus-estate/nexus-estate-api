@@ -1,0 +1,12 @@
+{
+  "en": {
+    "PROPERTY_INVALID_STATUS_TRANSITION": "The property cannot change from %s to %s. Complete the property lifecycle in order.",
+    "PROPERTY_ACTIVATION_INCOMPLETE": "The property is missing activation information: %s.",
+    "PROPERTY_PUBLISHED_LISTING_CONFLICT": "The property cannot be archived while it has a published listing."
+  },
+  "vi": {
+    "PROPERTY_INVALID_STATUS_TRANSITION": "Property không thể chuyển từ %s sang %s. Vui lòng thực hiện đúng thứ tự vòng đời.",
+    "PROPERTY_ACTIVATION_INCOMPLETE": "Property còn thiếu thông tin để kích hoạt: %s.",
+    "PROPERTY_PUBLISHED_LISTING_CONFLICT": "Không thể lưu trữ Property khi vẫn còn Listing đã được xuất bản."
+  }
+}

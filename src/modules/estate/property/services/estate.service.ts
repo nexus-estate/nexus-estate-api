@@ -12,6 +12,9 @@ import {
   type ProviderContext,
 } from '../../../provider/account/services/provider-context.resolver';
 import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/helpers/provider-supply-access.policy';
+import { EstateErrorCodes } from '../errors/estate-error-codes';
+import { EstateActivationPolicy } from '../helpers/estate-activation.policy';
+import { EstateStatus } from '../types/estate.type';
 
 @Injectable()
 export class EstateService {
@@ -22,6 +25,8 @@ export class EstateService {
     private readonly providerContextResolver: ProviderContextResolver,
     private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
   ) {}
+
+  private readonly activationPolicy = new EstateActivationPolicy();
 
   /** Resolves the provider context and enforces supply read access. */
   private async requireSupplyReadContext(
@@ -113,8 +118,11 @@ export class EstateService {
   private async requireOwnedEstate(
     estateId: string,
     context: ProviderContext,
+    includeDeleted = false,
   ): Promise<Estate> {
-    const estate = await this.estateRepository.findById(estateId);
+    const estate = includeDeleted
+      ? await this.estateRepository.findById(estateId, true)
+      : await this.estateRepository.findById(estateId);
     if (!estate) {
       throw new BusinessException(
         CommonErrorCodes.RESOURCE_NOT_FOUND,
@@ -190,7 +198,132 @@ export class EstateService {
     return updatedEstate;
   }
 
-  /** Soft-deletes an estate after enforcing the same ownership boundary as update. */
+  /** Activates a complete draft property using an optimistic state transition. */
+  async activateEstate(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Estate> {
+    const context = await this.requireSupplyWriteContext(
+      customerId,
+      providerId,
+    );
+    await this.supplyAccessPolicy.requirePermission(context, 'property:update');
+    const estate = await this.requireOwnedEstate(estateId, context);
+    this.assertTransition(estate.status, EstateStatus.ACTIVE);
+    const missingFields = this.activationPolicy.missingFields(estate);
+    if (missingFields.length > 0) {
+      throw new BusinessException(
+        EstateErrorCodes.PROPERTY_ACTIVATION_INCOMPLETE,
+        missingFields.join(', '),
+      );
+    }
+    return this.completeTransition(
+      estate,
+      context.providerId,
+      EstateStatus.ACTIVE,
+    );
+  }
+
+  /** Archives a draft or active property unless a published listing exists. */
+  async archiveEstate(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Estate> {
+    const context = await this.requireSupplyWriteContext(
+      customerId,
+      providerId,
+    );
+    await this.supplyAccessPolicy.requirePermission(
+      context,
+      'property:archive',
+    );
+    const estate = await this.requireOwnedEstate(estateId, context);
+    this.assertTransition(estate.status, EstateStatus.ARCHIVED);
+    if (await this.estateRepository.hasPublishedListing(estate.id)) {
+      throw new BusinessException(
+        EstateErrorCodes.PROPERTY_PUBLISHED_LISTING_CONFLICT,
+        estate.id,
+      );
+    }
+    return this.completeTransition(
+      estate,
+      context.providerId,
+      EstateStatus.ARCHIVED,
+    );
+  }
+
+  /** Restores an archived property to draft; it never restores directly to active. */
+  async restoreEstate(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Estate> {
+    const context = await this.requireSupplyWriteContext(
+      customerId,
+      providerId,
+    );
+    await this.supplyAccessPolicy.requirePermission(context, 'property:update');
+    const estate = await this.requireOwnedEstate(estateId, context, true);
+    this.assertTransition(estate.status, EstateStatus.DRAFT);
+    return this.completeTransition(
+      estate,
+      context.providerId,
+      EstateStatus.DRAFT,
+    );
+  }
+
+  private assertTransition(current: EstateStatus, target: EstateStatus): void {
+    const valid =
+      (current === EstateStatus.DRAFT &&
+        (target === EstateStatus.ACTIVE || target === EstateStatus.ARCHIVED)) ||
+      (current === EstateStatus.ACTIVE && target === EstateStatus.ARCHIVED) ||
+      (current === EstateStatus.ARCHIVED && target === EstateStatus.DRAFT);
+    if (!valid) {
+      throw new BusinessException(
+        EstateErrorCodes.PROPERTY_INVALID_STATUS_TRANSITION,
+        current,
+        target,
+      );
+    }
+  }
+
+  private async completeTransition(
+    estate: Estate,
+    providerId: string,
+    target: EstateStatus,
+  ): Promise<Estate> {
+    const changed = await this.estateRepository.transitionStatus(
+      estate.id,
+      providerId,
+      estate.status,
+      target,
+    );
+    if (changed) {
+      const transitioned = await this.estateRepository.findById(estate.id);
+      if (transitioned) return transitioned;
+    }
+
+    // Re-read after a lost compare-and-set to expose a stable transition error
+    // rather than allowing two commands to report success.
+    const current = await this.estateRepository.findById(estate.id);
+    if (current && current.providerId === providerId) {
+      this.assertTransition(current.status, target);
+    }
+    if (
+      target === EstateStatus.ARCHIVED &&
+      (await this.estateRepository.hasPublishedListing(estate.id))
+    ) {
+      throw new BusinessException(
+        EstateErrorCodes.PROPERTY_PUBLISHED_LISTING_CONFLICT,
+        estate.id,
+      );
+    }
+    throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+  }
+
+  /** Legacy DELETE behavior retained separately from lifecycle archive commands. */
   async softDeleteEstate(
     customerId: string,
     estateId: string,
@@ -214,7 +347,6 @@ export class EstateService {
     const deletedEstate = await this.estateRepository.softDeleteEstate(
       estate.id,
     );
-
     if (!deletedEstate) {
       throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
     }

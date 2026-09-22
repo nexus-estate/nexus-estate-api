@@ -4,6 +4,7 @@ import { BaseRepository } from '../../../../services/abstraction-services';
 import { Estate } from '../entities';
 import { CreateEstateData } from '../types/estate.type';
 import { UpdateEstateDto } from '../dto/update-estate-dto';
+import { EstateStatus } from '../types/estate.type';
 
 @Injectable()
 export class EstateRepo extends BaseRepository<Estate> {
@@ -15,14 +16,18 @@ export class EstateRepo extends BaseRepository<Estate> {
    * Loads one non-deleted estate with its required location relations.
    * This is the canonical hydration path for every Estate response.
    */
-  async findById(id: string): Promise<Estate | null> {
-    return this.repository
+  async findById(id: string, includeDeleted = false): Promise<Estate | null> {
+    const query = this.repository
       .createQueryBuilder('estate')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
-      .where('estate.id = :id', { id })
-      .andWhere('estate.deletedAt IS NULL')
-      .getOne();
+      .where('estate.id = :id', { id });
+    if (!includeDeleted) {
+      query.andWhere('estate.deletedAt IS NULL');
+    } else {
+      query.withDeleted();
+    }
+    return query.getOne();
   }
 
   /** Lists non-deleted estates owned by one exact provider identifier. */
@@ -43,7 +48,10 @@ export class EstateRepo extends BaseRepository<Estate> {
    * receives the province/ward relations the response contract requires.
    */
   async createEstate(data: CreateEstateData): Promise<Estate> {
-    const estate = this.repository.create(data);
+    const estate = this.repository.create({
+      ...data,
+      status: EstateStatus.DRAFT,
+    });
     const saved = await this.repository.save(estate);
     return this.requireHydratedEstate(saved.id);
   }
@@ -57,7 +65,39 @@ export class EstateRepo extends BaseRepository<Estate> {
     id: string,
     data: UpdateEstateDto,
   ): Promise<Estate | null> {
-    const estate = await this.repository.preload({ id, ...data });
+    const {
+      title,
+      description,
+      type,
+      purpose,
+      price,
+      area,
+      bedrooms,
+      bathrooms,
+      floors,
+      addressLine,
+      provinceId,
+      wardId,
+      latitude,
+      longitude,
+    } = data;
+    const estate = await this.repository.preload({
+      id,
+      title,
+      description,
+      type,
+      purpose,
+      price,
+      area,
+      bedrooms,
+      bathrooms,
+      floors,
+      addressLine,
+      provinceId,
+      wardId,
+      latitude,
+      longitude,
+    });
     if (!estate) {
       return null;
     }
@@ -89,6 +129,50 @@ export class EstateRepo extends BaseRepository<Estate> {
       .where('id = :id', { id })
       .execute();
 
+    return (result.affected ?? 0) > 0;
+  }
+
+  /**
+   * Performs one optimistic lifecycle transition. The source status is part of
+   * the WHERE clause, so competing commands cannot both succeed from it.
+   * Archive additionally checks the listing invariant in the same statement.
+   */
+  async transitionStatus(
+    id: string,
+    providerId: string,
+    from: EstateStatus,
+    to: EstateStatus,
+  ): Promise<boolean> {
+    const query = this.repository
+      .createQueryBuilder()
+      .update(Estate)
+      .set({
+        status: to,
+        ...(from === EstateStatus.ARCHIVED && to === EstateStatus.DRAFT
+          ? { deletedAt: () => 'NULL' }
+          : {}),
+      })
+      .where('id = :id AND fk_provider_id = :providerId AND status = :from', {
+        id,
+        providerId,
+        from,
+      });
+
+    if (!(from === EstateStatus.ARCHIVED && to === EstateStatus.DRAFT)) {
+      query.andWhere('deleted_at IS NULL');
+    }
+
+    if (to === EstateStatus.ARCHIVED) {
+      query.andWhere(`NOT EXISTS (
+        SELECT 1
+        FROM tbl_listing listing
+        WHERE listing.fk_estate_id = tbl_estate.id
+          AND listing.status = 'PUBLISHED'
+          AND listing.deleted_at IS NULL
+      )`);
+    }
+
+    const result = await query.execute();
     return (result.affected ?? 0) > 0;
   }
 
