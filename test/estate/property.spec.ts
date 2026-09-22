@@ -529,6 +529,45 @@ describe('Estate API (e2e)', () => {
     ).toBe(false);
   });
 
+  it('serializes concurrent property DELETE and listing publish commands', async () => {
+    const estate = await createEstate();
+    await request(app.getHttpServer())
+      .post(`/api/v1/estates/${estate.id}/activate`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const listingResponse = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: estate.id })
+      .expect(201);
+    const listingId = (listingResponse.body as ApiSuccess<{ id: string }>).data
+      .id;
+
+    const [deleteResponse, publishResponse] = await Promise.all([
+      request(app.getHttpServer())
+        .delete(`/api/v1/estates/${estate.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`),
+      request(app.getHttpServer())
+        .post(`/api/v1/listings/${listingId}/publish`)
+        .set('Authorization', `Bearer ${ownerToken}`),
+    ]);
+
+    expect([200, 404, 409]).toContain(deleteResponse.status);
+    expect([200, 404, 409]).toContain(publishResponse.status);
+
+    const storedEstate = await dataSource
+      .getRepository(Estate)
+      .findOne({ where: { id: estate.id }, withDeleted: true });
+    const storedListing = await dataSource
+      .getRepository(Listing)
+      .findOneByOrFail({ id: listingId });
+    expect(
+      storedEstate?.deletedAt != null &&
+        storedListing.status === ListingStatus.PUBLISHED &&
+        storedListing.deletedAt == null,
+    ).toBe(false);
+  });
+
   it('hides a published listing when legacy data leaves its property inactive', async () => {
     const estate = await createEstate();
     await request(app.getHttpServer())

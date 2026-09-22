@@ -59,7 +59,10 @@ export class EstateRepo extends BaseRepository<Estate> {
         .innerJoinAndSelect('estate.ward', 'ward')
         .where('estate.id = :id', { id })
         .andWhere('estate.deletedAt IS NULL')
-        .setLock('pessimistic_write')
+        // The lifecycle lock must cover only the Estate row. The joined
+        // Province/Ward rows are reference data and are not part of the
+        // archive/delete/publish serialization boundary.
+        .setLock('pessimistic_write', undefined, ['estate'])
         .getOne();
       if (!estate) {
         await queryRunner.commitTransaction();

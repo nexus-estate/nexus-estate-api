@@ -39,7 +39,7 @@ capabilities must remain removed or explicitly blocked until implemented.
 | GET    | `/listings`                                                               | Public                          | None                     | `ListingQueryDto`                                                  | Paginated published listings   |
 | GET    | `/listings/:id`                                                           | Public                          | None                     | UUID route parameter                                               | Published listing response     |
 | POST   | `/listings/:id/publish`                                                   | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
-| POST   | `/listings/:id/unpublish`                                                 | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
+| POST   | `/listings/:id/archive`                                                   | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
 | POST   | `/listings/:listingId/leads`                                              | Public                          | None                     | `CreateLeadDto`                                                    | Lead response                  |
 | GET    | `/locations/provinces`                                                    | Public                          | None                     | —                                                                  | Province[]                     |
 | GET    | `/locations/provinces/:provinceId/wards`                                  | Public                          | None                     | UUID route parameter                                               | Ward[]                         |
@@ -114,10 +114,12 @@ are excluded from `GET /listings/eligible-properties`. Public Listing reads
 also require a published, non-deleted Listing joined to an active, non-deleted
 Property.
 
-Property archive and Listing publish serialize on the same Property row using a
-database pessimistic write lock. This prevents both commands from succeeding
-concurrently and preserves the invariant that an archived Property cannot have
-an active published Listing.
+Property archive, Property DELETE, and Listing publish serialize on the same
+Property row using a database pessimistic write lock. This prevents conflicting
+commands from succeeding concurrently and preserves the invariant that a
+PUBLISHED Listing must reference an ACTIVE, non-deleted Property. The same
+serialization boundary protects `DELETE /estates/:id` from racing with Listing
+publication; DELETE is still distinct from lifecycle ARCHIVED status.
 
 Lifecycle command endpoints return `200 OK`; create endpoints continue to
 return `201 Created`.
