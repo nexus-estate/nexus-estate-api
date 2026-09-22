@@ -366,20 +366,40 @@ export class EstateService {
       context,
       'property:archive',
     );
-    const estate = await this.requireOwnedEstate(estateId, context);
-    if (await this.estateRepository.hasPublishedListing(estate.id)) {
+    const deleted = await this.estateRepository.withLockedEstate(
+      estateId,
+      async (estate, manager) => {
+        if (estate.providerId !== context.providerId) {
+          throw new BusinessException(
+            CommonErrorCodes.FORBIDDEN,
+            context.providerId,
+          );
+        }
+        if (
+          await this.estateRepository.hasPublishedListing(estate.id, manager)
+        ) {
+          throw new BusinessException(
+            CommonErrorCodes.RESOURCE_CONFLICT,
+            estate.id,
+          );
+        }
+        const changed = await this.estateRepository.softDeleteEstate(
+          estate.id,
+          manager,
+        );
+        if (!changed) {
+          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+        }
+        return true;
+      },
+    );
+    if (!deleted) {
       throw new BusinessException(
-        CommonErrorCodes.RESOURCE_CONFLICT,
-        estate.id,
+        CommonErrorCodes.RESOURCE_NOT_FOUND,
+        estateId,
       );
     }
-    const deletedEstate = await this.estateRepository.softDeleteEstate(
-      estate.id,
-    );
-    if (!deletedEstate) {
-      throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
-    }
-    return true;
+    return deleted;
   }
 
   /** Lists estates belonging to the resolved provider context. */
