@@ -167,12 +167,16 @@ export class EstateRepo extends BaseRepository<Estate> {
     return hydrated;
   }
   /** Marks one exact estate deleted and reports whether a row changed. */
-  async softDeleteEstate(id: string): Promise<boolean> {
-    const result = await this.repository
+  async softDeleteEstate(
+    id: string,
+    manager: EntityManager = this.repository.manager,
+  ): Promise<boolean> {
+    const result = await manager
+      .getRepository(Estate)
       .createQueryBuilder()
       .softDelete()
       .from(Estate)
-      .where('id = :id', { id })
+      .where('id = :id AND deleted_at IS NULL', { id })
       .execute();
 
     return (result.affected ?? 0) > 0;
