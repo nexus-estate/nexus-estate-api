@@ -44,7 +44,21 @@ describe('BackfillRolelessProviderSupplyReaders', () => {
   });
 
   it('rolls back only migration-owned rows and preserves runtime usage', async () => {
-    const query = jest.fn().mockResolvedValue(undefined);
+    const query = jest.fn().mockImplementation((sql: string) => {
+      if (sql.includes('role_backfill_exists')) {
+        return [
+          {
+            role_backfill_exists: true,
+            permission_backfill_exists: true,
+            assignment_backfill_exists: true,
+          },
+        ];
+      }
+      if (sql.includes('SELECT role.id::text AS role_id')) {
+        return [{ role_id: 'member-role-id' }];
+      }
+      return [];
+    });
 
     await new BackfillRolelessProviderSupplyReaders1790065589751().down({
       query,
@@ -55,6 +69,8 @@ describe('BackfillRolelessProviderSupplyReaders', () => {
     expect(sql).toContain('tbl_provider_supply_member_permission_backfill');
     expect(sql).toContain('tbl_provider_supply_member_role_backfill');
     expect(sql).toContain('DROP TABLE IF EXISTS');
+    expect(sql).toContain('tbl_provider_membership_role assignment');
+    expect(sql).toContain('tbl_provider_role_permission mapping');
     expect(sql).toContain('NOT EXISTS');
   });
 });

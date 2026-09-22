@@ -188,6 +188,86 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    const bookkeepingTables = (await queryRunner.query(`
+      SELECT
+        to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS role_backfill_exists,
+        to_regclass('public.tbl_provider_supply_member_permission_backfill') IS NOT NULL AS permission_backfill_exists,
+        to_regclass('public.tbl_provider_supply_member_assignment_backfill') IS NOT NULL AS assignment_backfill_exists
+    `)) as {
+      role_backfill_exists: boolean;
+      permission_backfill_exists: boolean;
+      assignment_backfill_exists: boolean;
+    }[];
+
+    if (
+      !bookkeepingTables[0]?.role_backfill_exists ||
+      !bookkeepingTables[0]?.permission_backfill_exists ||
+      !bookkeepingTables[0]?.assignment_backfill_exists
+    ) {
+      throw new Error(
+        'Cannot rollback provider supply MEMBER migration because migration bookkeeping is incomplete.',
+      );
+    }
+
+    const ownedMemberRoles = (await queryRunner.query(`
+      SELECT role.id::text AS role_id
+      FROM tbl_provider_supply_member_role_backfill backfill
+      INNER JOIN tbl_provider_role role
+        ON role.id = backfill.role_id
+      WHERE role.code = 'MEMBER'
+    `)) as { role_id: string }[];
+
+    if (ownedMemberRoles.length !== 1) {
+      throw new Error(
+        'Cannot rollback provider supply MEMBER migration because the migration-owned MEMBER role provenance is missing or ambiguous.',
+      );
+    }
+
+    const memberRoleId = ownedMemberRoles[0].role_id;
+    const externalAssignments = (await queryRunner.query(
+      `
+        SELECT assignment.membership_id::text AS membership_id
+        FROM tbl_provider_membership_role assignment
+        WHERE assignment.role_id = $1
+          AND NOT EXISTS (
+            SELECT 1
+            FROM tbl_provider_supply_member_assignment_backfill backfill
+            WHERE backfill.membership_id = assignment.membership_id
+              AND backfill.role_id = assignment.role_id
+          )
+        LIMIT 1
+      `,
+      [memberRoleId],
+    )) as { membership_id: string }[];
+
+    if (externalAssignments.length > 0) {
+      throw new Error(
+        'Cannot rollback provider supply MEMBER migration because MEMBER has runtime-owned membership assignments.',
+      );
+    }
+
+    const externalPermissionMappings = (await queryRunner.query(
+      `
+        SELECT mapping.permission_id::text AS permission_id
+        FROM tbl_provider_role_permission mapping
+        WHERE mapping.role_id = $1
+          AND NOT EXISTS (
+            SELECT 1
+            FROM tbl_provider_supply_member_permission_backfill backfill
+            WHERE backfill.role_id = mapping.role_id
+              AND backfill.permission_id = mapping.permission_id
+          )
+        LIMIT 1
+      `,
+      [memberRoleId],
+    )) as { permission_id: string }[];
+
+    if (externalPermissionMappings.length > 0) {
+      throw new Error(
+        'Cannot rollback provider supply MEMBER migration because MEMBER has runtime-owned permission mappings.',
+      );
+    }
+
     await queryRunner.query(`
       DELETE FROM tbl_provider_membership_role assignment
       USING tbl_provider_supply_member_assignment_backfill backfill
@@ -200,27 +280,12 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
       USING tbl_provider_supply_member_permission_backfill backfill
       WHERE mapping.role_id = backfill.role_id
         AND mapping.permission_id = backfill.permission_id
-        AND NOT EXISTS (
-          SELECT 1
-          FROM tbl_provider_membership_role assignment
-          WHERE assignment.role_id = backfill.role_id
-        )
     `);
 
     await queryRunner.query(`
       DELETE FROM tbl_provider_role role
       USING tbl_provider_supply_member_role_backfill backfill
       WHERE role.id = backfill.role_id
-        AND NOT EXISTS (
-          SELECT 1
-          FROM tbl_provider_membership_role assignment
-          WHERE assignment.role_id = role.id
-        )
-        AND NOT EXISTS (
-          SELECT 1
-          FROM tbl_provider_role_permission mapping
-          WHERE mapping.role_id = role.id
-        )
     `);
 
     await queryRunner.query(

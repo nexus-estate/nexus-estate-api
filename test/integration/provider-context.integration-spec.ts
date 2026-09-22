@@ -32,6 +32,14 @@ import { BackfillRolelessProviderSupplyReaders1790065589751 } from '../../src/mo
 
 jest.setTimeout(120_000);
 
+type BookkeepingState = {
+  role_backfill_exists: boolean;
+  permission_backfill_exists: boolean;
+  assignment_backfill_exists: boolean;
+};
+
+type PermissionCodeRow = { code: string };
+
 describe('Provider context and supply access (PostgreSQL integration)', () => {
   let container: StartedPostgreSqlContainer;
   let dataSource: DataSource;
@@ -449,6 +457,191 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
           permissionId: customPermission.id,
         }),
       ).resolves.toBeDefined();
+      await runner.release();
+    });
+
+    it('supports a clean rollback followed by a deterministic redeploy', async () => {
+      const legacyCustomer = await createCustomer('redeploy-reader@nexus.test');
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      await createMembership(legacyProvider.id, legacyCustomer.id);
+
+      const migration =
+        new BackfillRolelessProviderSupplyReaders1790065589751();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneBy({ code: 'MEMBER' }),
+      ).resolves.toBeDefined();
+
+      await migration.down(runner);
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneBy({ code: 'MEMBER' }),
+      ).resolves.toBeNull();
+      const bookkeepingStateAfterRollback = await dataSource.query<
+        BookkeepingState[]
+      >(`
+        SELECT
+          to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS role_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_permission_backfill') IS NOT NULL AS permission_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_assignment_backfill') IS NOT NULL AS assignment_backfill_exists
+      `);
+      expect(bookkeepingStateAfterRollback[0]).toEqual({
+        role_backfill_exists: false,
+        permission_backfill_exists: false,
+        assignment_backfill_exists: false,
+      });
+
+      await migration.up(runner);
+      const context = await resolver.resolve(
+        legacyCustomer.id,
+        legacyProvider.id,
+      );
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(effective.permissions.map(({ code }) => code)).toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+
+      await migration.down(runner);
+      await runner.release();
+    });
+
+    it('refuses rollback when MEMBER has a runtime-owned membership assignment', async () => {
+      const legacyCustomer = await createCustomer(
+        'runtime-assignment-reader@nexus.test',
+      );
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      const legacyMembership = await createMembership(
+        legacyProvider.id,
+        legacyCustomer.id,
+      );
+
+      const migration =
+        new BackfillRolelessProviderSupplyReaders1790065589751();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+      const memberRole = await dataSource
+        .getRepository(ProviderRole)
+        .findOneByOrFail({ code: 'MEMBER' });
+
+      const runtimeCustomer = await createCustomer(
+        'runtime-assignment@nexus.test',
+      );
+      const runtimeProvider = await createProvider(runtimeCustomer.id);
+      const runtimeMembership = await createMembership(
+        runtimeProvider.id,
+        runtimeCustomer.id,
+      );
+      await assignRole(runtimeMembership.id, memberRole.id);
+
+      await expect(migration.down(runner)).rejects.toThrow(
+        /runtime-owned membership assignments/,
+      );
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneByOrFail({
+          id: memberRole.id,
+        }),
+      ).resolves.toMatchObject({ code: 'MEMBER' });
+      await expect(
+        roleAssignments().findOneBy({
+          membershipId: legacyMembership.id,
+          roleId: memberRole.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        roleAssignments().findOneBy({
+          membershipId: runtimeMembership.id,
+          roleId: memberRole.id,
+        }),
+      ).resolves.toBeDefined();
+
+      const permissionCodes = await dataSource.query<PermissionCodeRow[]>(
+        `
+          SELECT permission.code
+          FROM tbl_provider_role_permission mapping
+          INNER JOIN tbl_provider_permission permission
+            ON permission.id = mapping.permission_id
+          WHERE mapping.role_id = $1
+        `,
+        [memberRole.id],
+      );
+      expect(permissionCodes.map(({ code }) => code)).toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      const bookkeepingState = await dataSource.query<BookkeepingState[]>(`
+        SELECT
+          to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS role_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_permission_backfill') IS NOT NULL AS permission_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_assignment_backfill') IS NOT NULL AS assignment_backfill_exists
+      `);
+      expect(bookkeepingState[0]).toEqual({
+        role_backfill_exists: true,
+        permission_backfill_exists: true,
+        assignment_backfill_exists: true,
+      });
+
+      await roleAssignments().delete({
+        membershipId: runtimeMembership.id,
+        roleId: memberRole.id,
+      });
+      await migration.down(runner);
+      await runner.release();
+    });
+
+    it('refuses rollback when MEMBER has a runtime-owned permission mapping', async () => {
+      const legacyCustomer = await createCustomer(
+        'runtime-permission-reader@nexus.test',
+      );
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      const legacyMembership = await createMembership(
+        legacyProvider.id,
+        legacyCustomer.id,
+      );
+
+      const migration =
+        new BackfillRolelessProviderSupplyReaders1790065589751();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+      const memberRole = await dataSource
+        .getRepository(ProviderRole)
+        .findOneByOrFail({ code: 'MEMBER' });
+      const customPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: memberRole.id,
+        permissionId: customPermission.id,
+      });
+
+      await expect(migration.down(runner)).rejects.toThrow(
+        /runtime-owned permission mappings/,
+      );
+
+      await expect(
+        dataSource.getRepository(ProviderRolePermission).findOneBy({
+          roleId: memberRole.id,
+          permissionId: customPermission.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        roleAssignments().findOneBy({
+          membershipId: legacyMembership.id,
+          roleId: memberRole.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneBy({ id: memberRole.id }),
+      ).resolves.toMatchObject({ code: 'MEMBER' });
+
+      await dataSource.getRepository(ProviderRolePermission).delete({
+        roleId: memberRole.id,
+        permissionId: customPermission.id,
+      });
+      await migration.down(runner);
       await runner.release();
     });
 
