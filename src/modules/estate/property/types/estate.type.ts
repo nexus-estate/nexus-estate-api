@@ -22,6 +22,13 @@ export enum EstatePurpose {
   SALE_OR_RENT = 'SALE_OR_RENT',
 }
 
+/** Explicit Property lifecycle state. Status is changed only by commands. */
+export enum EstateStatus {
+  DRAFT = 'DRAFT',
+  ACTIVE = 'ACTIVE',
+  ARCHIVED = 'ARCHIVED',
+}
+
 /** Provider is the canonical Estate owner; customer id is provenance only. */
 export type CreateEstateData = CreateEstateDto & {
   customerId: string;

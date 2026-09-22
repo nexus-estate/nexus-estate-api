@@ -11,6 +11,8 @@ import { UpdateEstateDto } from '../dto/update-estate-dto';
 import { Estate } from '../entities';
 import { EstateRepo } from '../repositories/estate.repo';
 import { EstatePurpose, EstateType } from '../types/estate.type';
+import { EstateStatus } from '../types/estate.type';
+import { EstateErrorCodes } from '../errors/estate-error-codes';
 import { EstateService } from './estate.service';
 import {
   ProviderContextResolver,
@@ -31,6 +33,7 @@ type EstateRepoMock = {
   updateEstate: jest.MockedFunction<EstateRepo['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateRepo['softDeleteEstate']>;
   hasPublishedListing: jest.MockedFunction<EstateRepo['hasPublishedListing']>;
+  transitionStatus: jest.MockedFunction<EstateRepo['transitionStatus']>;
 };
 
 type ProvinceRepoMock = {
@@ -98,6 +101,7 @@ describe('EstateService', () => {
     addressLine: createDto.addressLine,
     provinceId,
     wardId,
+    status: EstateStatus.DRAFT,
   } as Estate;
 
   beforeEach(() => {
@@ -108,6 +112,7 @@ describe('EstateService', () => {
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
       hasPublishedListing: jest.fn().mockResolvedValue(false),
+      transitionStatus: jest.fn(),
     };
     provinceRepository = { findById: jest.fn() };
     wardRepository = { findById: jest.fn() };
@@ -337,7 +342,9 @@ describe('EstateService', () => {
 
       await expect(
         service.updateEstate({ title: 'Updated' }, customerId, estateId),
-      ).rejects.toMatchObject({ errorCode: CommonErrorCodes.FORBIDDEN.code });
+      ).rejects.toMatchObject({
+        errorCode: CommonErrorCodes.FORBIDDEN.code,
+      });
       expect(estateRepository.updateEstate).not.toHaveBeenCalled();
     });
 
@@ -409,6 +416,102 @@ describe('EstateService', () => {
     });
   });
 
+  describe('lifecycle commands', () => {
+    const lifecycleEstate = {
+      ...estate,
+      status: EstateStatus.DRAFT,
+    } as Estate;
+
+    it.each([
+      [EstateStatus.DRAFT, EstateStatus.ACTIVE, 'activateEstate'],
+      [EstateStatus.DRAFT, EstateStatus.ARCHIVED, 'archiveEstate'],
+      [EstateStatus.ACTIVE, EstateStatus.ARCHIVED, 'archiveEstate'],
+      [EstateStatus.ARCHIVED, EstateStatus.DRAFT, 'restoreEstate'],
+    ])(
+      'allows %s -> %s through the command boundary',
+      async (from, target, command) => {
+        const source = { ...lifecycleEstate, status: from };
+        const result = { ...source, status: target };
+        estateRepository.findById
+          .mockResolvedValueOnce(source)
+          .mockResolvedValueOnce(result);
+        estateRepository.transitionStatus.mockResolvedValue(true);
+
+        await expect(
+          service[
+            command as 'activateEstate' | 'archiveEstate' | 'restoreEstate'
+          ](customerId, estateId),
+        ).resolves.toMatchObject({ status: target });
+        expect(estateRepository.transitionStatus).toHaveBeenCalledWith(
+          estateId,
+          providerId,
+          from,
+          target,
+        );
+      },
+    );
+
+    it.each([
+      [EstateStatus.ACTIVE, 'activateEstate', EstateStatus.ACTIVE],
+      [EstateStatus.ARCHIVED, 'activateEstate', EstateStatus.ACTIVE],
+    ])('rejects %s -> %s', async (from, command, target) => {
+      estateRepository.findById.mockResolvedValue({
+        ...lifecycleEstate,
+        status: from,
+      });
+
+      await expect(
+        service[command as 'activateEstate'](customerId, estateId),
+      ).rejects.toMatchObject({
+        errorCode: EstateErrorCodes.PROPERTY_INVALID_STATUS_TRANSITION.code,
+      });
+      expect(estateRepository.transitionStatus).not.toHaveBeenCalled();
+      expect(target).toBe(EstateStatus.ACTIVE);
+    });
+
+    it('rejects activation when publication-quality data is incomplete', async () => {
+      estateRepository.findById.mockResolvedValue({
+        ...lifecycleEstate,
+        title: '',
+      });
+
+      await expect(
+        service.activateEstate(customerId, estateId),
+      ).rejects.toMatchObject({
+        errorCode: EstateErrorCodes.PROPERTY_ACTIVATION_INCOMPLETE.code,
+      });
+      expect(estateRepository.transitionStatus).not.toHaveBeenCalled();
+    });
+
+    it('rejects archive when a published listing exists', async () => {
+      estateRepository.findById.mockResolvedValue(lifecycleEstate);
+      estateRepository.hasPublishedListing.mockResolvedValue(true);
+
+      await expect(
+        service.archiveEstate(customerId, estateId),
+      ).rejects.toMatchObject({
+        errorCode: EstateErrorCodes.PROPERTY_PUBLISHED_LISTING_CONFLICT.code,
+      });
+      expect(estateRepository.transitionStatus).not.toHaveBeenCalled();
+    });
+
+    it('turns a lost compare-and-set into a stable invalid-transition error', async () => {
+      estateRepository.findById
+        .mockResolvedValueOnce(lifecycleEstate)
+        .mockResolvedValueOnce({
+          ...lifecycleEstate,
+          status: EstateStatus.ACTIVE,
+        });
+      estateRepository.transitionStatus.mockResolvedValue(false);
+
+      await expect(
+        service.activateEstate(customerId, estateId),
+      ).rejects.toMatchObject({
+        errorCode: EstateErrorCodes.PROPERTY_INVALID_STATUS_TRANSITION.code,
+      });
+    });
+  });
+
   describe('softDeleteEstate', () => {
     it('throws RESOURCE_NOT_FOUND when the estate does not exist', async () => {
       estateRepository.findById.mockResolvedValue(null);
@@ -429,7 +532,9 @@ describe('EstateService', () => {
 
       await expect(
         service.softDeleteEstate(customerId, estateId),
-      ).rejects.toMatchObject({ errorCode: CommonErrorCodes.FORBIDDEN.code });
+      ).rejects.toMatchObject({
+        errorCode: CommonErrorCodes.FORBIDDEN.code,
+      });
       expect(estateRepository.softDeleteEstate).not.toHaveBeenCalled();
     });
 
@@ -464,6 +569,7 @@ describe('EstateService', () => {
         errorCode: CommonErrorCodes.RESOURCE_CONFLICT.code,
       });
       expect(estateRepository.softDeleteEstate).not.toHaveBeenCalled();
+      expect(estateRepository.transitionStatus).not.toHaveBeenCalled();
     });
   });
 });
