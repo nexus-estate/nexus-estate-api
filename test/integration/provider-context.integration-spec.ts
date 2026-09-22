@@ -373,8 +373,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
         permissionId: createPermission.id,
       });
 
-      const migration =
-        new AddProviderSupplyPermissions1790058166348();
+      const migration = new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
 
@@ -415,8 +414,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       const legacyProvider = await createProvider(legacyCustomer.id);
       await createMembership(legacyProvider.id, legacyCustomer.id);
 
-      const migration =
-        new AddProviderSupplyPermissions1790058166348();
+      const migration = new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
 
@@ -464,8 +462,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       const legacyProvider = await createProvider(legacyCustomer.id);
       await createMembership(legacyProvider.id, legacyCustomer.id);
 
-      const migration =
-        new AddProviderSupplyPermissions1790058166348();
+      const migration = new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
 
@@ -518,8 +515,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
         legacyCustomer.id,
       );
 
-      const migration =
-        new AddProviderSupplyPermissions1790058166348();
+      const migration = new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
       const memberRole = await dataSource
@@ -601,8 +597,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
         legacyCustomer.id,
       );
 
-      const migration =
-        new AddProviderSupplyPermissions1790058166348();
+      const migration = new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
       const memberRole = await dataSource
@@ -672,8 +667,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       );
       await assignRole(membership.id, customMemberRole.id);
 
-      const migration =
-        new AddProviderSupplyPermissions1790058166348();
+      const migration = new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
 
       await expect(migration.up(runner)).rejects.toThrow(
