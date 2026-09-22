@@ -27,6 +27,7 @@ import {
   ProviderVerificationStatus,
 } from '../../src/modules/provider/account/enums/account.enums';
 import { ProviderAccountErrorCodes } from '../../src/modules/provider/account/errors/provider-account-error-codes';
+import { BackfillProviderSupplyReadPermissions1790063077456 } from '../../src/modules/provider/authorization/migrations/1790063077456-BackfillProviderSupplyReadPermissions';
 
 jest.setTimeout(120_000);
 
@@ -353,6 +354,45 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
       });
+    });
+
+    it('backfills valid non-owner readers without changing custom mappings', async () => {
+      const createPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: agentRole.id,
+        permissionId: createPermission.id,
+      });
+
+      const migration =
+        new BackfillProviderSupplyReadPermissions1790063077456();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+
+      const context = await resolver.resolve(owner.id, providerE.id);
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(effective.permissions.map(({ code }) => code)).toEqual(
+        expect.arrayContaining([
+          'property:read',
+          'listing:read',
+          'property:create',
+        ]),
+      );
+
+      await migration.down(runner);
+      const remaining = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(remaining.permissions.map(({ code }) => code)).toContain(
+        'property:create',
+      );
+      expect(remaining.permissions.map(({ code }) => code)).not.toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      await runner.release();
     });
   });
 

@@ -15,7 +15,7 @@ describe('ListingController', () => {
     status: ListingStatus.DRAFT,
   } as never;
   let service: jest.Mocked<
-    Pick<ListingService, 'create' | 'findPublic' | 'publish'>
+    Pick<ListingService, 'create' | 'findPublic' | 'publish' | 'archive'>
   >;
   let controller: ListingController;
 
@@ -24,6 +24,7 @@ describe('ListingController', () => {
       create: jest.fn(),
       findPublic: jest.fn(),
       publish: jest.fn(),
+      archive: jest.fn(),
     };
     controller = new ListingController(service as unknown as ListingService);
   });
@@ -56,6 +57,19 @@ describe('ListingController', () => {
       controller.publish(user, 'listing-id', 'provider-id'),
     ).resolves.toBe(listing);
     expect(service.publish).toHaveBeenCalledWith(
+      user.id,
+      'listing-id',
+      'provider-id',
+    );
+  });
+
+  it('delegates archive to the provider context', async () => {
+    service.archive.mockResolvedValue(listing);
+
+    await expect(
+      controller.archive(user, 'listing-id', 'provider-id'),
+    ).resolves.toBe(listing);
+    expect(service.archive).toHaveBeenCalledWith(
       user.id,
       'listing-id',
       'provider-id',

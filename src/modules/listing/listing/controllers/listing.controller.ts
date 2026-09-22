@@ -96,20 +96,20 @@ export class ListingController {
     return this.listingService.publish(user.id, id, providerId);
   }
 
-  @Post(':id/unpublish')
+  @Post(':id/archive')
   @UseGuards(CustomerJwtAuthGuard)
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiOperation({ summary: 'Unpublish a provider listing' })
+  @ApiOperation({ summary: 'Archive a provider listing' })
   @ApiForbiddenResponse({
     description: 'Provider lifecycle or listing:archive permission denied.',
   })
-  unpublish(
+  archive(
     @CurrentUser() user: CustomerPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,
     @ProviderId() providerId?: string,
   ): Promise<ListingResponse> {
-    return this.listingService.unpublish(user.id, id, providerId);
+    return this.listingService.archive(user.id, id, providerId);
   }
 }
