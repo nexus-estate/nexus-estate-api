@@ -46,6 +46,7 @@ describe('ListingService', () => {
     const listingRepository = {
       findById: jest.fn(),
       findByEstateId: jest.fn().mockResolvedValue(null),
+      findEligibleForListing: jest.fn().mockResolvedValue([]),
       create: jest.fn(
         (data: Partial<Listing>) =>
           ({
@@ -114,6 +115,27 @@ describe('ListingService', () => {
       status: ListingStatus.DRAFT,
       estate: { id: estateId, title: 'Estate' },
     });
+  });
+
+  it('requires only listing:create for eligible property lookup', async () => {
+    const service = buildService(estate);
+    const repository = (
+      service as unknown as { listingRepository: ListingRepo }
+    ).listingRepository;
+    jest
+      .spyOn(repository, 'findEligibleForListing')
+      .mockResolvedValue([{ id: estateId, title: 'Estate' }]);
+
+    await expect(service.findEligibleProperties(customerId)).resolves.toEqual([
+      { id: estateId, title: 'Estate' },
+    ]);
+    const policyMock = (
+      service as unknown as { supplyAccessPolicy: ProviderSupplyAccessPolicy }
+    ).supplyAccessPolicy as unknown as { requirePermission: jest.Mock };
+    expect(policyMock.requirePermission.mock.calls).toContainEqual([
+      expect.objectContaining({ providerId }),
+      'listing:create',
+    ]);
   });
 
   it('accepts an estate with a different legacy customer owner but the same provider', async () => {

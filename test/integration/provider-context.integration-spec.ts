@@ -28,6 +28,7 @@ import {
 } from '../../src/modules/provider/account/enums/account.enums';
 import { ProviderAccountErrorCodes } from '../../src/modules/provider/account/errors/provider-account-error-codes';
 import { BackfillProviderSupplyReadPermissions1790063077456 } from '../../src/modules/provider/authorization/migrations/1790063077456-BackfillProviderSupplyReadPermissions';
+import { BackfillRolelessProviderSupplyReaders1790065589751 } from '../../src/modules/provider/authorization/migrations/1790065589751-BackfillRolelessProviderSupplyReaders';
 
 jest.setTimeout(120_000);
 
@@ -392,6 +393,62 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       expect(remaining.permissions.map(({ code }) => code)).not.toEqual(
         expect.arrayContaining(['property:read', 'listing:read']),
       );
+      await runner.release();
+    });
+
+    it('gives valid roleless legacy memberships explicit read-only MEMBER access', async () => {
+      const customPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: agentRole.id,
+        permissionId: customPermission.id,
+      });
+      const legacyCustomer = await createCustomer('legacy-reader@nexus.test');
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      await createMembership(legacyProvider.id, legacyCustomer.id);
+
+      const migration =
+        new BackfillRolelessProviderSupplyReaders1790065589751();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+
+      const context = await resolver.resolve(
+        legacyCustomer.id,
+        legacyProvider.id,
+      );
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      const permissionCodes = effective.permissions.map(({ code }) => code);
+
+      expect(permissionCodes).toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      expect(permissionCodes).not.toEqual(
+        expect.arrayContaining([
+          'property:create',
+          'property:update',
+          'property:archive',
+          'listing:create',
+          'listing:publish',
+          'listing:archive',
+        ]),
+      );
+
+      await migration.down(runner);
+      const afterRollback = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(afterRollback.permissions.map(({ code }) => code)).not.toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      await expect(
+        dataSource.getRepository(ProviderRolePermission).findOneByOrFail({
+          roleId: agentRole.id,
+          permissionId: customPermission.id,
+        }),
+      ).resolves.toBeDefined();
       await runner.release();
     });
   });
