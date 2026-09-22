@@ -145,9 +145,6 @@ export class EstateController {
     description:
       'Required when the customer has multiple active provider memberships.',
   })
-  @ApiForbiddenResponse({
-    description: 'Provider lifecycle or property:archive permission denied.',
-  })
   async updateEstate(
     @Param('id', new ParseUUIDPipe()) estateId: string,
     @Req() req: AuthenticatedRequest,

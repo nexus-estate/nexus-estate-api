@@ -23,6 +23,7 @@ import { Public } from '../../../../common/decorators/public.decorator';
 import type { CustomerPrincipal } from '../../../../common/security/auth.types';
 import { CustomerJwtAuthGuard } from '../../../customer/authentication/guards/customer-jwt-auth.guard';
 import { CreateListingDto } from '../dto/create-listing.dto';
+import { ListingEligiblePropertyResponse } from '../dto/listing-eligible-property.response';
 import { ListingPageResponse, ListingResponse } from '../dto/listing.response';
 import { ListingQueryDto } from '../dto/listing-query.dto';
 import { ListingService } from '../services/listing.service';
@@ -46,6 +47,22 @@ export class ListingController {
     @ProviderId() providerId?: string,
   ): Promise<ListingResponse> {
     return this.listingService.create(user.id, dto, providerId);
+  }
+
+  @Get('eligible-properties')
+  @UseGuards(CustomerJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiHeader({ name: 'X-Provider-Id', required: false })
+  @ApiOperation({ summary: 'List provider properties eligible for a listing' })
+  @ApiOkResponse({ type: [ListingEligiblePropertyResponse] })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:create permission denied.',
+  })
+  eligibleProperties(
+    @CurrentUser() user: CustomerPrincipal,
+    @ProviderId() providerId?: string,
+  ): Promise<ListingEligiblePropertyResponse[]> {
+    return this.listingService.findEligibleProperties(user.id, providerId);
   }
 
   @Get('mine')
