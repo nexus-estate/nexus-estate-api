@@ -79,33 +79,34 @@ export class EstateService {
   }
 
   /** Loads one estate by exact identifier or raises the feature's not-found error. */
-  async findById(
-    id: string,
-    customerId?: string,
-    providerId?: string,
-  ): Promise<Estate> {
-    let context: ProviderContext | undefined;
-    if (customerId !== undefined && providerId !== undefined) {
-      context = await this.providerContextResolver.resolve(
-        customerId,
-        providerId,
-      );
-      await this.supplyAccessPolicy.requirePermission(context, 'property:read');
-    }
+  async findPublicById(id: string): Promise<Estate> {
     const estate = await this.estateRepository.findById(id);
     if (!estate) {
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND, id);
     }
-    // If we have customerId and providerId, we check ownership
-    if (customerId !== undefined && providerId !== undefined && context) {
-      if (estate.providerId !== context.providerId) {
-        throw new BusinessException(
-          CommonErrorCodes.FORBIDDEN,
-          context.providerId,
-        );
-      }
-    }
     return estate;
+  }
+
+  /** Loads one provider-owned property through an explicit authorization path. */
+  async findOwnedById(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Estate> {
+    const context = await this.requireSupplyReadContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'property:read');
+    return this.requireOwnedEstate(estateId, context);
+  }
+
+  /** Loads the provider-owned detail required by the property edit command. */
+  async findOwnedByIdForUpdate(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Estate> {
+    const context = await this.requireSupplyReadContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'property:update');
+    return this.requireOwnedEstate(estateId, context);
   }
 
   /** Loads one estate owned by the exact provider context or raises not-found. */
@@ -204,6 +205,12 @@ export class EstateService {
       'property:archive',
     );
     const estate = await this.requireOwnedEstate(estateId, context);
+    if (await this.estateRepository.hasPublishedListing(estate.id)) {
+      throw new BusinessException(
+        CommonErrorCodes.RESOURCE_CONFLICT,
+        estate.id,
+      );
+    }
     const deletedEstate = await this.estateRepository.softDeleteEstate(
       estate.id,
     );

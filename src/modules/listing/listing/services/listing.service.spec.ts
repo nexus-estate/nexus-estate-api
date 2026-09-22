@@ -44,6 +44,7 @@ describe('ListingService', () => {
 
   const buildService = (estate: unknown) => {
     const listingRepository = {
+      findById: jest.fn(),
       findByEstateId: jest.fn().mockResolvedValue(null),
       create: jest.fn(
         (data: Partial<Listing>) =>
@@ -81,6 +82,23 @@ describe('ListingService', () => {
       providerContextResolver,
       supplyAccessPolicy,
     );
+  };
+
+  const buildLifecycleService = (status: ListingStatus) => {
+    const service = buildService(estate);
+    const repository = (
+      service as unknown as { listingRepository: ListingRepo }
+    ).listingRepository;
+    jest.spyOn(repository, 'findById').mockResolvedValue({
+      ...estateData,
+      id: listingId,
+      estateId,
+      estate,
+      providerId,
+      status,
+      publishedAt: status === ListingStatus.DRAFT ? null : new Date(),
+    } as unknown as Listing);
+    return { service, repository };
   };
 
   it('creates a draft that references an estate owned by the same provider', async () => {
@@ -133,5 +151,34 @@ describe('ListingService', () => {
     ).rejects.toMatchObject({
       errorCode: CommonErrorCodes.FORBIDDEN.code,
     });
+  });
+
+  it.each([
+    [ListingStatus.PUBLISHED, 'publish'],
+    [ListingStatus.ARCHIVED, 'publish'],
+  ])('rejects %s -> publish', async (status) => {
+    const { service } = buildLifecycleService(status);
+    await expect(service.publish(customerId, listingId)).rejects.toMatchObject({
+      errorCode: 'LISTING_INVALID_STATUS_TRANSITION',
+    });
+  });
+
+  it.each([ListingStatus.DRAFT, ListingStatus.ARCHIVED])(
+    'rejects %s -> archive',
+    async (status) => {
+      const { service } = buildLifecycleService(status);
+      await expect(
+        service.archive(customerId, listingId),
+      ).rejects.toMatchObject({
+        errorCode: 'LISTING_INVALID_STATUS_TRANSITION',
+      });
+    },
+  );
+
+  it('archives a published listing without clearing publishedAt', async () => {
+    const { service } = buildLifecycleService(ListingStatus.PUBLISHED);
+    const result = await service.archive(customerId, listingId);
+    expect(result.status).toBe(ListingStatus.ARCHIVED);
+    expect(result.publishedAt).toEqual(expect.any(Date));
   });
 });

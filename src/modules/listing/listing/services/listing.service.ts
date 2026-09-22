@@ -12,6 +12,7 @@ import { ListingQueryDto } from '../dto/listing-query.dto';
 import { ListingResponse } from '../dto/listing.response';
 import { Listing, ListingStatus } from '../entities';
 import { ListingRepo } from '../repositories/listing.repo';
+import { ListingErrorCodes } from '../errors/listing-error-codes';
 
 @Injectable()
 export class ListingService {
@@ -97,12 +98,13 @@ export class ListingService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'listing:publish');
+    this.assertTransition(listing.status, ListingStatus.PUBLISHED);
     listing.status = ListingStatus.PUBLISHED;
     listing.publishedAt = listing.publishedAt ?? new Date();
     return this.toResponse(await this.listingRepository.save(listing));
   }
 
-  async unpublish(
+  async archive(
     customerId: string,
     id: string,
     providerId?: string,
@@ -113,9 +115,25 @@ export class ListingService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'listing:archive');
-    listing.status = ListingStatus.DRAFT;
-    listing.publishedAt = null;
+    this.assertTransition(listing.status, ListingStatus.ARCHIVED);
+    listing.status = ListingStatus.ARCHIVED;
     return this.toResponse(await this.listingRepository.save(listing));
+  }
+
+  private assertTransition(
+    current: ListingStatus,
+    target: ListingStatus,
+  ): void {
+    const valid =
+      (current === ListingStatus.DRAFT && target === ListingStatus.PUBLISHED) ||
+      (current === ListingStatus.PUBLISHED &&
+        target === ListingStatus.ARCHIVED);
+    if (!valid) {
+      throw new BusinessException(
+        ListingErrorCodes.LISTING_INVALID_STATUS_TRANSITION,
+        `${current}->${target}`,
+      );
+    }
   }
 
   private async getOwnedListing(

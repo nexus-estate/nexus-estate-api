@@ -1,0 +1,8 @@
+{
+  "en": {
+    "LISTING_INVALID_STATUS_TRANSITION": "The listing cannot change from %s to %s. Complete the listing lifecycle in order."
+  },
+  "vi": {
+    "LISTING_INVALID_STATUS_TRANSITION": "Listing không thể chuyển từ %s sang %s. Vui lòng thực hiện đúng thứ tự vòng đời."
+  }
+}

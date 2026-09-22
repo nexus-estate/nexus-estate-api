@@ -553,6 +553,35 @@ describe('Estate API (e2e)', () => {
     expectNoLegacyOwnershipLeakage(body.data);
   });
 
+  it('does not make property:update depend on property:read', async () => {
+    const created = await createEstate();
+    await revokeOwnerPermission('property:read');
+
+    const response = await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${created.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ title: 'Updated without read permission' })
+      .expect(200);
+
+    expect((response.body as ApiSuccess<EstateResponse>).data.title).toBe(
+      'Updated without read permission',
+    );
+  });
+
+  it('loads provider-owned edit detail with property:update only', async () => {
+    const created = await createEstate();
+    await revokeOwnerPermission('property:read');
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/estates/${created.id}/mine`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+
+    expect((response.body as ApiSuccess<EstateResponse>).data.id).toBe(
+      created.id,
+    );
+  });
+
   it('forbids another provider from updating an estate', async () => {
     const created = await createEstate();
 
@@ -660,6 +689,11 @@ describe('Estate API (e2e)', () => {
       status: 'DRAFT',
     });
 
+    await request(app.getHttpServer())
+      .post(`/api/v1/listings/${draft.id}/archive`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(409);
+
     const publishedResponse = await request(app.getHttpServer())
       .post(`/api/v1/listings/${draft.id}/publish`)
       .set('Authorization', `Bearer ${ownerToken}`)
@@ -667,6 +701,16 @@ describe('Estate API (e2e)', () => {
     expect(
       (publishedResponse.body as ApiSuccess<{ status: string }>).data.status,
     ).toBe('PUBLISHED');
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/estates/${estate.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/listings/${draft.id}/publish`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(409);
 
     const marketplaceResponse = await request(app.getHttpServer())
       .get(
@@ -697,6 +741,37 @@ describe('Estate API (e2e)', () => {
       (leadResponse.body as ApiSuccess<{ listingId: string; status: string }>)
         .data,
     ).toMatchObject({ listingId: draft.id, status: 'NEW' });
+
+    const archivedResponse = await request(app.getHttpServer())
+      .post(`/api/v1/listings/${draft.id}/archive`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(201);
+    expect(
+      (archivedResponse.body as ApiSuccess<{ status: string }>).data.status,
+    ).toBe('ARCHIVED');
+    await request(app.getHttpServer())
+      .get(`/api/v1/listings/${draft.id}`)
+      .expect(404);
+    const afterArchive = await request(app.getHttpServer())
+      .get(
+        `/api/v1/listings?type=${EstateType.APARTMENT}&provinceId=${province.id}`,
+      )
+      .expect(200);
+    expect(
+      (afterArchive.body as ApiSuccess<{ items: unknown[] }>).data.items,
+    ).toHaveLength(0);
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/estates/${estate.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const mineAfterArchive = await request(app.getHttpServer())
+      .get('/api/v1/estates/mine')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect((mineAfterArchive.body as ApiSuccess<unknown[]>).data).toHaveLength(
+      0,
+    );
   });
 
   it('enforces listing:create independently from the OWNER role name', async () => {
@@ -711,6 +786,21 @@ describe('Estate API (e2e)', () => {
 
     expect((response.body as ApiError).code).toBe(
       ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
+    );
+  });
+
+  it('does not make listing:create depend on listing:read', async () => {
+    const estate = await createEstate();
+    await revokeOwnerPermission('listing:read');
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: estate.id })
+      .expect(201);
+
+    expect((response.body as ApiSuccess<{ status: string }>).data.status).toBe(
+      'DRAFT',
     );
   });
 });

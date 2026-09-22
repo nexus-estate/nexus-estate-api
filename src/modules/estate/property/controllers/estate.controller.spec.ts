@@ -9,7 +9,10 @@ import { EstateController } from './estate.controller';
 type EstateServiceMock = {
   createEstate: jest.MockedFunction<EstateService['createEstate']>;
   listMine: jest.MockedFunction<EstateService['listMine']>;
-  findById: jest.MockedFunction<EstateService['findById']>;
+  findPublicById: jest.MockedFunction<EstateService['findPublicById']>;
+  findOwnedByIdForUpdate: jest.MockedFunction<
+    EstateService['findOwnedByIdForUpdate']
+  >;
   updateEstate: jest.MockedFunction<EstateService['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateService['softDeleteEstate']>;
 };
@@ -72,7 +75,8 @@ describe('EstateController', () => {
     estateService = {
       createEstate: jest.fn(),
       listMine: jest.fn(),
-      findById: jest.fn(),
+      findPublicById: jest.fn(),
+      findOwnedByIdForUpdate: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
     };
@@ -116,11 +120,11 @@ describe('EstateController', () => {
   });
 
   it('finds an estate by the route id and hides legacy ownership', async () => {
-    estateService.findById.mockResolvedValue(estate);
+    estateService.findPublicById.mockResolvedValue(estate);
 
     const result = await controller.findEstateById(estateId);
 
-    expect(estateService.findById).toHaveBeenCalledWith(estateId);
+    expect(estateService.findPublicById).toHaveBeenCalledWith(estateId);
     expect(result).not.toHaveProperty('customerId');
   });
 

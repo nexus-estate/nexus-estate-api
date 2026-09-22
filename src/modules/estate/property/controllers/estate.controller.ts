@@ -91,6 +91,29 @@ export class EstateController {
     return estates.map((estate) => EstateResponse.toResponse(estate));
   }
 
+  /** Returns one estate owned by the resolved provider context. */
+  @Get(':id/mine')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get one provider-owned estate for editing' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: EstateResponse })
+  @ApiForbiddenResponse({
+    description:
+      'Provider lifecycle, ownership, or property:update permission denied.',
+  })
+  async findOwnedEstate(
+    @Param('id', new ParseUUIDPipe()) estateId: string,
+    @Req() req: AuthenticatedRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.findOwnedByIdForUpdate(
+      req.user.id,
+      estateId,
+      providerId,
+    );
+    return EstateResponse.toResponse(estate);
+  }
+
   /** Returns one public estate by exact identifier. */
   @Get(':id')
   @Public()
@@ -100,7 +123,7 @@ export class EstateController {
   async findEstateById(
     @Param('id', new ParseUUIDPipe()) estateId: string,
   ): Promise<EstateResponse> {
-    const estate = await this.estateService.findById(estateId);
+    const estate = await this.estateService.findPublicById(estateId);
     return EstateResponse.toResponse(estate);
   }
 
@@ -150,6 +173,9 @@ export class EstateController {
     required: false,
     description:
       'Required when the customer has multiple active provider memberships.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:archive permission denied.',
   })
   async deleteEstate(
     @Param('id', new ParseUUIDPipe()) estateId: string,
