@@ -12,9 +12,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Bookkeeping tables keep rollback precise and protect runtime-owned assignments
  * and mappings.
  */
-export class AddProviderSupplyPermissions1790058166348
-  implements MigrationInterface
-{
+export class AddProviderSupplyPermissions1790058166348 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Refuse custom MEMBER collisions before mutating permissions or mappings.
     const existingMemberRoles = (await queryRunner.query(`
@@ -49,7 +47,6 @@ export class AddProviderSupplyPermissions1790058166348
 
       memberRoleId = existingMemberRoles[0].id;
     }
-
 
     await queryRunner.query(`
       INSERT INTO tbl_provider_permission
