@@ -7,6 +7,39 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  */
 export class BackfillRolelessProviderSupplyReaders1790065589751 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const existingMemberRoles = (await queryRunner.query(`
+      SELECT id::text AS id
+      FROM tbl_provider_role
+      WHERE code = 'MEMBER'
+      LIMIT 1
+    `)) as { id: string }[];
+
+    let memberRoleId: string | undefined;
+
+    if (existingMemberRoles.length > 0) {
+      const bookkeepingTable = (await queryRunner.query(`
+        SELECT to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS exists
+      `)) as { exists: boolean }[];
+      const roleBackfill = bookkeepingTable[0]?.exists
+        ? ((await queryRunner.query(
+            `
+              SELECT role_id::text AS role_id
+              FROM tbl_provider_supply_member_role_backfill
+              WHERE role_id = $1
+            `,
+            [existingMemberRoles[0].id],
+          )) as { role_id: string }[])
+        : [];
+
+      if (roleBackfill.length === 0) {
+        throw new Error(
+          `Provider supply permission migration refused to reuse existing MEMBER role ${existingMemberRoles[0].id}: the role is not owned by this migration. Rename the custom role before rerunning the migration.`,
+        );
+      }
+
+      memberRoleId = existingMemberRoles[0].id;
+    }
+
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS tbl_provider_supply_member_role_backfill (
         role_id uuid PRIMARY KEY
@@ -27,8 +60,8 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
       )
     `);
 
-    await queryRunner.query(`
-      WITH inserted AS (
+    if (!memberRoleId) {
+      const insertedMemberRoles = (await queryRunner.query(`
         INSERT INTO tbl_provider_role
           (code, name, description, is_system, status, version)
         VALUES (
@@ -40,31 +73,56 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
           1
         )
         ON CONFLICT (code) DO NOTHING
-        RETURNING id
-      )
-      INSERT INTO tbl_provider_supply_member_role_backfill (role_id)
-      SELECT id FROM inserted
-      ON CONFLICT (role_id) DO NOTHING
-    `);
+        RETURNING id::text AS id
+      `)) as { id: string }[];
 
-    await queryRunner.query(`
-      UPDATE tbl_provider_role
-      SET name = 'Member',
-          description = 'Baseline provider membership read access.',
-          is_system = true,
-          status = 'ACTIVE',
-          deleted_at = NULL,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE code = 'MEMBER'
-    `);
+      if (insertedMemberRoles.length === 0) {
+        const concurrentMemberRoles = (await queryRunner.query(`
+          SELECT id::text AS id
+          FROM tbl_provider_role
+          WHERE code = 'MEMBER'
+          LIMIT 1
+        `)) as { id: string }[];
+        const concurrentRoleBackfill = (await queryRunner.query(
+          `
+            SELECT role_id::text AS role_id
+            FROM tbl_provider_supply_member_role_backfill
+            WHERE role_id = $1
+          `,
+          [concurrentMemberRoles[0]?.id],
+        )) as { role_id: string }[];
 
-    await queryRunner.query(`
+        if (
+          concurrentMemberRoles.length === 0 ||
+          concurrentRoleBackfill.length === 0
+        ) {
+          throw new Error(
+            'Provider supply permission migration refused to reuse an existing MEMBER role that is not owned by this migration.',
+          );
+        }
+
+        memberRoleId = concurrentMemberRoles[0].id;
+      } else {
+        memberRoleId = insertedMemberRoles[0].id;
+        await queryRunner.query(
+          `
+            INSERT INTO tbl_provider_supply_member_role_backfill (role_id)
+            VALUES ($1)
+            ON CONFLICT (role_id) DO NOTHING
+          `,
+          [memberRoleId],
+        );
+      }
+    }
+
+    await queryRunner.query(
+      `
       INSERT INTO tbl_provider_supply_member_permission_backfill
         (role_id, permission_id)
       SELECT role.id, permission.id
       FROM tbl_provider_role role
       CROSS JOIN tbl_provider_permission permission
-      WHERE role.code = 'MEMBER'
+      WHERE role.id = $1
         AND permission.code IN ('property:read', 'listing:read')
         AND permission.deleted_at IS NULL
         AND permission.deprecated_at IS NULL
@@ -75,7 +133,9 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
             AND existing_mapping.permission_id = permission.id
         )
       ON CONFLICT (role_id, permission_id) DO NOTHING
-    `);
+    `,
+      [memberRoleId],
+    );
 
     await queryRunner.query(`
       INSERT INTO tbl_provider_role_permission (role_id, permission_id)
@@ -84,7 +144,8 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
       ON CONFLICT (role_id, permission_id) DO NOTHING
     `);
 
-    await queryRunner.query(`
+    await queryRunner.query(
+      `
       INSERT INTO tbl_provider_supply_member_assignment_backfill
         (membership_id, role_id)
       SELECT membership.id, role.id
@@ -92,7 +153,7 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
       INNER JOIN tbl_provider_account provider
         ON provider.id = membership.provider_id
       INNER JOIN tbl_provider_role role
-        ON role.code = 'MEMBER'
+        ON role.id = $1
       WHERE membership.status = 'ACTIVE'
         AND membership.deleted_at IS NULL
         AND provider.status = 'ACTIVE'
@@ -114,7 +175,9 @@ export class BackfillRolelessProviderSupplyReaders1790065589751 implements Migra
             AND existing_member_assignment.role_id = role.id
         )
       ON CONFLICT (membership_id, role_id) DO NOTHING
-    `);
+    `,
+      [memberRoleId],
+    );
 
     await queryRunner.query(`
       INSERT INTO tbl_provider_membership_role (membership_id, role_id)
