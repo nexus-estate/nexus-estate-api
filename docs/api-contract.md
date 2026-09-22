@@ -97,10 +97,36 @@ Property lifecycle status is one of `DRAFT`, `ACTIVE`, or `ARCHIVED`. Creation
 always returns `DRAFT`; `PATCH /estates/:id` cannot change status. Commands allow
 `DRAFT -> ACTIVE`, `DRAFT -> ARCHIVED`, `ACTIVE -> ARCHIVED`, and
 `ARCHIVED -> DRAFT`. Activation validates required publication-quality data,
-and a published Listing blocks the archive command.
+and a published Listing blocks the archive command. Lifecycle restore only
+loads non-deleted rows; it never clears `deleted_at` or resurrects a soft-deleted
+Property. `DELETE /estates/:id` remains a separate legacy soft-delete operation.
+
+Public Property visibility requires both `status = ACTIVE` and
+`deleted_at IS NULL`. Provider-owned reads can include non-deleted `DRAFT`,
+`ACTIVE`, and `ARCHIVED` Properties.
 
 Listing creation accepts only estates owned by the same provider context
-(`estate.providerId === context.providerId`).
+(`estate.providerId === context.providerId`) and excludes archived Properties.
+It creates a `DRAFT` Listing from a non-deleted `DRAFT` or `ACTIVE` Property.
+Publishing requires the Property to be `ACTIVE` and non-deleted; the API returns
+`LISTING_PROPERTY_NOT_ACTIVE` with HTTP `409` otherwise. Archived Properties
+are excluded from `GET /listings/eligible-properties`. Public Listing reads
+also require a published, non-deleted Listing joined to an active, non-deleted
+Property.
+
+Property archive and Listing publish serialize on the same Property row using a
+database pessimistic write lock. This prevents both commands from succeeding
+concurrently and preserves the invariant that an archived Property cannot have
+an active published Listing.
+
+Lifecycle command endpoints return `200 OK`; create endpoints continue to
+return `201 Created`.
+
+The lifecycle migration maps `pending -> DRAFT`, `approved -> ACTIVE`, and
+`rejected -> ARCHIVED`, and verifies that no unmapped rows remain. Its `down()`
+method is schema-compatible, but it cannot restore historical moderation
+semantics after lifecycle writes have reached production; operational recovery
+should use a forward fix rather than a database downgrade.
 
 ## Feature gates
 

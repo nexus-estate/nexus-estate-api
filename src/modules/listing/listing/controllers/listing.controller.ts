@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -97,6 +99,7 @@ export class ListingController {
   }
 
   @Post(':id/publish')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(CustomerJwtAuthGuard)
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })
@@ -114,6 +117,7 @@ export class ListingController {
   }
 
   @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(CustomerJwtAuthGuard)
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })

@@ -1,8 +1,12 @@
 {
   "en": {
-    "LISTING_INVALID_STATUS_TRANSITION": "The listing cannot change from %s to %s. Complete the listing lifecycle in order."
+    "LISTING_INVALID_STATUS_TRANSITION": "The listing cannot change from %s to %s. Complete the listing lifecycle in order.",
+    "LISTING_PROPERTY_NOT_ACTIVE": "The listing cannot be published until its property is active.",
+    "LISTING_PROPERTY_ARCHIVED": "A draft listing cannot be created from an archived property."
   },
   "vi": {
-    "LISTING_INVALID_STATUS_TRANSITION": "Listing không thể chuyển từ %s sang %s. Vui lòng thực hiện đúng thứ tự vòng đời."
+    "LISTING_INVALID_STATUS_TRANSITION": "Listing không thể chuyển từ %s sang %s. Vui lòng thực hiện đúng thứ tự vòng đời.",
+    "LISTING_PROPERTY_NOT_ACTIVE": "Không thể xuất bản Listing khi Property chưa ở trạng thái đang hoạt động.",
+    "LISTING_PROPERTY_ARCHIVED": "Không thể tạo Listing nháp từ Property đã lưu trữ."
   }
 }

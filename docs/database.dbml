@@ -78,6 +78,12 @@ Table "tbl_estate" {
   }
 }
 
+// Property lifecycle is independent from soft deletion.
+// Public reads require status = ACTIVE and deleted_at IS NULL.
+// DRAFT and ARCHIVED rows remain provider-visible while deleted_at is NULL.
+// Lifecycle restore never clears deleted_at; DELETE remains a separate legacy
+// soft-delete operation.
+
 Table "tbl_media" {
   "id" uuid [pk, not null, default: `gen_random_uuid()`]
   "created_at" timestamp [not null, default: `now()`]
