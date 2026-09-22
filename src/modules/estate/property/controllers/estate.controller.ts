@@ -22,6 +22,7 @@ import { EstateService } from '../services/estate.service';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -46,6 +47,9 @@ export class EstateController {
   @ApiCreatedResponse({
     type: EstateResponse,
     description: 'Estate created with hydrated province and ward.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:create permission denied.',
   })
   @ApiHeader({
     name: 'X-Provider-Id',
@@ -76,12 +80,38 @@ export class EstateController {
     description: 'Provider context used to scope the estate list.',
   })
   @ApiOkResponse({ type: [EstateResponse] })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:read permission denied.',
+  })
   async findEstateMine(
     @Req() req: AuthenticatedRequest,
     @ProviderId() providerId?: string,
   ): Promise<EstateResponse[]> {
     const estates = await this.estateService.listMine(req.user.id, providerId);
     return estates.map((estate) => EstateResponse.toResponse(estate));
+  }
+
+  /** Returns one estate owned by the resolved provider context. */
+  @Get(':id/mine')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get one provider-owned estate for editing' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: EstateResponse })
+  @ApiForbiddenResponse({
+    description:
+      'Provider lifecycle, ownership, or property:update permission denied.',
+  })
+  async findOwnedEstate(
+    @Param('id', new ParseUUIDPipe()) estateId: string,
+    @Req() req: AuthenticatedRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.findOwnedByIdForUpdate(
+      req.user.id,
+      estateId,
+      providerId,
+    );
+    return EstateResponse.toResponse(estate);
   }
 
   /** Returns one public estate by exact identifier. */
@@ -93,7 +123,7 @@ export class EstateController {
   async findEstateById(
     @Param('id', new ParseUUIDPipe()) estateId: string,
   ): Promise<EstateResponse> {
-    const estate = await this.estateService.findById(estateId);
+    const estate = await this.estateService.findPublicById(estateId);
     return EstateResponse.toResponse(estate);
   }
 
@@ -105,6 +135,9 @@ export class EstateController {
   @ApiOkResponse({
     type: EstateResponse,
     description: 'Estate updated with hydrated province and ward.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:update permission denied.',
   })
   @ApiHeader({
     name: 'X-Provider-Id',
@@ -137,6 +170,9 @@ export class EstateController {
     required: false,
     description:
       'Required when the customer has multiple active provider memberships.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:archive permission denied.',
   })
   async deleteEstate(
     @Param('id', new ParseUUIDPipe()) estateId: string,

@@ -30,6 +30,7 @@ type EstateRepoMock = {
   createEstate: jest.MockedFunction<EstateRepo['createEstate']>;
   updateEstate: jest.MockedFunction<EstateRepo['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateRepo['softDeleteEstate']>;
+  hasPublishedListing: jest.MockedFunction<EstateRepo['hasPublishedListing']>;
 };
 
 type ProvinceRepoMock = {
@@ -48,8 +49,8 @@ type ProviderSupplyAccessPolicyMock = {
   requireReadAccess: jest.MockedFunction<
     ProviderSupplyAccessPolicy['requireReadAccess']
   >;
-  requireWriteAccess: jest.MockedFunction<
-    ProviderSupplyAccessPolicy['requireWriteAccess']
+  requirePermission: jest.MockedFunction<
+    ProviderSupplyAccessPolicy['requirePermission']
   >;
 };
 
@@ -106,6 +107,7 @@ describe('EstateService', () => {
       createEstate: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
+      hasPublishedListing: jest.fn().mockResolvedValue(false),
     };
     provinceRepository = { findById: jest.fn() };
     wardRepository = { findById: jest.fn() };
@@ -124,7 +126,7 @@ describe('EstateService', () => {
     };
     supplyAccessPolicy = {
       requireReadAccess: jest.fn(),
-      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
+      requirePermission: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new EstateService(
@@ -151,7 +153,10 @@ describe('EstateService', () => {
         customerId,
         undefined,
       );
-      expect(supplyAccessPolicy.requireWriteAccess).toHaveBeenCalled();
+      expect(supplyAccessPolicy.requirePermission).toHaveBeenCalledWith(
+        expect.objectContaining({ customerId, providerId }),
+        'property:create',
+      );
       expect(estateRepository.createEstate).toHaveBeenCalledWith({
         ...createDto,
         customerId,
@@ -199,25 +204,62 @@ describe('EstateService', () => {
     });
   });
 
-  describe('findById', () => {
+  describe('findPublicById', () => {
     it('returns an estate from the repository', async () => {
       estateRepository.findById.mockResolvedValue(estate);
 
-      await expect(service.findById(estateId)).resolves.toBe(estate);
+      await expect(service.findPublicById(estateId)).resolves.toBe(estate);
       expect(estateRepository.findById).toHaveBeenCalledWith(estateId);
     });
 
     it('throws RESOURCE_NOT_FOUND when the estate does not exist', async () => {
       estateRepository.findById.mockResolvedValue(null);
 
-      await expect(service.findById(estateId)).rejects.toMatchObject({
+      await expect(service.findPublicById(estateId)).rejects.toMatchObject({
         errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
     });
   });
 
+  it('authorizes an owned lookup through the resolved provider context', async () => {
+    estateRepository.findById.mockResolvedValue(estate);
+
+    await expect(service.findOwnedById(customerId, estateId)).resolves.toBe(
+      estate,
+    );
+    expect(supplyAccessPolicy.requirePermission).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId }),
+      'property:read',
+    );
+  });
+
+  it('rejects an owned lookup across providers', async () => {
+    estateRepository.findById.mockResolvedValue({
+      ...estate,
+      providerId: otherProviderId,
+    });
+
+    await expect(
+      service.findOwnedById(customerId, estateId),
+    ).rejects.toMatchObject({
+      errorCode: CommonErrorCodes.FORBIDDEN.code,
+    });
+  });
+
+  it('uses property:update for the provider-owned edit detail contract', async () => {
+    estateRepository.findById.mockResolvedValue(estate);
+
+    await expect(
+      service.findOwnedByIdForUpdate(customerId, estateId),
+    ).resolves.toBe(estate);
+    expect(supplyAccessPolicy.requirePermission).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId }),
+      'property:update',
+    );
+  });
+
   it('blocks estate creation when the provider is not active and verified', async () => {
-    supplyAccessPolicy.requireWriteAccess.mockRejectedValue(
+    supplyAccessPolicy.requirePermission.mockRejectedValue(
       new BusinessException(
         ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_VERIFIED,
       ),
@@ -410,6 +452,18 @@ describe('EstateService', () => {
         service.softDeleteEstate(customerId, estateId),
       ).resolves.toBe(true);
       expect(estateRepository.softDeleteEstate).toHaveBeenCalledWith(estateId);
+    });
+
+    it('rejects archiving a property with a published listing', async () => {
+      estateRepository.findById.mockResolvedValue(estate);
+      estateRepository.hasPublishedListing.mockResolvedValue(true);
+
+      await expect(
+        service.softDeleteEstate(customerId, estateId),
+      ).rejects.toMatchObject({
+        errorCode: CommonErrorCodes.RESOURCE_CONFLICT.code,
+      });
+      expect(estateRepository.softDeleteEstate).not.toHaveBeenCalled();
     });
   });
 });

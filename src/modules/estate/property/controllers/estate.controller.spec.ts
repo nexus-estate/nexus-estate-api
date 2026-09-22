@@ -6,10 +6,15 @@ import { EstateService } from '../services/estate.service';
 import { EstatePurpose, EstateType } from '../types/estate.type';
 import { EstateController } from './estate.controller';
 
+const API_RESPONSE_METADATA = 'swagger/apiResponse';
+
 type EstateServiceMock = {
   createEstate: jest.MockedFunction<EstateService['createEstate']>;
   listMine: jest.MockedFunction<EstateService['listMine']>;
-  findById: jest.MockedFunction<EstateService['findById']>;
+  findPublicById: jest.MockedFunction<EstateService['findPublicById']>;
+  findOwnedByIdForUpdate: jest.MockedFunction<
+    EstateService['findOwnedByIdForUpdate']
+  >;
   updateEstate: jest.MockedFunction<EstateService['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateService['softDeleteEstate']>;
 };
@@ -72,7 +77,8 @@ describe('EstateController', () => {
     estateService = {
       createEstate: jest.fn(),
       listMine: jest.fn(),
-      findById: jest.fn(),
+      findPublicById: jest.fn(),
+      findOwnedByIdForUpdate: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
     };
@@ -116,11 +122,11 @@ describe('EstateController', () => {
   });
 
   it('finds an estate by the route id and hides legacy ownership', async () => {
-    estateService.findById.mockResolvedValue(estate);
+    estateService.findPublicById.mockResolvedValue(estate);
 
     const result = await controller.findEstateById(estateId);
 
-    expect(estateService.findById).toHaveBeenCalledWith(estateId);
+    expect(estateService.findPublicById).toHaveBeenCalledWith(estateId);
     expect(result).not.toHaveProperty('customerId');
   });
 
@@ -152,6 +158,42 @@ describe('EstateController', () => {
       user.id,
       estateId,
       undefined,
+    );
+  });
+
+  it('documents update and archive permissions on their matching routes', () => {
+    const updateResponses = Reflect.getMetadata(
+      API_RESPONSE_METADATA,
+      Object.getOwnPropertyDescriptor(
+        EstateController.prototype,
+        'updateEstate',
+      )?.value,
+    ) as Record<string, { description?: string }>;
+    const deleteResponses = Reflect.getMetadata(
+      API_RESPONSE_METADATA,
+      Object.getOwnPropertyDescriptor(
+        EstateController.prototype,
+        'deleteEstate',
+      )?.value,
+    ) as Record<string, { description?: string }>;
+
+    const updateDescriptions = Object.values(updateResponses).map(
+      (response) => response.description,
+    );
+    const deleteDescriptions = Object.values(deleteResponses).map(
+      (response) => response.description,
+    );
+
+    expect(updateDescriptions).toEqual(
+      expect.arrayContaining([
+        'Provider lifecycle or property:update permission denied.',
+      ]),
+    );
+    expect(updateDescriptions).not.toContain(
+      'Provider lifecycle or property:archive permission denied.',
+    );
+    expect(deleteDescriptions).toContain(
+      'Provider lifecycle or property:archive permission denied.',
     );
   });
 });

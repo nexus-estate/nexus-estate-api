@@ -44,7 +44,9 @@ describe('ListingService', () => {
 
   const buildService = (estate: unknown) => {
     const listingRepository = {
+      findById: jest.fn(),
       findByEstateId: jest.fn().mockResolvedValue(null),
+      findEligibleForListing: jest.fn().mockResolvedValue([]),
       create: jest.fn(
         (data: Partial<Listing>) =>
           ({
@@ -73,7 +75,7 @@ describe('ListingService', () => {
     } as unknown as ProviderContextResolver;
     const supplyAccessPolicy = {
       requireReadAccess: jest.fn(),
-      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
+      requirePermission: jest.fn().mockResolvedValue(undefined),
     } as unknown as ProviderSupplyAccessPolicy;
     return new ListingService(
       listingRepository,
@@ -81,6 +83,23 @@ describe('ListingService', () => {
       providerContextResolver,
       supplyAccessPolicy,
     );
+  };
+
+  const buildLifecycleService = (status: ListingStatus) => {
+    const service = buildService(estate);
+    const repository = (
+      service as unknown as { listingRepository: ListingRepo }
+    ).listingRepository;
+    jest.spyOn(repository, 'findById').mockResolvedValue({
+      ...estateData,
+      id: listingId,
+      estateId,
+      estate,
+      providerId,
+      status,
+      publishedAt: status === ListingStatus.DRAFT ? null : new Date(),
+    } as unknown as Listing);
+    return { service, repository };
   };
 
   it('creates a draft that references an estate owned by the same provider', async () => {
@@ -96,6 +115,27 @@ describe('ListingService', () => {
       status: ListingStatus.DRAFT,
       estate: { id: estateId, title: 'Estate' },
     });
+  });
+
+  it('requires only listing:create for eligible property lookup', async () => {
+    const service = buildService(estate);
+    const repository = (
+      service as unknown as { listingRepository: ListingRepo }
+    ).listingRepository;
+    jest
+      .spyOn(repository, 'findEligibleForListing')
+      .mockResolvedValue([{ id: estateId, title: 'Estate' }]);
+
+    await expect(service.findEligibleProperties(customerId)).resolves.toEqual([
+      { id: estateId, title: 'Estate' },
+    ]);
+    const policyMock = (
+      service as unknown as { supplyAccessPolicy: ProviderSupplyAccessPolicy }
+    ).supplyAccessPolicy as unknown as { requirePermission: jest.Mock };
+    expect(policyMock.requirePermission.mock.calls).toContainEqual([
+      expect.objectContaining({ providerId }),
+      'listing:create',
+    ]);
   });
 
   it('accepts an estate with a different legacy customer owner but the same provider', async () => {
@@ -133,5 +173,34 @@ describe('ListingService', () => {
     ).rejects.toMatchObject({
       errorCode: CommonErrorCodes.FORBIDDEN.code,
     });
+  });
+
+  it.each([
+    [ListingStatus.PUBLISHED, 'publish'],
+    [ListingStatus.ARCHIVED, 'publish'],
+  ])('rejects %s -> publish', async (status) => {
+    const { service } = buildLifecycleService(status);
+    await expect(service.publish(customerId, listingId)).rejects.toMatchObject({
+      errorCode: 'LISTING_INVALID_STATUS_TRANSITION',
+    });
+  });
+
+  it.each([ListingStatus.DRAFT, ListingStatus.ARCHIVED])(
+    'rejects %s -> archive',
+    async (status) => {
+      const { service } = buildLifecycleService(status);
+      await expect(
+        service.archive(customerId, listingId),
+      ).rejects.toMatchObject({
+        errorCode: 'LISTING_INVALID_STATUS_TRANSITION',
+      });
+    },
+  );
+
+  it('archives a published listing without clearing publishedAt', async () => {
+    const { service } = buildLifecycleService(ListingStatus.PUBLISHED);
+    const result = await service.archive(customerId, listingId);
+    expect(result.status).toBe(ListingStatus.ARCHIVED);
+    expect(result.publishedAt).toEqual(expect.any(Date));
   });
 });

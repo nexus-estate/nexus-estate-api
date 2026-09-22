@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -22,6 +23,7 @@ import { Public } from '../../../../common/decorators/public.decorator';
 import type { CustomerPrincipal } from '../../../../common/security/auth.types';
 import { CustomerJwtAuthGuard } from '../../../customer/authentication/guards/customer-jwt-auth.guard';
 import { CreateListingDto } from '../dto/create-listing.dto';
+import { ListingEligiblePropertyResponse } from '../dto/listing-eligible-property.response';
 import { ListingPageResponse, ListingResponse } from '../dto/listing.response';
 import { ListingQueryDto } from '../dto/listing-query.dto';
 import { ListingService } from '../services/listing.service';
@@ -36,6 +38,9 @@ export class ListingController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiOperation({ summary: 'Create a draft listing from an existing estate' })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:create permission denied.',
+  })
   create(
     @CurrentUser() user: CustomerPrincipal,
     @Body() dto: CreateListingDto,
@@ -44,11 +49,30 @@ export class ListingController {
     return this.listingService.create(user.id, dto, providerId);
   }
 
+  @Get('eligible-properties')
+  @UseGuards(CustomerJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiHeader({ name: 'X-Provider-Id', required: false })
+  @ApiOperation({ summary: 'List provider properties eligible for a listing' })
+  @ApiOkResponse({ type: [ListingEligiblePropertyResponse] })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:create permission denied.',
+  })
+  eligibleProperties(
+    @CurrentUser() user: CustomerPrincipal,
+    @ProviderId() providerId?: string,
+  ): Promise<ListingEligiblePropertyResponse[]> {
+    return this.listingService.findEligibleProperties(user.id, providerId);
+  }
+
   @Get('mine')
   @UseGuards(CustomerJwtAuthGuard)
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiOperation({ summary: "List the current provider's listings" })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:read permission denied.',
+  })
   mine(
     @CurrentUser() user: CustomerPrincipal,
     @ProviderId() providerId?: string,
@@ -78,6 +102,9 @@ export class ListingController {
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOperation({ summary: 'Publish a provider listing' })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:publish permission denied.',
+  })
   publish(
     @CurrentUser() user: CustomerPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -86,17 +113,20 @@ export class ListingController {
     return this.listingService.publish(user.id, id, providerId);
   }
 
-  @Post(':id/unpublish')
+  @Post(':id/archive')
   @UseGuards(CustomerJwtAuthGuard)
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiOperation({ summary: 'Unpublish a provider listing' })
-  unpublish(
+  @ApiOperation({ summary: 'Archive a provider listing' })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:archive permission denied.',
+  })
+  archive(
     @CurrentUser() user: CustomerPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,
     @ProviderId() providerId?: string,
   ): Promise<ListingResponse> {
-    return this.listingService.unpublish(user.id, id, providerId);
+    return this.listingService.archive(user.id, id, providerId);
   }
 }

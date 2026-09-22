@@ -36,7 +36,7 @@ export class EstateService {
     return context;
   }
 
-  /** Resolves the provider context and enforces supply write access. */
+  /** Resolves the provider context and enforces provider lifecycle state. */
   private async requireSupplyWriteContext(
     customerId: string,
     providerId?: string,
@@ -45,7 +45,7 @@ export class EstateService {
       customerId,
       providerId,
     );
-    await this.supplyAccessPolicy.requireWriteAccess(context);
+    this.supplyAccessPolicy.requireReadAccess(context);
     return context;
   }
 
@@ -79,12 +79,34 @@ export class EstateService {
   }
 
   /** Loads one estate by exact identifier or raises the feature's not-found error. */
-  async findById(id: string): Promise<Estate> {
+  async findPublicById(id: string): Promise<Estate> {
     const estate = await this.estateRepository.findById(id);
     if (!estate) {
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND, id);
     }
     return estate;
+  }
+
+  /** Loads one provider-owned property through an explicit authorization path. */
+  async findOwnedById(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Estate> {
+    const context = await this.requireSupplyReadContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'property:read');
+    return this.requireOwnedEstate(estateId, context);
+  }
+
+  /** Loads the provider-owned detail required by the property edit command. */
+  async findOwnedByIdForUpdate(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Estate> {
+    const context = await this.requireSupplyReadContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'property:update');
+    return this.requireOwnedEstate(estateId, context);
   }
 
   /** Loads one estate owned by the exact provider context or raises not-found. */
@@ -118,6 +140,7 @@ export class EstateService {
       customerId,
       providerId,
     );
+    await this.supplyAccessPolicy.requirePermission(context, 'property:create');
 
     // 1. find province
     const checkedLocation = await this.validateLocation(
@@ -145,6 +168,7 @@ export class EstateService {
       customerId,
       providerId,
     );
+    await this.supplyAccessPolicy.requirePermission(context, 'property:update');
     const estate = await this.requireOwnedEstate(estateId, context);
     const checkedLocation = await this.validateLocation(
       dto.wardId ?? estate.wardId,
@@ -176,7 +200,17 @@ export class EstateService {
       customerId,
       providerId,
     );
+    await this.supplyAccessPolicy.requirePermission(
+      context,
+      'property:archive',
+    );
     const estate = await this.requireOwnedEstate(estateId, context);
+    if (await this.estateRepository.hasPublishedListing(estate.id)) {
+      throw new BusinessException(
+        CommonErrorCodes.RESOURCE_CONFLICT,
+        estate.id,
+      );
+    }
     const deletedEstate = await this.estateRepository.softDeleteEstate(
       estate.id,
     );
@@ -190,6 +224,7 @@ export class EstateService {
   /** Lists estates belonging to the resolved provider context. */
   async listMine(customerId: string, providerId?: string): Promise<Estate[]> {
     const context = await this.requireSupplyReadContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'property:read');
     return this.estateRepository.findByProviderId(context.providerId);
   }
 }

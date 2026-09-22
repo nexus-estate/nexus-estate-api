@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
+import { Estate } from '../../../estate/property/entities';
 import { Listing, ListingStatus } from '../entities';
 import { ListingQueryDto, ListingSort } from '../dto/listing-query.dto';
 
 @Injectable()
 export class ListingRepo {
   private readonly repository: Repository<Listing>;
+  private readonly estateRepository: Repository<Estate>;
 
   constructor(dataSource: DataSource) {
     this.repository = dataSource.getRepository(Listing);
+    this.estateRepository = dataSource.getRepository(Estate);
   }
 
   async findById(id: string, publicOnly = false): Promise<Listing | null> {
@@ -35,6 +38,30 @@ export class ListingRepo {
       .andWhere('listing.deletedAt IS NULL')
       .orderBy('listing.createdAt', 'DESC')
       .getMany();
+  }
+
+  /** Returns provider-owned, non-deleted estates without any non-deleted listing. */
+  async findEligibleForListing(
+    providerId: string,
+  ): Promise<Array<{ id: string; title: string }>> {
+    const rows = await this.estateRepository
+      .createQueryBuilder('estate')
+      .select('estate.id', 'id')
+      .addSelect('estate.title', 'title')
+      .where('estate.providerId = :providerId', { providerId })
+      .andWhere('estate.deletedAt IS NULL')
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1
+          FROM tbl_listing existing_listing
+          WHERE existing_listing.fk_estate_id = estate.id
+            AND existing_listing.deleted_at IS NULL
+        )`,
+      )
+      .orderBy('estate.createdAt', 'DESC')
+      .getRawMany<{ id: string; title: string }>();
+
+    return rows;
   }
 
   async findPublic(queryDto: ListingQueryDto) {
@@ -109,6 +136,7 @@ export class ListingRepo {
     return this.repository
       .createQueryBuilder('listing')
       .innerJoinAndSelect('listing.estate', 'estate')
+      .andWhere('estate.deletedAt IS NULL')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
       .innerJoinAndSelect('listing.provider', 'provider');

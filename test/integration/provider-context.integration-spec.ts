@@ -20,14 +20,24 @@ import { ProviderMembershipRole } from '../../src/modules/provider/authorization
 import { ProviderPermission } from '../../src/modules/provider/authorization/entities/provider-permission.entity';
 import { ProviderRole } from '../../src/modules/provider/authorization/entities/provider-role.entity';
 import { ProviderRolePermission } from '../../src/modules/provider/authorization/entities/provider-role-permission.entity';
+import { PROVIDER_PERMISSION_REGISTRY } from '../../src/modules/provider/authorization/permissions/provider-permission.registry';
 import {
   ProviderStatus,
   ProviderType,
   ProviderVerificationStatus,
 } from '../../src/modules/provider/account/enums/account.enums';
 import { ProviderAccountErrorCodes } from '../../src/modules/provider/account/errors/provider-account-error-codes';
+import { AddProviderSupplyPermissions1790058166348 } from '../../src/modules/provider/authorization/migrations/1790058166348-AddProviderSupplyPermissions';
 
 jest.setTimeout(120_000);
+
+type BookkeepingState = {
+  role_backfill_exists: boolean;
+  permission_backfill_exists: boolean;
+  assignment_backfill_exists: boolean;
+};
+
+type PermissionCodeRow = { code: string };
 
 describe('Provider context and supply access (PostgreSQL integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -152,6 +162,25 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       description: null,
       isSystem: true,
     });
+    const permissions = await dataSource.getRepository(ProviderPermission).save(
+      PROVIDER_PERMISSION_REGISTRY.map((permission) => ({
+        code: permission.code,
+        name: permission.name,
+        description: permission.description,
+        category: permission.category,
+        resource: permission.resource,
+        action: permission.action,
+        riskLevel: permission.riskLevel,
+        isAssignable: permission.isAssignable,
+        deprecatedAt: null,
+      })),
+    );
+    await dataSource.getRepository(ProviderRolePermission).save(
+      permissions.map((permission) => ({
+        roleId: ownerRole.id,
+        permissionId: permission.id,
+      })),
+    );
 
     owner = await createCustomer('owner@nexus.test');
     other = await createCustomer('other@nexus.test');
@@ -252,21 +281,36 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
   });
 
   describe('ProviderSupplyAccessPolicy', () => {
-    it('grants read and write access to an active verified OWNER', async () => {
+    it('grants the explicitly mapped supply permission to an active verified OWNER', async () => {
       const context = await resolver.resolve(owner.id, providerA.id);
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).not.toThrow();
+      expect(effective.permissions.map(({ code }) => code)).toEqual(
+        expect.arrayContaining([
+          'property:read',
+          'property:create',
+          'property:update',
+          'property:archive',
+          'listing:read',
+          'listing:create',
+          'listing:publish',
+          'listing:archive',
+        ]),
+      );
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).resolves.toBeUndefined();
     });
 
-    it('rejects write access when the membership lacks the OWNER role', async () => {
+    it('rejects an active membership with a missing supply permission', async () => {
       const context = await resolver.resolve(owner.id, providerE.id);
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).not.toThrow();
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
       });
@@ -280,7 +324,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).toThrow();
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_VERIFIED.code,
       });
@@ -294,10 +338,367 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).toThrow();
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED.code,
       });
+    });
+
+    it('honors permission revocation on the next request', async () => {
+      const context = await resolver.resolve(owner.id, providerA.id);
+      await expect(
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
+      ).resolves.toBeUndefined();
+
+      await dataSource.query(
+        `DELETE FROM tbl_provider_role_permission
+         WHERE role_id = $1
+           AND permission_id = (SELECT id FROM tbl_provider_permission WHERE code = 'property:create')`,
+        [ownerRole.id],
+      );
+
+      await expect(
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
+      ).rejects.toMatchObject({
+        errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
+      });
+    });
+
+    it('backfills valid non-owner readers without changing custom mappings', async () => {
+      const createPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: agentRole.id,
+        permissionId: createPermission.id,
+      });
+
+      const migration = new AddProviderSupplyPermissions1790058166348();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+
+      const context = await resolver.resolve(owner.id, providerE.id);
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(effective.permissions.map(({ code }) => code)).toEqual(
+        expect.arrayContaining([
+          'property:read',
+          'listing:read',
+          'property:create',
+        ]),
+      );
+
+      await migration.down(runner);
+      const remaining = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(remaining.permissions.map(({ code }) => code)).toContain(
+        'property:create',
+      );
+      expect(remaining.permissions.map(({ code }) => code)).not.toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      await runner.release();
+    });
+
+    it('gives valid roleless legacy memberships explicit read-only MEMBER access', async () => {
+      const customPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: agentRole.id,
+        permissionId: customPermission.id,
+      });
+      const legacyCustomer = await createCustomer('legacy-reader@nexus.test');
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      await createMembership(legacyProvider.id, legacyCustomer.id);
+
+      const migration = new AddProviderSupplyPermissions1790058166348();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+
+      const context = await resolver.resolve(
+        legacyCustomer.id,
+        legacyProvider.id,
+      );
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      const permissionCodes = effective.permissions.map(({ code }) => code);
+
+      expect(permissionCodes).toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      expect(permissionCodes).not.toEqual(
+        expect.arrayContaining([
+          'property:create',
+          'property:update',
+          'property:archive',
+          'listing:create',
+          'listing:publish',
+          'listing:archive',
+        ]),
+      );
+
+      await migration.down(runner);
+      const afterRollback = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(afterRollback.permissions.map(({ code }) => code)).not.toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      await expect(
+        dataSource.getRepository(ProviderRolePermission).findOneByOrFail({
+          roleId: agentRole.id,
+          permissionId: customPermission.id,
+        }),
+      ).resolves.toBeDefined();
+      await runner.release();
+    });
+
+    it('supports a clean rollback followed by a deterministic redeploy', async () => {
+      const legacyCustomer = await createCustomer('redeploy-reader@nexus.test');
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      await createMembership(legacyProvider.id, legacyCustomer.id);
+
+      const migration = new AddProviderSupplyPermissions1790058166348();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneBy({ code: 'MEMBER' }),
+      ).resolves.toBeDefined();
+
+      await migration.down(runner);
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneBy({ code: 'MEMBER' }),
+      ).resolves.toBeNull();
+      const bookkeepingStateAfterRollback = await dataSource.query<
+        BookkeepingState[]
+      >(`
+        SELECT
+          to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS role_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_permission_backfill') IS NOT NULL AS permission_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_assignment_backfill') IS NOT NULL AS assignment_backfill_exists
+      `);
+      expect(bookkeepingStateAfterRollback[0]).toEqual({
+        role_backfill_exists: false,
+        permission_backfill_exists: false,
+        assignment_backfill_exists: false,
+      });
+
+      await migration.up(runner);
+      const context = await resolver.resolve(
+        legacyCustomer.id,
+        legacyProvider.id,
+      );
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
+      expect(effective.permissions.map(({ code }) => code)).toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+
+      await migration.down(runner);
+      await runner.release();
+    });
+
+    it('refuses rollback when MEMBER has a runtime-owned membership assignment', async () => {
+      const legacyCustomer = await createCustomer(
+        'runtime-assignment-reader@nexus.test',
+      );
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      const legacyMembership = await createMembership(
+        legacyProvider.id,
+        legacyCustomer.id,
+      );
+
+      const migration = new AddProviderSupplyPermissions1790058166348();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+      const memberRole = await dataSource
+        .getRepository(ProviderRole)
+        .findOneByOrFail({ code: 'MEMBER' });
+
+      const runtimeCustomer = await createCustomer(
+        'runtime-assignment@nexus.test',
+      );
+      const runtimeProvider = await createProvider(runtimeCustomer.id);
+      const runtimeMembership = await createMembership(
+        runtimeProvider.id,
+        runtimeCustomer.id,
+      );
+      await assignRole(runtimeMembership.id, memberRole.id);
+
+      await expect(migration.down(runner)).rejects.toThrow(
+        /runtime-owned membership assignments/,
+      );
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneByOrFail({
+          id: memberRole.id,
+        }),
+      ).resolves.toMatchObject({ code: 'MEMBER' });
+      await expect(
+        roleAssignments().findOneBy({
+          membershipId: legacyMembership.id,
+          roleId: memberRole.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        roleAssignments().findOneBy({
+          membershipId: runtimeMembership.id,
+          roleId: memberRole.id,
+        }),
+      ).resolves.toBeDefined();
+
+      const permissionCodes = await dataSource.query<PermissionCodeRow[]>(
+        `
+          SELECT permission.code
+          FROM tbl_provider_role_permission mapping
+          INNER JOIN tbl_provider_permission permission
+            ON permission.id = mapping.permission_id
+          WHERE mapping.role_id = $1
+        `,
+        [memberRole.id],
+      );
+      expect(permissionCodes.map(({ code }) => code)).toEqual(
+        expect.arrayContaining(['property:read', 'listing:read']),
+      );
+      const bookkeepingState = await dataSource.query<BookkeepingState[]>(`
+        SELECT
+          to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS role_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_permission_backfill') IS NOT NULL AS permission_backfill_exists,
+          to_regclass('public.tbl_provider_supply_member_assignment_backfill') IS NOT NULL AS assignment_backfill_exists
+      `);
+      expect(bookkeepingState[0]).toEqual({
+        role_backfill_exists: true,
+        permission_backfill_exists: true,
+        assignment_backfill_exists: true,
+      });
+
+      await roleAssignments().delete({
+        membershipId: runtimeMembership.id,
+        roleId: memberRole.id,
+      });
+      await migration.down(runner);
+      await runner.release();
+    });
+
+    it('refuses rollback when MEMBER has a runtime-owned permission mapping', async () => {
+      const legacyCustomer = await createCustomer(
+        'runtime-permission-reader@nexus.test',
+      );
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      const legacyMembership = await createMembership(
+        legacyProvider.id,
+        legacyCustomer.id,
+      );
+
+      const migration = new AddProviderSupplyPermissions1790058166348();
+      const runner = dataSource.createQueryRunner();
+      await migration.up(runner);
+      const memberRole = await dataSource
+        .getRepository(ProviderRole)
+        .findOneByOrFail({ code: 'MEMBER' });
+      const customPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: memberRole.id,
+        permissionId: customPermission.id,
+      });
+
+      await expect(migration.down(runner)).rejects.toThrow(
+        /runtime-owned permission mappings/,
+      );
+
+      await expect(
+        dataSource.getRepository(ProviderRolePermission).findOneBy({
+          roleId: memberRole.id,
+          permissionId: customPermission.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        roleAssignments().findOneBy({
+          membershipId: legacyMembership.id,
+          roleId: memberRole.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneBy({ id: memberRole.id }),
+      ).resolves.toMatchObject({ code: 'MEMBER' });
+
+      await dataSource.getRepository(ProviderRolePermission).delete({
+        roleId: memberRole.id,
+        permissionId: customPermission.id,
+      });
+      await migration.down(runner);
+      await runner.release();
+    });
+
+    it('fails safely when a custom MEMBER role already exists', async () => {
+      const customPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      const customMemberRole = await dataSource
+        .getRepository(ProviderRole)
+        .save({
+          code: 'MEMBER',
+          name: 'Existing custom member',
+          description: 'Runtime-managed custom role',
+          isSystem: false,
+          status: 'ACTIVE',
+        });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: customMemberRole.id,
+        permissionId: customPermission.id,
+      });
+
+      const legacyCustomer = await createCustomer(
+        'member-collision@nexus.test',
+      );
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      const membership = await createMembership(
+        legacyProvider.id,
+        legacyCustomer.id,
+      );
+      await assignRole(membership.id, customMemberRole.id);
+
+      const migration = new AddProviderSupplyPermissions1790058166348();
+      const runner = dataSource.createQueryRunner();
+
+      await expect(migration.up(runner)).rejects.toThrow(
+        /not owned by this migration/,
+      );
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneByOrFail({
+          id: customMemberRole.id,
+        }),
+      ).resolves.toMatchObject({
+        code: 'MEMBER',
+        name: 'Existing custom member',
+        description: 'Runtime-managed custom role',
+        isSystem: false,
+        status: 'ACTIVE',
+      });
+      await expect(
+        dataSource.getRepository(ProviderRolePermission).findOneByOrFail({
+          roleId: customMemberRole.id,
+          permissionId: customPermission.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        dataSource.getRepository(ProviderMembershipRole).findOneByOrFail({
+          membershipId: membership.id,
+          roleId: customMemberRole.id,
+        }),
+      ).resolves.toBeDefined();
+
+      await runner.release();
     });
   });
 
