@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -162,6 +164,7 @@ export class EstateController {
 
   /** Activates a provider-owned draft property after policy validation. */
   @Post(':id/activate')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Activate a draft estate' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -185,6 +188,7 @@ export class EstateController {
 
   /** Archives a draft or active provider-owned property. */
   @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Archive an estate' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -208,6 +212,7 @@ export class EstateController {
 
   /** Restores an archived property to draft. */
   @Post(':id/restore')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Restore an archived estate' })
   @ApiParam({ name: 'id', format: 'uuid' })
