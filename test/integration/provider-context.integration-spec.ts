@@ -451,6 +451,69 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       ).resolves.toBeDefined();
       await runner.release();
     });
+
+    it('fails safely when a custom MEMBER role already exists', async () => {
+      const customPermission = await dataSource
+        .getRepository(ProviderPermission)
+        .findOneByOrFail({ code: 'property:create' });
+      const customMemberRole = await dataSource
+        .getRepository(ProviderRole)
+        .save({
+          code: 'MEMBER',
+          name: 'Existing custom member',
+          description: 'Runtime-managed custom role',
+          isSystem: false,
+          status: 'ACTIVE',
+        });
+      await dataSource.getRepository(ProviderRolePermission).save({
+        roleId: customMemberRole.id,
+        permissionId: customPermission.id,
+      });
+
+      const legacyCustomer = await createCustomer(
+        'member-collision@nexus.test',
+      );
+      const legacyProvider = await createProvider(legacyCustomer.id);
+      const membership = await createMembership(
+        legacyProvider.id,
+        legacyCustomer.id,
+      );
+      await assignRole(membership.id, customMemberRole.id);
+
+      const migration =
+        new BackfillRolelessProviderSupplyReaders1790065589751();
+      const runner = dataSource.createQueryRunner();
+
+      await expect(migration.up(runner)).rejects.toThrow(
+        /not owned by this migration/,
+      );
+
+      await expect(
+        dataSource.getRepository(ProviderRole).findOneByOrFail({
+          id: customMemberRole.id,
+        }),
+      ).resolves.toMatchObject({
+        code: 'MEMBER',
+        name: 'Existing custom member',
+        description: 'Runtime-managed custom role',
+        isSystem: false,
+        status: 'ACTIVE',
+      });
+      await expect(
+        dataSource.getRepository(ProviderRolePermission).findOneByOrFail({
+          roleId: customMemberRole.id,
+          permissionId: customPermission.id,
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        dataSource.getRepository(ProviderMembershipRole).findOneByOrFail({
+          membershipId: membership.id,
+          roleId: customMemberRole.id,
+        }),
+      ).resolves.toBeDefined();
+
+      await runner.release();
+    });
   });
 
   describe('admin approve read-after-write regression', () => {
