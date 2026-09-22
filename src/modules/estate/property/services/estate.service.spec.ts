@@ -25,6 +25,7 @@ import {
   ProviderVerificationStatus,
 } from '../../../provider/account/enums/account.enums';
 import { ProviderAccountErrorCodes } from '../../../provider/account/errors/provider-account-error-codes';
+import type { EntityManager } from 'typeorm';
 
 type EstateRepoMock = {
   findById: jest.MockedFunction<EstateRepo['findById']>;
@@ -118,6 +119,13 @@ describe('EstateService', () => {
       transitionStatus: jest.fn(),
       withLockedEstate: jest.fn(),
     };
+    estateRepository.withLockedEstate.mockImplementation(
+      async (id, callback) => {
+        const locked = await estateRepository.findById(id);
+        if (!locked) return null;
+        return callback(locked, {} as EntityManager);
+      },
+    );
     provinceRepository = { findById: jest.fn() };
     wardRepository = { findById: jest.fn() };
     const context: ProviderContext = {
@@ -595,7 +603,10 @@ describe('EstateService', () => {
       await expect(
         service.softDeleteEstate(customerId, estateId),
       ).resolves.toBe(true);
-      expect(estateRepository.softDeleteEstate).toHaveBeenCalledWith(estateId);
+      expect(estateRepository.softDeleteEstate).toHaveBeenCalledWith(
+        estateId,
+        expect.anything(),
+      );
     });
 
     it('rejects archiving a property with a published listing', async () => {
