@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -36,6 +37,9 @@ export class ListingController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiOperation({ summary: 'Create a draft listing from an existing estate' })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:create permission denied.',
+  })
   create(
     @CurrentUser() user: CustomerPrincipal,
     @Body() dto: CreateListingDto,
@@ -49,6 +53,9 @@ export class ListingController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiOperation({ summary: "List the current provider's listings" })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:read permission denied.',
+  })
   mine(
     @CurrentUser() user: CustomerPrincipal,
     @ProviderId() providerId?: string,
@@ -78,6 +85,9 @@ export class ListingController {
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOperation({ summary: 'Publish a provider listing' })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:publish permission denied.',
+  })
   publish(
     @CurrentUser() user: CustomerPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -92,6 +102,9 @@ export class ListingController {
   @ApiHeader({ name: 'X-Provider-Id', required: false })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOperation({ summary: 'Unpublish a provider listing' })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or listing:archive permission denied.',
+  })
   unpublish(
     @CurrentUser() user: CustomerPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,

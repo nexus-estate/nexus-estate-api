@@ -48,8 +48,8 @@ type ProviderSupplyAccessPolicyMock = {
   requireReadAccess: jest.MockedFunction<
     ProviderSupplyAccessPolicy['requireReadAccess']
   >;
-  requireWriteAccess: jest.MockedFunction<
-    ProviderSupplyAccessPolicy['requireWriteAccess']
+  requirePermission: jest.MockedFunction<
+    ProviderSupplyAccessPolicy['requirePermission']
   >;
 };
 
@@ -124,7 +124,7 @@ describe('EstateService', () => {
     };
     supplyAccessPolicy = {
       requireReadAccess: jest.fn(),
-      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
+      requirePermission: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new EstateService(
@@ -151,7 +151,10 @@ describe('EstateService', () => {
         customerId,
         undefined,
       );
-      expect(supplyAccessPolicy.requireWriteAccess).toHaveBeenCalled();
+      expect(supplyAccessPolicy.requirePermission).toHaveBeenCalledWith(
+        expect.objectContaining({ customerId, providerId }),
+        'property:create',
+      );
       expect(estateRepository.createEstate).toHaveBeenCalledWith({
         ...createDto,
         customerId,
@@ -217,7 +220,7 @@ describe('EstateService', () => {
   });
 
   it('blocks estate creation when the provider is not active and verified', async () => {
-    supplyAccessPolicy.requireWriteAccess.mockRejectedValue(
+    supplyAccessPolicy.requirePermission.mockRejectedValue(
       new BusinessException(
         ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_VERIFIED,
       ),

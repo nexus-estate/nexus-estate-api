@@ -2,14 +2,15 @@ import { Injectable } from '@nestjs/common';
 
 import { ProviderAccountPolicy } from '../../account/helpers/provider-account.policy';
 import type { ProviderContext } from '../../account/services/provider-context.resolver';
+import type { ProviderPermissionCode } from '../permissions/provider-permission.registry';
 import { ProviderAuthorizationService } from '../services/provider-authorization.service';
 
 /**
- * Owns the business question "can this provider mutate supply?".
+ * Owns the business question "can this provider access provider supply?".
  *
  * Supply features (Estate, Listing) depend on this policy instead of knowing
- * that write access currently means "active, verified provider with the legacy
- * OWNER role". The OWNER rule can be replaced here without touching callers.
+ * that supply access is granted by the resolved Provider permission catalogue.
+ * Lifecycle checks remain separate from permission checks.
  */
 @Injectable()
 export class ProviderSupplyAccessPolicy {
@@ -24,11 +25,17 @@ export class ProviderSupplyAccessPolicy {
   }
 
   /**
-   * Rejects supply mutations unless the provider is active, verified, and holds
-   * the legacy OWNER role for the selected membership.
+   * Rejects access unless the provider is active and verified and holds the
+   * specified permission.
    */
-  async requireWriteAccess(context: ProviderContext): Promise<void> {
+  async requirePermission(
+    context: ProviderContext,
+    permissionCode: ProviderPermissionCode,
+  ): Promise<void> {
     this.requireReadAccess(context);
-    await this.providerAuthorizationService.requireOwner(context);
+    await this.providerAuthorizationService.requirePermission(
+      context,
+      permissionCode,
+    );
   }
 }

@@ -22,6 +22,7 @@ import { EstateService } from '../services/estate.service';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -46,6 +47,9 @@ export class EstateController {
   @ApiCreatedResponse({
     type: EstateResponse,
     description: 'Estate created with hydrated province and ward.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:create permission denied.',
   })
   @ApiHeader({
     name: 'X-Provider-Id',
@@ -76,6 +80,9 @@ export class EstateController {
     description: 'Provider context used to scope the estate list.',
   })
   @ApiOkResponse({ type: [EstateResponse] })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:read permission denied.',
+  })
   async findEstateMine(
     @Req() req: AuthenticatedRequest,
     @ProviderId() providerId?: string,
@@ -106,11 +113,17 @@ export class EstateController {
     type: EstateResponse,
     description: 'Estate updated with hydrated province and ward.',
   })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:update permission denied.',
+  })
   @ApiHeader({
     name: 'X-Provider-Id',
     required: false,
     description:
       'Required when the customer has multiple active provider memberships.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:archive permission denied.',
   })
   async updateEstate(
     @Param('id', new ParseUUIDPipe()) estateId: string,
