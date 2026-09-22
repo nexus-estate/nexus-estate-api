@@ -9,6 +9,7 @@ import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/help
 import { EstateRepo } from '../../../estate/property/repositories/estate.repo';
 import { CreateListingDto } from '../dto/create-listing.dto';
 import { ListingQueryDto } from '../dto/listing-query.dto';
+import { ListingEligiblePropertyResponse } from '../dto/listing-eligible-property.response';
 import { ListingResponse } from '../dto/listing.response';
 import { Listing, ListingStatus } from '../entities';
 import { ListingRepo } from '../repositories/listing.repo';
@@ -62,6 +63,15 @@ export class ListingService {
     return (await this.listingRepository.findMine(context.providerId)).map(
       (listing) => this.toResponse(listing),
     );
+  }
+
+  async findEligibleProperties(
+    customerId: string,
+    providerId?: string,
+  ): Promise<ListingEligiblePropertyResponse[]> {
+    const context = await this.requireProviderContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'listing:create');
+    return this.listingRepository.findEligibleForListing(context.providerId);
   }
 
   async findPublicById(id: string): Promise<ListingResponse> {
