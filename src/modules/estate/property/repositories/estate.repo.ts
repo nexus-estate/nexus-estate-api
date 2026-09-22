@@ -91,4 +91,18 @@ export class EstateRepo extends BaseRepository<Estate> {
 
     return (result.affected ?? 0) > 0;
   }
+
+  /** Prevents archiving a property while a published listing is public. */
+  async hasPublishedListing(id: string): Promise<boolean> {
+    const result: unknown = await this.dataSource.query(
+      `SELECT 1
+       FROM tbl_listing
+       WHERE fk_estate_id = $1
+         AND status = 'PUBLISHED'
+         AND deleted_at IS NULL
+       LIMIT 1`,
+      [id],
+    );
+    return Array.isArray(result) && result.length > 0;
+  }
 }

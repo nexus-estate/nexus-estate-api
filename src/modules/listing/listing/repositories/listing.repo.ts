@@ -109,6 +109,7 @@ export class ListingRepo {
     return this.repository
       .createQueryBuilder('listing')
       .innerJoinAndSelect('listing.estate', 'estate')
+      .andWhere('estate.deletedAt IS NULL')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
       .innerJoinAndSelect('listing.provider', 'provider');
