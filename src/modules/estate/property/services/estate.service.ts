@@ -85,7 +85,7 @@ export class EstateService {
 
   /** Loads one estate by exact identifier or raises the feature's not-found error. */
   async findPublicById(id: string): Promise<Estate> {
-    const estate = await this.estateRepository.findById(id);
+    const estate = await this.estateRepository.findPublicActiveById(id);
     if (!estate) {
       throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND, id);
     }
@@ -118,11 +118,8 @@ export class EstateService {
   private async requireOwnedEstate(
     estateId: string,
     context: ProviderContext,
-    includeDeleted = false,
   ): Promise<Estate> {
-    const estate = includeDeleted
-      ? await this.estateRepository.findById(estateId, true)
-      : await this.estateRepository.findById(estateId);
+    const estate = await this.estateRepository.findById(estateId);
     if (!estate) {
       throw new BusinessException(
         CommonErrorCodes.RESOURCE_NOT_FOUND,
@@ -239,19 +236,51 @@ export class EstateService {
       context,
       'property:archive',
     );
-    const estate = await this.requireOwnedEstate(estateId, context);
-    this.assertTransition(estate.status, EstateStatus.ARCHIVED);
-    if (await this.estateRepository.hasPublishedListing(estate.id)) {
+    const transitioned = await this.estateRepository.withLockedEstate(
+      estateId,
+      async (estate, manager) => {
+        if (estate.providerId !== context.providerId) {
+          throw new BusinessException(
+            CommonErrorCodes.FORBIDDEN,
+            context.providerId,
+          );
+        }
+        this.assertTransition(estate.status, EstateStatus.ARCHIVED);
+        if (
+          await this.estateRepository.hasPublishedListing(estate.id, manager)
+        ) {
+          throw new BusinessException(
+            EstateErrorCodes.PROPERTY_PUBLISHED_LISTING_CONFLICT,
+            estate.id,
+          );
+        }
+        const changed = await this.estateRepository.transitionStatus(
+          estate.id,
+          context.providerId,
+          estate.status,
+          EstateStatus.ARCHIVED,
+          manager,
+        );
+        if (!changed) {
+          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+        }
+        const updated = await this.estateRepository.findById(
+          estate.id,
+          manager,
+        );
+        if (!updated) {
+          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+        }
+        return updated;
+      },
+    );
+    if (!transitioned) {
       throw new BusinessException(
-        EstateErrorCodes.PROPERTY_PUBLISHED_LISTING_CONFLICT,
-        estate.id,
+        CommonErrorCodes.RESOURCE_NOT_FOUND,
+        estateId,
       );
     }
-    return this.completeTransition(
-      estate,
-      context.providerId,
-      EstateStatus.ARCHIVED,
-    );
+    return transitioned;
   }
 
   /** Restores an archived property to draft; it never restores directly to active. */
@@ -265,7 +294,7 @@ export class EstateService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'property:update');
-    const estate = await this.requireOwnedEstate(estateId, context, true);
+    const estate = await this.requireOwnedEstate(estateId, context);
     this.assertTransition(estate.status, EstateStatus.DRAFT);
     return this.completeTransition(
       estate,

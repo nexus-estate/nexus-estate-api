@@ -28,12 +28,14 @@ import { ProviderAccountErrorCodes } from '../../../provider/account/errors/prov
 
 type EstateRepoMock = {
   findById: jest.MockedFunction<EstateRepo['findById']>;
+  findPublicActiveById: jest.MockedFunction<EstateRepo['findPublicActiveById']>;
   findByProviderId: jest.MockedFunction<EstateRepo['findByProviderId']>;
   createEstate: jest.MockedFunction<EstateRepo['createEstate']>;
   updateEstate: jest.MockedFunction<EstateRepo['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateRepo['softDeleteEstate']>;
   hasPublishedListing: jest.MockedFunction<EstateRepo['hasPublishedListing']>;
   transitionStatus: jest.MockedFunction<EstateRepo['transitionStatus']>;
+  withLockedEstate: jest.MockedFunction<EstateRepo['withLockedEstate']>;
 };
 
 type ProvinceRepoMock = {
@@ -107,12 +109,14 @@ describe('EstateService', () => {
   beforeEach(() => {
     estateRepository = {
       findById: jest.fn(),
+      findPublicActiveById: jest.fn(),
       findByProviderId: jest.fn(),
       createEstate: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
       hasPublishedListing: jest.fn().mockResolvedValue(false),
       transitionStatus: jest.fn(),
+      withLockedEstate: jest.fn(),
     };
     provinceRepository = { findById: jest.fn() };
     wardRepository = { findById: jest.fn() };
@@ -211,14 +215,16 @@ describe('EstateService', () => {
 
   describe('findPublicById', () => {
     it('returns an estate from the repository', async () => {
-      estateRepository.findById.mockResolvedValue(estate);
+      estateRepository.findPublicActiveById.mockResolvedValue(estate);
 
       await expect(service.findPublicById(estateId)).resolves.toBe(estate);
-      expect(estateRepository.findById).toHaveBeenCalledWith(estateId);
+      expect(estateRepository.findPublicActiveById).toHaveBeenCalledWith(
+        estateId,
+      );
     });
 
     it('throws RESOURCE_NOT_FOUND when the estate does not exist', async () => {
-      estateRepository.findById.mockResolvedValue(null);
+      estateRepository.findPublicActiveById.mockResolvedValue(null);
 
       await expect(service.findPublicById(estateId)).rejects.toMatchObject({
         errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
@@ -432,22 +438,42 @@ describe('EstateService', () => {
       async (from, target, command) => {
         const source = { ...lifecycleEstate, status: from };
         const result = { ...source, status: target };
-        estateRepository.findById
-          .mockResolvedValueOnce(source)
-          .mockResolvedValueOnce(result);
         estateRepository.transitionStatus.mockResolvedValue(true);
+        if (command === 'archiveEstate') {
+          estateRepository.findById.mockResolvedValueOnce(result);
+          estateRepository.withLockedEstate.mockImplementation(
+            async (_id, callback) => {
+              const updated = await callback(source, {} as never);
+              return updated ?? result;
+            },
+          );
+        } else {
+          estateRepository.findById
+            .mockResolvedValueOnce(source)
+            .mockResolvedValueOnce(result);
+        }
 
         await expect(
           service[
             command as 'activateEstate' | 'archiveEstate' | 'restoreEstate'
           ](customerId, estateId),
         ).resolves.toMatchObject({ status: target });
-        expect(estateRepository.transitionStatus).toHaveBeenCalledWith(
-          estateId,
-          providerId,
-          from,
-          target,
-        );
+        if (command === 'archiveEstate') {
+          expect(estateRepository.transitionStatus).toHaveBeenCalledWith(
+            estateId,
+            providerId,
+            from,
+            target,
+            expect.anything(),
+          );
+        } else {
+          expect(estateRepository.transitionStatus).toHaveBeenCalledWith(
+            estateId,
+            providerId,
+            from,
+            target,
+          );
+        }
       },
     );
 
@@ -484,13 +510,26 @@ describe('EstateService', () => {
     });
 
     it('rejects archive when a published listing exists', async () => {
-      estateRepository.findById.mockResolvedValue(lifecycleEstate);
+      estateRepository.withLockedEstate.mockImplementation(
+        async (_id, callback) => callback(lifecycleEstate, {} as never),
+      );
       estateRepository.hasPublishedListing.mockResolvedValue(true);
 
       await expect(
         service.archiveEstate(customerId, estateId),
       ).rejects.toMatchObject({
         errorCode: EstateErrorCodes.PROPERTY_PUBLISHED_LISTING_CONFLICT.code,
+      });
+      expect(estateRepository.transitionStatus).not.toHaveBeenCalled();
+    });
+
+    it('does not restore a soft-deleted property', async () => {
+      estateRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.restoreEstate(customerId, estateId),
+      ).rejects.toMatchObject({
+        errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
       });
       expect(estateRepository.transitionStatus).not.toHaveBeenCalled();
     });

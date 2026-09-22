@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
+import type { EntityManager } from 'typeorm';
 import { Estate } from '../../../estate/property/entities';
 import { Listing, ListingStatus } from '../entities';
 import { ListingQueryDto, ListingSort } from '../dto/listing-query.dto';
@@ -14,14 +15,22 @@ export class ListingRepo {
     this.estateRepository = dataSource.getRepository(Estate);
   }
 
-  async findById(id: string, publicOnly = false): Promise<Listing | null> {
-    const query = this.baseQuery()
+  async findById(
+    id: string,
+    publicOnly = false,
+    manager: EntityManager = this.repository.manager,
+  ): Promise<Listing | null> {
+    const query = this.baseQuery(manager)
       .andWhere('listing.id = :id', { id })
       .andWhere('listing.deletedAt IS NULL');
-    if (publicOnly)
+    if (publicOnly) {
       query.andWhere('listing.status = :status', {
         status: ListingStatus.PUBLISHED,
       });
+      query.andWhere('estate.status = :estateStatus', {
+        estateStatus: 'ACTIVE',
+      });
+    }
     return query.getOne();
   }
 
@@ -50,6 +59,9 @@ export class ListingRepo {
       .addSelect('estate.title', 'title')
       .where('estate.providerId = :providerId', { providerId })
       .andWhere('estate.deletedAt IS NULL')
+      .andWhere('estate.status <> :archivedStatus', {
+        archivedStatus: 'ARCHIVED',
+      })
       .andWhere(
         `NOT EXISTS (
           SELECT 1
@@ -68,6 +80,9 @@ export class ListingRepo {
     const query = this.baseQuery()
       .andWhere('listing.status = :status', { status: ListingStatus.PUBLISHED })
       .andWhere('listing.deletedAt IS NULL');
+    query.andWhere('estate.status = :estateStatus', {
+      estateStatus: 'ACTIVE',
+    });
     if (queryDto.q) {
       query.andWhere(
         "(LOWER(estate.title) LIKE LOWER(:q) OR LOWER(COALESCE(estate.description, '')) LIKE LOWER(:q) OR LOWER(estate.addressLine) LIKE LOWER(:q) OR LOWER(province.name) LIKE LOWER(:q) OR LOWER(ward.name) LIKE LOWER(:q))",
@@ -123,8 +138,11 @@ export class ListingRepo {
     return this.repository.create(data);
   }
 
-  save(listing: Listing): Promise<Listing> {
-    return this.repository.save(listing);
+  save(
+    listing: Listing,
+    manager: EntityManager = this.repository.manager,
+  ): Promise<Listing> {
+    return (manager?.getRepository(Listing) ?? this.repository).save(listing);
   }
 
   async softDelete(id: string): Promise<boolean> {
@@ -132,8 +150,9 @@ export class ListingRepo {
     return (result.affected ?? 0) > 0;
   }
 
-  private baseQuery() {
-    return this.repository
+  private baseQuery(manager: EntityManager = this.repository.manager) {
+    return manager
+      .getRepository(Listing)
       .createQueryBuilder('listing')
       .innerJoinAndSelect('listing.estate', 'estate')
       .andWhere('estate.deletedAt IS NULL')

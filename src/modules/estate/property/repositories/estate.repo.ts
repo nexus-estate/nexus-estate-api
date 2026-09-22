@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import type { EntityManager } from 'typeorm';
 import { BaseRepository } from '../../../../services/abstraction-services';
 import { Estate } from '../entities';
 import { CreateEstateData } from '../types/estate.type';
@@ -16,18 +17,63 @@ export class EstateRepo extends BaseRepository<Estate> {
    * Loads one non-deleted estate with its required location relations.
    * This is the canonical hydration path for every Estate response.
    */
-  async findById(id: string, includeDeleted = false): Promise<Estate | null> {
-    const query = this.repository
+  async findById(
+    id: string,
+    manager: EntityManager = this.repository.manager,
+  ): Promise<Estate | null> {
+    const query = manager
+      .getRepository(Estate)
       .createQueryBuilder('estate')
       .innerJoinAndSelect('estate.province', 'province')
       .innerJoinAndSelect('estate.ward', 'ward')
-      .where('estate.id = :id', { id });
-    if (!includeDeleted) {
-      query.andWhere('estate.deletedAt IS NULL');
-    } else {
-      query.withDeleted();
-    }
+      .where('estate.id = :id', { id })
+      .andWhere('estate.deletedAt IS NULL');
     return query.getOne();
+  }
+
+  /** Loads only an active, non-deleted estate for public marketplace access. */
+  async findPublicActiveById(id: string): Promise<Estate | null> {
+    return this.repository
+      .createQueryBuilder('estate')
+      .innerJoinAndSelect('estate.province', 'province')
+      .innerJoinAndSelect('estate.ward', 'ward')
+      .where('estate.id = :id', { id })
+      .andWhere('estate.status = :status', { status: EstateStatus.ACTIVE })
+      .andWhere('estate.deletedAt IS NULL')
+      .getOne();
+  }
+
+  /** Runs a callback while holding a pessimistic write lock on one estate row. */
+  async withLockedEstate<T>(
+    id: string,
+    callback: (estate: Estate, manager: EntityManager) => Promise<T>,
+  ): Promise<T | null> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const estate = await queryRunner.manager
+        .getRepository(Estate)
+        .createQueryBuilder('estate')
+        .innerJoinAndSelect('estate.province', 'province')
+        .innerJoinAndSelect('estate.ward', 'ward')
+        .where('estate.id = :id', { id })
+        .andWhere('estate.deletedAt IS NULL')
+        .setLock('pessimistic_write')
+        .getOne();
+      if (!estate) {
+        await queryRunner.commitTransaction();
+        return null;
+      }
+      const result = await callback(estate, queryRunner.manager);
+      await queryRunner.commitTransaction();
+      return result;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   /** Lists non-deleted estates owned by one exact provider identifier. */
@@ -142,25 +188,21 @@ export class EstateRepo extends BaseRepository<Estate> {
     providerId: string,
     from: EstateStatus,
     to: EstateStatus,
+    manager: EntityManager = this.repository.manager,
   ): Promise<boolean> {
-    const query = this.repository
+    const query = manager
+      .getRepository(Estate)
       .createQueryBuilder()
       .update(Estate)
       .set({
         status: to,
-        ...(from === EstateStatus.ARCHIVED && to === EstateStatus.DRAFT
-          ? { deletedAt: () => 'NULL' }
-          : {}),
       })
       .where('id = :id AND fk_provider_id = :providerId AND status = :from', {
         id,
         providerId,
         from,
       });
-
-    if (!(from === EstateStatus.ARCHIVED && to === EstateStatus.DRAFT)) {
-      query.andWhere('deleted_at IS NULL');
-    }
+    query.andWhere('deleted_at IS NULL');
 
     if (to === EstateStatus.ARCHIVED) {
       query.andWhere(`NOT EXISTS (
@@ -177,8 +219,11 @@ export class EstateRepo extends BaseRepository<Estate> {
   }
 
   /** Prevents archiving a property while a published listing is public. */
-  async hasPublishedListing(id: string): Promise<boolean> {
-    const result: unknown = await this.dataSource.query(
+  async hasPublishedListing(
+    id: string,
+    manager: EntityManager = this.repository.manager,
+  ): Promise<boolean> {
+    const result: unknown = await manager.query(
       `SELECT 1
        FROM tbl_listing
        WHERE fk_estate_id = $1
