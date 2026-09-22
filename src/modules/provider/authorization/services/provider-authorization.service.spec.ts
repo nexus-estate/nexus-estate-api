@@ -80,7 +80,7 @@ describe('ProviderAuthorizationService', () => {
     expect(query).not.toHaveBeenCalled();
   });
 
-  it('rejects requireOwner when the membership lacks the OWNER role', async () => {
+  it('rejects a permission that is absent from effective authorization', async () => {
     const query = jest
       .fn()
       .mockResolvedValueOnce([{ id: 'role-1', code: 'AGENT', name: 'Agent' }])
@@ -88,19 +88,30 @@ describe('ProviderAuthorizationService', () => {
       .mockResolvedValueOnce([{ version: 'v1' }]);
     const service = new ProviderAuthorizationService({ query } as never);
 
-    await expect(service.requireOwner(context)).rejects.toMatchObject({
+    await expect(
+      service.requirePermission(context, 'property:create'),
+    ).rejects.toMatchObject({
       errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
     });
   });
 
-  it('allows requireOwner when the membership holds the OWNER role', async () => {
+  it('allows an explicitly granted permission regardless of role name', async () => {
     const query = jest
       .fn()
-      .mockResolvedValueOnce([{ id: 'role-1', code: 'OWNER', name: 'Owner' }])
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'role-1', code: 'AGENT', name: 'Agent' }])
+      .mockResolvedValueOnce([
+        {
+          id: 'permission-1',
+          code: 'property:create',
+          name: 'Create property',
+          category: 'Property',
+        },
+      ])
       .mockResolvedValueOnce([{ version: 'v1' }]);
     const service = new ProviderAuthorizationService({ query } as never);
 
-    await expect(service.requireOwner(context)).resolves.toBeUndefined();
+    await expect(
+      service.requirePermission(context, 'property:create'),
+    ).resolves.toBeUndefined();
   });
 });

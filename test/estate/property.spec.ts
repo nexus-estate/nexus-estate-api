@@ -43,6 +43,7 @@ import { ProviderMembershipRole } from '../../src/modules/provider/authorization
 import { ProviderPermission } from '../../src/modules/provider/authorization/entities/provider-permission.entity';
 import { ProviderRole } from '../../src/modules/provider/authorization/entities/provider-role.entity';
 import { ProviderRolePermission } from '../../src/modules/provider/authorization/entities/provider-role-permission.entity';
+import { PROVIDER_PERMISSION_REGISTRY } from '../../src/modules/provider/authorization/permissions/provider-permission.registry';
 import {
   ProviderStatus,
   ProviderType,
@@ -159,6 +160,22 @@ describe('Estate API (e2e)', () => {
       .send(estateBody())
       .expect(201);
     return (response.body as ApiSuccess<EstateResponse>).data;
+  };
+
+  const revokeOwnerPermission = async (code: string): Promise<void> => {
+    await dataSource.query(
+      `DELETE FROM tbl_provider_role_permission mapping
+       USING tbl_provider_role role, tbl_provider_permission permission,
+             tbl_provider_membership membership
+       WHERE mapping.role_id = role.id
+         AND mapping.permission_id = permission.id
+         AND membership.provider_id = $1
+         AND membership.customer_id = $2
+         AND membership.status = 'ACTIVE'
+         AND role.code = 'OWNER'
+         AND permission.code = $3`,
+      [ownerProviderId, owner.id, code],
+    );
   };
 
   beforeAll(async () => {
@@ -282,6 +299,25 @@ describe('Estate API (e2e)', () => {
       .findOneByOrFail({
         code: 'OWNER',
       });
+    const permissions = await dataSource.getRepository(ProviderPermission).save(
+      PROVIDER_PERMISSION_REGISTRY.map((permission) => ({
+        code: permission.code,
+        name: permission.name,
+        description: permission.description,
+        category: permission.category,
+        resource: permission.resource,
+        action: permission.action,
+        riskLevel: permission.riskLevel,
+        isAssignable: permission.isAssignable,
+        deprecatedAt: null,
+      })),
+    );
+    await dataSource.getRepository(ProviderRolePermission).save(
+      permissions.map((permission) => ({
+        roleId: ownerRole.id,
+        permissionId: permission.id,
+      })),
+    );
     const memberships = await dataSource.getRepository(ProviderMembership).save(
       providers.map((provider) => ({
         providerId: provider.id,
@@ -333,6 +369,29 @@ describe('Estate API (e2e)', () => {
     expect(body.data.providerId).toBe(ownerProviderId);
     expectLocationHydrated(body.data);
     expectNoLegacyOwnershipLeakage(body.data);
+  });
+
+  it('returns all eight supply permissions for the OWNER effective authorization', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/providers/me/authorization')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const body = response.body as ApiSuccess<{
+      permissions: Array<{ code: string }>;
+    }>;
+
+    expect(body.data.permissions.map(({ code }) => code)).toEqual(
+      expect.arrayContaining([
+        'property:read',
+        'property:create',
+        'property:update',
+        'property:archive',
+        'listing:read',
+        'listing:create',
+        'listing:publish',
+        'listing:archive',
+      ]),
+    );
   });
 
   it('lists wards for a selected province without authentication', async () => {
@@ -408,6 +467,21 @@ describe('Estate API (e2e)', () => {
 
     expect((response.body as ApiError).code).toBe(
       ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED.code,
+    );
+  });
+
+  it('rejects the next property mutation after its permission is revoked', async () => {
+    const created = await createEstate();
+    await revokeOwnerPermission('property:update');
+
+    const response = await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${created.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ title: 'Permission revoked' })
+      .expect(403);
+
+    expect((response.body as ApiError).code).toBe(
+      ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
     );
   });
 
@@ -623,5 +697,20 @@ describe('Estate API (e2e)', () => {
       (leadResponse.body as ApiSuccess<{ listingId: string; status: string }>)
         .data,
     ).toMatchObject({ listingId: draft.id, status: 'NEW' });
+  });
+
+  it('enforces listing:create independently from the OWNER role name', async () => {
+    const estate = await createEstate();
+    await revokeOwnerPermission('listing:create');
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: estate.id })
+      .expect(403);
+
+    expect((response.body as ApiError).code).toBe(
+      ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
+    );
   });
 });

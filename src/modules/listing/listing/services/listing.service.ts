@@ -28,6 +28,7 @@ export class ListingService {
     providerId?: string,
   ): Promise<ListingResponse> {
     const context = await this.requireProviderContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'listing:create');
     const estate = await this.estateRepository.findById(dto.estateId);
     if (!estate)
       throw new BusinessException(
@@ -35,7 +36,6 @@ export class ListingService {
         dto.estateId,
       );
     this.assertEstateOwnership(estate, context.providerId);
-    await this.supplyAccessPolicy.requireWriteAccess(context);
     if (await this.listingRepository.findByEstateId(dto.estateId)) {
       throw new BusinessException(
         CommonErrorCodes.RESOURCE_CONFLICT,
@@ -57,6 +57,7 @@ export class ListingService {
     providerId?: string,
   ): Promise<ListingResponse[]> {
     const context = await this.requireProviderContext(customerId, providerId);
+    await this.supplyAccessPolicy.requirePermission(context, 'listing:read');
     return (await this.listingRepository.findMine(context.providerId)).map(
       (listing) => this.toResponse(listing),
     );
@@ -90,7 +91,12 @@ export class ListingService {
     id: string,
     providerId?: string,
   ): Promise<ListingResponse> {
-    const listing = await this.getOwnedListing(customerId, id, providerId);
+    const { listing, context } = await this.getOwnedListing(
+      customerId,
+      id,
+      providerId,
+    );
+    await this.supplyAccessPolicy.requirePermission(context, 'listing:publish');
     listing.status = ListingStatus.PUBLISHED;
     listing.publishedAt = listing.publishedAt ?? new Date();
     return this.toResponse(await this.listingRepository.save(listing));
@@ -101,7 +107,12 @@ export class ListingService {
     id: string,
     providerId?: string,
   ): Promise<ListingResponse> {
-    const listing = await this.getOwnedListing(customerId, id, providerId);
+    const { listing, context } = await this.getOwnedListing(
+      customerId,
+      id,
+      providerId,
+    );
+    await this.supplyAccessPolicy.requirePermission(context, 'listing:archive');
     listing.status = ListingStatus.DRAFT;
     listing.publishedAt = null;
     return this.toResponse(await this.listingRepository.save(listing));
@@ -111,7 +122,7 @@ export class ListingService {
     customerId: string,
     id: string,
     providerId?: string,
-  ) {
+  ): Promise<{ listing: Listing; context: ProviderContext }> {
     const context = await this.requireProviderContext(customerId, providerId);
     const listing = await this.listingRepository.findById(id);
     if (!listing)
@@ -121,8 +132,7 @@ export class ListingService {
         CommonErrorCodes.FORBIDDEN,
         context.providerId,
       );
-    await this.supplyAccessPolicy.requireWriteAccess(context);
-    return listing;
+    return { listing, context };
   }
 
   /** Resolves provider context and enforces supply read access. */

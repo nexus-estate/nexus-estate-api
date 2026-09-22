@@ -22,34 +22,36 @@ describe('ProviderSupplyAccessPolicy', () => {
     membershipStatus: 'ACTIVE',
   };
 
-  const buildPolicy = (requireOwner = jest.fn()) => {
+  const buildPolicy = (requirePermission = jest.fn()) => {
     const accountPolicy = new ProviderAccountPolicy();
     const authorizationService = {
-      requireOwner,
+      requirePermission,
     } as unknown as ProviderAuthorizationService;
     return {
       policy: new ProviderSupplyAccessPolicy(
         accountPolicy,
         authorizationService,
       ),
-      requireOwner,
+      requirePermission,
     };
   };
 
   it('allows reads for active verified providers without checking roles', () => {
-    const { policy, requireOwner } = buildPolicy();
+    const { policy, requirePermission } = buildPolicy();
     expect(() => policy.requireReadAccess(context)).not.toThrow();
-    expect(requireOwner).not.toHaveBeenCalled();
+    expect(requirePermission).not.toHaveBeenCalled();
   });
 
-  it('requires the OWNER role for writes', async () => {
-    const { policy, requireOwner } = buildPolicy();
-    await expect(policy.requireWriteAccess(context)).resolves.toBeUndefined();
-    expect(requireOwner).toHaveBeenCalledWith(context);
+  it('requires the requested provider permission after lifecycle checks', async () => {
+    const { policy, requirePermission } = buildPolicy();
+    await expect(
+      policy.requirePermission(context, 'property:create'),
+    ).resolves.toBeUndefined();
+    expect(requirePermission).toHaveBeenCalledWith(context, 'property:create');
   });
 
   it('blocks reads for suspended providers before any role check', () => {
-    const { policy, requireOwner } = buildPolicy();
+    const { policy, requirePermission } = buildPolicy();
     let thrown: unknown;
     try {
       policy.requireReadAccess({
@@ -62,20 +64,22 @@ describe('ProviderSupplyAccessPolicy', () => {
     expect(thrown).toMatchObject({
       errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED.code,
     });
-    expect(requireOwner).not.toHaveBeenCalled();
+    expect(requirePermission).not.toHaveBeenCalled();
   });
 
-  it('propagates the authorization owner failure for writes', async () => {
-    const requireOwner = jest
+  it('propagates a missing-permission failure', async () => {
+    const requirePermission = jest
       .fn()
       .mockRejectedValue(
         new BusinessException(
           ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
         ),
       );
-    const { policy } = buildPolicy(requireOwner);
+    const { policy } = buildPolicy(requirePermission);
 
-    await expect(policy.requireWriteAccess(context)).rejects.toMatchObject({
+    await expect(
+      policy.requirePermission(context, 'property:create'),
+    ).rejects.toMatchObject({
       errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
     });
   });
