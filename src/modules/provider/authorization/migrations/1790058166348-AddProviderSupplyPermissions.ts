@@ -16,6 +16,41 @@ export class AddProviderSupplyPermissions1790058166348
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // Refuse custom MEMBER collisions before mutating permissions or mappings.
+    const existingMemberRoles = (await queryRunner.query(`
+      SELECT id::text AS id
+      FROM tbl_provider_role
+      WHERE code = 'MEMBER'
+      LIMIT 1
+    `)) as { id: string }[];
+
+    let memberRoleId: string | undefined;
+
+    if (existingMemberRoles.length > 0) {
+      const bookkeepingTable = (await queryRunner.query(`
+        SELECT to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS exists
+      `)) as { exists: boolean }[];
+      const roleBackfill = bookkeepingTable[0]?.exists
+        ? ((await queryRunner.query(
+            `
+              SELECT role_id::text AS role_id
+              FROM tbl_provider_supply_member_role_backfill
+              WHERE role_id = $1
+            `,
+            [existingMemberRoles[0].id],
+          )) as { role_id: string }[])
+        : [];
+
+      if (roleBackfill.length === 0) {
+        throw new Error(
+          `Provider supply permission migration refused to reuse existing MEMBER role ${existingMemberRoles[0].id}: the role is not owned by this migration. Rename the custom role before rerunning the migration.`,
+        );
+      }
+
+      memberRoleId = existingMemberRoles[0].id;
+    }
+
+
     await queryRunner.query(`
       INSERT INTO tbl_provider_permission
         (code, name, description, category, resource, action, risk_level, is_assignable)
@@ -109,39 +144,6 @@ export class AddProviderSupplyPermissions1790058166348
       FROM tbl_provider_supply_read_permission_backfill
       ON CONFLICT (role_id, permission_id) DO NOTHING
     `);
-
-    const existingMemberRoles = (await queryRunner.query(`
-      SELECT id::text AS id
-      FROM tbl_provider_role
-      WHERE code = 'MEMBER'
-      LIMIT 1
-    `)) as { id: string }[];
-
-    let memberRoleId: string | undefined;
-
-    if (existingMemberRoles.length > 0) {
-      const bookkeepingTable = (await queryRunner.query(`
-        SELECT to_regclass('public.tbl_provider_supply_member_role_backfill') IS NOT NULL AS exists
-      `)) as { exists: boolean }[];
-      const roleBackfill = bookkeepingTable[0]?.exists
-        ? ((await queryRunner.query(
-            `
-              SELECT role_id::text AS role_id
-              FROM tbl_provider_supply_member_role_backfill
-              WHERE role_id = $1
-            `,
-            [existingMemberRoles[0].id],
-          )) as { role_id: string }[])
-        : [];
-
-      if (roleBackfill.length === 0) {
-        throw new Error(
-          `Provider supply permission migration refused to reuse existing MEMBER role ${existingMemberRoles[0].id}: the role is not owned by this migration. Rename the custom role before rerunning the migration.`,
-        );
-      }
-
-      memberRoleId = existingMemberRoles[0].id;
-    }
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS tbl_provider_supply_member_role_backfill (
