@@ -552,8 +552,11 @@ describe('Estate API (e2e)', () => {
         .set('Authorization', `Bearer ${ownerToken}`),
     ]);
 
-    expect([200, 404, 409]).toContain(deleteResponse.status);
-    expect([200, 404, 409]).toContain(publishResponse.status);
+    const statuses = [deleteResponse.status, publishResponse.status];
+    expect(statuses.filter((status) => status === 200)).toHaveLength(1);
+    expect(
+      statuses.filter((status) => status === 404 || status === 409),
+    ).toHaveLength(1);
 
     const storedEstate = await dataSource
       .getRepository(Estate)
