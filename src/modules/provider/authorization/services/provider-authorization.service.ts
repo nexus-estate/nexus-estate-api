@@ -8,6 +8,7 @@ import type {
   ProviderAuthorizationRole,
   ProviderEffectiveAuthorization,
 } from '../types/provider-effective-authorization.contract';
+import type { ProviderPermissionCode } from '../permissions/provider-permission.registry';
 
 /**
  * Provider runtime authorization service. Use it to provision the initial
@@ -62,10 +63,19 @@ export class ProviderAuthorizationService {
     );
   }
 
-  /** Rejects access unless the resolved membership holds the legacy OWNER role. */
-  async requireOwner(context: ProviderContext): Promise<void> {
+  /**
+   * Rejects access unless the resolved membership holds the specified permission.
+   */
+  async requirePermission(
+    context: ProviderContext,
+    permissionCode: ProviderPermissionCode,
+  ): Promise<void> {
     const authority = await this.effective(context);
-    if (!authority.roles.some((role) => role.code === 'OWNER')) {
+    if (
+      !authority.permissions.some(
+        (permission) => permission.code === permissionCode,
+      )
+    ) {
       throw new BusinessException(
         ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN,
       );

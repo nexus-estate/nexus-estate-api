@@ -73,7 +73,7 @@ describe('ListingService', () => {
     } as unknown as ProviderContextResolver;
     const supplyAccessPolicy = {
       requireReadAccess: jest.fn(),
-      requireWriteAccess: jest.fn().mockResolvedValue(undefined),
+      requirePermission: jest.fn().mockResolvedValue(undefined),
     } as unknown as ProviderSupplyAccessPolicy;
     return new ListingService(
       listingRepository,

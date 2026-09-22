@@ -20,6 +20,7 @@ import { ProviderMembershipRole } from '../../src/modules/provider/authorization
 import { ProviderPermission } from '../../src/modules/provider/authorization/entities/provider-permission.entity';
 import { ProviderRole } from '../../src/modules/provider/authorization/entities/provider-role.entity';
 import { ProviderRolePermission } from '../../src/modules/provider/authorization/entities/provider-role-permission.entity';
+import { PROVIDER_PERMISSION_REGISTRY } from '../../src/modules/provider/authorization/permissions/provider-permission.registry';
 import {
   ProviderStatus,
   ProviderType,
@@ -152,6 +153,25 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       description: null,
       isSystem: true,
     });
+    const permissions = await dataSource.getRepository(ProviderPermission).save(
+      PROVIDER_PERMISSION_REGISTRY.map((permission) => ({
+        code: permission.code,
+        name: permission.name,
+        description: permission.description,
+        category: permission.category,
+        resource: permission.resource,
+        action: permission.action,
+        riskLevel: permission.riskLevel,
+        isAssignable: permission.isAssignable,
+        deprecatedAt: null,
+      })),
+    );
+    await dataSource.getRepository(ProviderRolePermission).save(
+      permissions.map((permission) => ({
+        roleId: ownerRole.id,
+        permissionId: permission.id,
+      })),
+    );
 
     owner = await createCustomer('owner@nexus.test');
     other = await createCustomer('other@nexus.test');
@@ -252,21 +272,36 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
   });
 
   describe('ProviderSupplyAccessPolicy', () => {
-    it('grants read and write access to an active verified OWNER', async () => {
+    it('grants the explicitly mapped supply permission to an active verified OWNER', async () => {
       const context = await resolver.resolve(owner.id, providerA.id);
+      const effective = await new ProviderAuthorizationService(
+        dataSource,
+      ).effective(context);
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).not.toThrow();
+      expect(effective.permissions.map(({ code }) => code)).toEqual(
+        expect.arrayContaining([
+          'property:read',
+          'property:create',
+          'property:update',
+          'property:archive',
+          'listing:read',
+          'listing:create',
+          'listing:publish',
+          'listing:archive',
+        ]),
+      );
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).resolves.toBeUndefined();
     });
 
-    it('rejects write access when the membership lacks the OWNER role', async () => {
+    it('rejects an active membership with a missing supply permission', async () => {
       const context = await resolver.resolve(owner.id, providerE.id);
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).not.toThrow();
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
       });
@@ -280,7 +315,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).toThrow();
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_NOT_VERIFIED.code,
       });
@@ -294,9 +329,29 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
 
       expect(() => supplyAccessPolicy.requireReadAccess(context)).toThrow();
       await expect(
-        supplyAccessPolicy.requireWriteAccess(context),
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
       ).rejects.toMatchObject({
         errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_SUSPENDED.code,
+      });
+    });
+
+    it('honors permission revocation on the next request', async () => {
+      const context = await resolver.resolve(owner.id, providerA.id);
+      await expect(
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
+      ).resolves.toBeUndefined();
+
+      await dataSource.query(
+        `DELETE FROM tbl_provider_role_permission
+         WHERE role_id = $1
+           AND permission_id = (SELECT id FROM tbl_provider_permission WHERE code = 'property:create')`,
+        [ownerRole.id],
+      );
+
+      await expect(
+        supplyAccessPolicy.requirePermission(context, 'property:create'),
+      ).rejects.toMatchObject({
+        errorCode: ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
       });
     });
   });
