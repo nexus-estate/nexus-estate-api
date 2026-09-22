@@ -7,7 +7,7 @@ import {
 } from '../../../location/administrative-division/entities/location.entity';
 import { CustomerAccount } from '../../../customer/account/entities/customer-account.entity';
 import { ProviderAccount } from '../../../provider/account/entities/provider-account.entity';
-import { EstatePurpose, EstateType } from '../types/estate.type';
+import { EstatePurpose, EstateStatus, EstateType } from '../types/estate.type';
 
 @Entity('tbl_estate')
 export class Estate extends BaseEntity {
@@ -28,6 +28,9 @@ export class Estate extends BaseEntity {
   @ManyToOne(() => ProviderAccount, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'fk_provider_id' })
   provider: Relation<ProviderAccount>;
+
+  @Column({ type: 'enum', enum: EstateStatus, default: EstateStatus.DRAFT })
+  status: EstateStatus;
 
   @Column({ type: 'varchar', length: 500, nullable: false })
   title: string;

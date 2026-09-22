@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { Estate } from '../entities';
-import { EstatePurpose, EstateType } from '../types/estate.type';
+import { EstatePurpose, EstateStatus, EstateType } from '../types/estate.type';
 
 export class EstateLocationResponse {
   @ApiProperty({ format: 'uuid' }) id: string;
@@ -18,6 +18,7 @@ export class EstateLocationResponse {
 export class EstateResponse {
   @ApiProperty({ format: 'uuid' }) id: string;
   @ApiProperty({ format: 'uuid' }) providerId: string;
+  @ApiProperty({ enum: EstateStatus }) status: EstateStatus;
   @ApiProperty() title: string;
   @ApiPropertyOptional({ nullable: true }) description: string | null;
   @ApiProperty({ enum: EstateType }) type: EstateType;
@@ -44,6 +45,7 @@ export class EstateResponse {
     return {
       id: estate.id,
       providerId: estate.providerId,
+      status: estate.status,
       title: estate.title,
       description: estate.description,
       type: estate.type,

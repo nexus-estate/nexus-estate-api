@@ -160,6 +160,75 @@ export class EstateController {
     return EstateResponse.toResponse(estate);
   }
 
+  /** Activates a provider-owned draft property after policy validation. */
+  @Post(':id/activate')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Activate a draft estate' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: EstateResponse })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:update permission denied.',
+  })
+  @ApiHeader({ name: 'X-Provider-Id', required: false })
+  async activateEstate(
+    @Param('id', new ParseUUIDPipe()) estateId: string,
+    @Req() req: AuthenticatedRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.activateEstate(
+      req.user.id,
+      estateId,
+      providerId,
+    );
+    return EstateResponse.toResponse(estate);
+  }
+
+  /** Archives a draft or active provider-owned property. */
+  @Post(':id/archive')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Archive an estate' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: EstateResponse })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:archive permission denied.',
+  })
+  @ApiHeader({ name: 'X-Provider-Id', required: false })
+  async archiveEstate(
+    @Param('id', new ParseUUIDPipe()) estateId: string,
+    @Req() req: AuthenticatedRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.archiveEstate(
+      req.user.id,
+      estateId,
+      providerId,
+    );
+    return EstateResponse.toResponse(estate);
+  }
+
+  /** Restores an archived property to draft. */
+  @Post(':id/restore')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Restore an archived estate' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: EstateResponse })
+  @ApiForbiddenResponse({
+    description: 'Provider lifecycle or property:update permission denied.',
+  })
+  @ApiHeader({ name: 'X-Provider-Id', required: false })
+  async restoreEstate(
+    @Param('id', new ParseUUIDPipe()) estateId: string,
+    @Req() req: AuthenticatedRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<EstateResponse> {
+    const estate = await this.estateService.restoreEstate(
+      req.user.id,
+      estateId,
+      providerId,
+    );
+    return EstateResponse.toResponse(estate);
+  }
+
   /** Soft-deletes one estate after service-level ownership and provider checks. */
   @Delete(':id')
   @ApiBearerAuth()

@@ -4,6 +4,7 @@ import { UpdateEstateDto } from '../dto/update-estate-dto';
 import { Estate } from '../entities';
 import { EstateService } from '../services/estate.service';
 import { EstatePurpose, EstateType } from '../types/estate.type';
+import { EstateStatus } from '../types/estate.type';
 import { EstateController } from './estate.controller';
 
 const API_RESPONSE_METADATA = 'swagger/apiResponse';
@@ -17,6 +18,9 @@ type EstateServiceMock = {
   >;
   updateEstate: jest.MockedFunction<EstateService['updateEstate']>;
   softDeleteEstate: jest.MockedFunction<EstateService['softDeleteEstate']>;
+  activateEstate: jest.MockedFunction<EstateService['activateEstate']>;
+  archiveEstate: jest.MockedFunction<EstateService['archiveEstate']>;
+  restoreEstate: jest.MockedFunction<EstateService['restoreEstate']>;
 };
 
 describe('EstateController', () => {
@@ -71,6 +75,7 @@ describe('EstateController', () => {
     },
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-02T00:00:00Z'),
+    status: EstateStatus.DRAFT,
   } as unknown as Estate;
 
   beforeEach(() => {
@@ -81,6 +86,9 @@ describe('EstateController', () => {
       findOwnedByIdForUpdate: jest.fn(),
       updateEstate: jest.fn(),
       softDeleteEstate: jest.fn(),
+      activateEstate: jest.fn(),
+      archiveEstate: jest.fn(),
+      restoreEstate: jest.fn(),
     };
     controller = new EstateController(
       estateService as unknown as EstateService,
@@ -161,20 +169,62 @@ describe('EstateController', () => {
     );
   });
 
+  it('activates an estate through the explicit command route', async () => {
+    estateService.activateEstate.mockResolvedValue({
+      ...estate,
+      status: EstateStatus.ACTIVE,
+    });
+
+    const result = await controller.activateEstate(estateId, request);
+
+    expect(estateService.activateEstate).toHaveBeenCalledWith(
+      user.id,
+      estateId,
+      undefined,
+    );
+    expect(result.status).toBe(EstateStatus.ACTIVE);
+  });
+
+  it('archives and restores through explicit command routes', async () => {
+    estateService.archiveEstate.mockResolvedValue({
+      ...estate,
+      status: EstateStatus.ARCHIVED,
+    });
+    estateService.restoreEstate.mockResolvedValue({
+      ...estate,
+      status: EstateStatus.DRAFT,
+    });
+
+    await expect(
+      controller.archiveEstate(estateId, request),
+    ).resolves.toMatchObject({ status: EstateStatus.ARCHIVED });
+    await expect(
+      controller.restoreEstate(estateId, request),
+    ).resolves.toMatchObject({ status: EstateStatus.DRAFT });
+  });
+
   it('documents update and archive permissions on their matching routes', () => {
+    const updateHandler: unknown = Object.getOwnPropertyDescriptor(
+      EstateController.prototype,
+      'updateEstate',
+    )?.value;
+    const deleteHandler: unknown = Object.getOwnPropertyDescriptor(
+      EstateController.prototype,
+      'deleteEstate',
+    )?.value;
+    if (
+      typeof updateHandler !== 'function' ||
+      typeof deleteHandler !== 'function'
+    ) {
+      throw new Error('Expected EstateController route handlers to exist.');
+    }
     const updateResponses = Reflect.getMetadata(
       API_RESPONSE_METADATA,
-      Object.getOwnPropertyDescriptor(
-        EstateController.prototype,
-        'updateEstate',
-      )?.value,
+      updateHandler,
     ) as Record<string, { description?: string }>;
     const deleteResponses = Reflect.getMetadata(
       API_RESPONSE_METADATA,
-      Object.getOwnPropertyDescriptor(
-        EstateController.prototype,
-        'deleteEstate',
-      )?.value,
+      deleteHandler,
     ) as Record<string, { description?: string }>;
 
     const updateDescriptions = Object.values(updateResponses).map(

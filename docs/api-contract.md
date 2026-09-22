@@ -30,6 +30,9 @@ capabilities must remain removed or explicitly blocked until implemented.
 | GET    | `/estates/mine`                                                           | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Estate response[]              |
 | GET    | `/estates/:id`                                                            | Public                          | None                     | UUID route parameter                                               | Estate response                |
 | PATCH  | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | `UpdateEstateDto`                                                  | Estate response                |
+| POST   | `/estates/:id/activate`                                                   | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
+| POST   | `/estates/:id/archive`                                                    | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
+| POST   | `/estates/:id/restore`                                                    | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
 | DELETE | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | `boolean`                      |
 | POST   | `/listings`                                                               | Customer JWT                    | Optional `X-Provider-Id` | `CreateListingDto` (`estateId`)                                    | Listing response               |
 | GET    | `/listings/mine`                                                          | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Listing response[]             |
@@ -86,9 +89,15 @@ authorization is provider-only: the resolved provider context must match
 `estate.providerId`, and the legacy `fk_customer_id` column is provenance-only.
 
 Estate responses use an explicit `EstateResponse` contract that exposes
-`id`, `providerId`, physical attributes, location, and timestamps. It never
+`id`, `providerId`, `status`, physical attributes, location, and timestamps. It never
 exposes `customerId`, the customer/provider relations, `deletedAt`,
 `createdBy`, or `updatedBy`.
+
+Property lifecycle status is one of `DRAFT`, `ACTIVE`, or `ARCHIVED`. Creation
+always returns `DRAFT`; `PATCH /estates/:id` cannot change status. Commands allow
+`DRAFT -> ACTIVE`, `DRAFT -> ARCHIVED`, `ACTIVE -> ARCHIVED`, and
+`ARCHIVED -> DRAFT`. Activation validates required publication-quality data,
+and a published Listing blocks the archive command.
 
 Listing creation accepts only estates owned by the same provider context
 (`estate.providerId === context.providerId`).
