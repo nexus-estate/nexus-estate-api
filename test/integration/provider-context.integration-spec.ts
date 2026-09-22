@@ -27,8 +27,7 @@ import {
   ProviderVerificationStatus,
 } from '../../src/modules/provider/account/enums/account.enums';
 import { ProviderAccountErrorCodes } from '../../src/modules/provider/account/errors/provider-account-error-codes';
-import { BackfillProviderSupplyReadPermissions1790063077456 } from '../../src/modules/provider/authorization/migrations/1790063077456-BackfillProviderSupplyReadPermissions';
-import { BackfillRolelessProviderSupplyReaders1790065589751 } from '../../src/modules/provider/authorization/migrations/1790065589751-BackfillRolelessProviderSupplyReaders';
+import { AddProviderSupplyPermissions1790058166348 } from '../../src/modules/provider/authorization/migrations/1790058166348-AddProviderSupplyPermissions';
 
 jest.setTimeout(120_000);
 
@@ -375,7 +374,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       });
 
       const migration =
-        new BackfillProviderSupplyReadPermissions1790063077456();
+        new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
 
@@ -417,7 +416,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       await createMembership(legacyProvider.id, legacyCustomer.id);
 
       const migration =
-        new BackfillRolelessProviderSupplyReaders1790065589751();
+        new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
 
@@ -466,7 +465,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       await createMembership(legacyProvider.id, legacyCustomer.id);
 
       const migration =
-        new BackfillRolelessProviderSupplyReaders1790065589751();
+        new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
 
@@ -520,7 +519,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       );
 
       const migration =
-        new BackfillRolelessProviderSupplyReaders1790065589751();
+        new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
       const memberRole = await dataSource
@@ -603,7 +602,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       );
 
       const migration =
-        new BackfillRolelessProviderSupplyReaders1790065589751();
+        new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
       await migration.up(runner);
       const memberRole = await dataSource
@@ -674,7 +673,7 @@ describe('Provider context and supply access (PostgreSQL integration)', () => {
       await assignRole(membership.id, customMemberRole.id);
 
       const migration =
-        new BackfillRolelessProviderSupplyReaders1790065589751();
+        new AddProviderSupplyPermissions1790058166348();
       const runner = dataSource.createQueryRunner();
 
       await expect(migration.up(runner)).rejects.toThrow(
