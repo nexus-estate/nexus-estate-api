@@ -5,9 +5,9 @@ Enum "estate_purpose_enum" {
 }
 
 Enum "estate_status_enum" {
-  "pending"
-  "approved"
-  "rejected"
+  "DRAFT"
+  "ACTIVE"
+  "ARCHIVED"
 }
 
 Enum "estate_type_enum" {
@@ -44,7 +44,7 @@ Table "tbl_estate" {
   "deleted_at" timestamp
   "created_by" uuid
   "updated_by" uuid
-  "status" estate_status_enum [not null, default: `'pending'::public.estate_status_enum`]
+  "status" estate_status_enum [not null, default: `'DRAFT'::public.estate_status_enum`]
   "approved_by" uuid
   "approved_date" timestamp
   "rejected_by" uuid
@@ -77,6 +77,12 @@ Table "tbl_estate" {
     type [type: btree, name: "idx_estate_type"]
   }
 }
+
+// Property lifecycle is independent from soft deletion.
+// Public reads require status = ACTIVE and deleted_at IS NULL.
+// DRAFT and ARCHIVED rows remain provider-visible while deleted_at is NULL.
+// Lifecycle restore never clears deleted_at; DELETE remains a separate legacy
+// soft-delete operation.
 
 Table "tbl_media" {
   "id" uuid [pk, not null, default: `gen_random_uuid()`]

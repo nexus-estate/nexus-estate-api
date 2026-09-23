@@ -12,6 +12,7 @@ import { ListingQueryDto } from '../dto/listing-query.dto';
 import { ListingEligiblePropertyResponse } from '../dto/listing-eligible-property.response';
 import { ListingResponse } from '../dto/listing.response';
 import { Listing, ListingStatus } from '../entities';
+import { EstateStatus } from '../../../estate/property/types/estate.type';
 import { ListingRepo } from '../repositories/listing.repo';
 import { ListingErrorCodes } from '../errors/listing-error-codes';
 
@@ -37,6 +38,12 @@ export class ListingService {
         CommonErrorCodes.RESOURCE_NOT_FOUND,
         dto.estateId,
       );
+    if (estate.status === EstateStatus.ARCHIVED) {
+      throw new BusinessException(
+        ListingErrorCodes.LISTING_PROPERTY_ARCHIVED,
+        estate.id,
+      );
+    }
     this.assertEstateOwnership(estate, context.providerId);
     if (await this.listingRepository.findByEstateId(dto.estateId)) {
       throw new BusinessException(
@@ -108,10 +115,50 @@ export class ListingService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'listing:publish');
-    this.assertTransition(listing.status, ListingStatus.PUBLISHED);
-    listing.status = ListingStatus.PUBLISHED;
-    listing.publishedAt = listing.publishedAt ?? new Date();
-    return this.toResponse(await this.listingRepository.save(listing));
+    const published = await this.estateRepository.withLockedEstate(
+      listing.estateId,
+      async (estate, manager) => {
+        if (estate.providerId !== context.providerId) {
+          throw new BusinessException(
+            CommonErrorCodes.FORBIDDEN,
+            context.providerId,
+          );
+        }
+        const currentListing = await this.listingRepository.findById(
+          id,
+          false,
+          manager,
+        );
+        if (!currentListing) {
+          throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND, id);
+        }
+        if (currentListing.providerId !== context.providerId) {
+          throw new BusinessException(
+            CommonErrorCodes.FORBIDDEN,
+            context.providerId,
+          );
+        }
+        this.assertTransition(currentListing.status, ListingStatus.PUBLISHED);
+        if (estate.status !== EstateStatus.ACTIVE) {
+          throw new BusinessException(
+            ListingErrorCodes.LISTING_PROPERTY_NOT_ACTIVE,
+            estate.id,
+          );
+        }
+        currentListing.status = ListingStatus.PUBLISHED;
+        currentListing.publishedAt = currentListing.publishedAt ?? new Date();
+        return this.toResponse(
+          await this.listingRepository.save(currentListing, manager),
+        );
+      },
+    );
+    if (!published) {
+      throw new BusinessException(
+        CommonErrorCodes.RESOURCE_NOT_FOUND,
+        listing.estateId,
+      );
+    }
+    return published;
   }
 
   async archive(

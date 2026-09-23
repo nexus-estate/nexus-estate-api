@@ -15,4 +15,20 @@ export const ListingErrorCodes = {
     },
     HttpCodes.CONFLICT,
   ),
+  LISTING_PROPERTY_NOT_ACTIVE: defineBusinessErrorCode(
+    'LISTING_PROPERTY_NOT_ACTIVE',
+    {
+      en: messages.en.LISTING_PROPERTY_NOT_ACTIVE,
+      vi: messages.vi.LISTING_PROPERTY_NOT_ACTIVE,
+    },
+    HttpCodes.CONFLICT,
+  ),
+  LISTING_PROPERTY_ARCHIVED: defineBusinessErrorCode(
+    'LISTING_PROPERTY_ARCHIVED',
+    {
+      en: messages.en.LISTING_PROPERTY_ARCHIVED,
+      vi: messages.vi.LISTING_PROPERTY_ARCHIVED,
+    },
+    HttpCodes.CONFLICT,
+  ),
 } as const satisfies Record<string, BusinessErrorCode>;

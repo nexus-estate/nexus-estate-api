@@ -30,13 +30,16 @@ capabilities must remain removed or explicitly blocked until implemented.
 | GET    | `/estates/mine`                                                           | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Estate response[]              |
 | GET    | `/estates/:id`                                                            | Public                          | None                     | UUID route parameter                                               | Estate response                |
 | PATCH  | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | `UpdateEstateDto`                                                  | Estate response                |
+| POST   | `/estates/:id/activate`                                                   | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
+| POST   | `/estates/:id/archive`                                                    | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
+| POST   | `/estates/:id/restore`                                                    | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
 | DELETE | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | `boolean`                      |
 | POST   | `/listings`                                                               | Customer JWT                    | Optional `X-Provider-Id` | `CreateListingDto` (`estateId`)                                    | Listing response               |
 | GET    | `/listings/mine`                                                          | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Listing response[]             |
 | GET    | `/listings`                                                               | Public                          | None                     | `ListingQueryDto`                                                  | Paginated published listings   |
 | GET    | `/listings/:id`                                                           | Public                          | None                     | UUID route parameter                                               | Published listing response     |
 | POST   | `/listings/:id/publish`                                                   | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
-| POST   | `/listings/:id/unpublish`                                                 | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
+| POST   | `/listings/:id/archive`                                                   | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Listing response               |
 | POST   | `/listings/:listingId/leads`                                              | Public                          | None                     | `CreateLeadDto`                                                    | Lead response                  |
 | GET    | `/locations/provinces`                                                    | Public                          | None                     | —                                                                  | Province[]                     |
 | GET    | `/locations/provinces/:provinceId/wards`                                  | Public                          | None                     | UUID route parameter                                               | Ward[]                         |
@@ -86,12 +89,46 @@ authorization is provider-only: the resolved provider context must match
 `estate.providerId`, and the legacy `fk_customer_id` column is provenance-only.
 
 Estate responses use an explicit `EstateResponse` contract that exposes
-`id`, `providerId`, physical attributes, location, and timestamps. It never
+`id`, `providerId`, `status`, physical attributes, location, and timestamps. It never
 exposes `customerId`, the customer/provider relations, `deletedAt`,
 `createdBy`, or `updatedBy`.
 
+Property lifecycle status is one of `DRAFT`, `ACTIVE`, or `ARCHIVED`. Creation
+always returns `DRAFT`; `PATCH /estates/:id` cannot change status. Commands allow
+`DRAFT -> ACTIVE`, `DRAFT -> ARCHIVED`, `ACTIVE -> ARCHIVED`, and
+`ARCHIVED -> DRAFT`. Activation validates required publication-quality data,
+and a published Listing blocks the archive command. Lifecycle restore only
+loads non-deleted rows; it never clears `deleted_at` or resurrects a soft-deleted
+Property. `DELETE /estates/:id` remains a separate legacy soft-delete operation.
+
+Public Property visibility requires both `status = ACTIVE` and
+`deleted_at IS NULL`. Provider-owned reads can include non-deleted `DRAFT`,
+`ACTIVE`, and `ARCHIVED` Properties.
+
 Listing creation accepts only estates owned by the same provider context
-(`estate.providerId === context.providerId`).
+(`estate.providerId === context.providerId`) and excludes archived Properties.
+It creates a `DRAFT` Listing from a non-deleted `DRAFT` or `ACTIVE` Property.
+Publishing requires the Property to be `ACTIVE` and non-deleted; the API returns
+`LISTING_PROPERTY_NOT_ACTIVE` with HTTP `409` otherwise. Archived Properties
+are excluded from `GET /listings/eligible-properties`. Public Listing reads
+also require a published, non-deleted Listing joined to an active, non-deleted
+Property.
+
+Property archive, Property DELETE, and Listing publish serialize on the same
+Property row using a database pessimistic write lock. This prevents conflicting
+commands from succeeding concurrently and preserves the invariant that a
+PUBLISHED Listing must reference an ACTIVE, non-deleted Property. The same
+serialization boundary protects `DELETE /estates/:id` from racing with Listing
+publication; DELETE is still distinct from lifecycle ARCHIVED status.
+
+Lifecycle command endpoints return `200 OK`; create endpoints continue to
+return `201 Created`.
+
+The lifecycle migration maps `pending -> DRAFT`, `approved -> ACTIVE`, and
+`rejected -> ARCHIVED`, and verifies that no unmapped rows remain. Its `down()`
+method is schema-compatible, but it cannot restore historical moderation
+semantics after lifecycle writes have reached production; operational recovery
+should use a forward fix rather than a database downgrade.
 
 ## Feature gates
 
