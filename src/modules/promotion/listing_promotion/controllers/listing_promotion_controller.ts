@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ListingPromotionService } from '../services/listingPromotion.service';
 import { CreateListingPromotionDto } from '../dto/listing_promotion_dto';
 
@@ -10,7 +10,7 @@ export class ListingPromotionController {
 
   @Post('baner')
   async createBanner(
-    @Param('listingId') listingId: string,
+    @Param('listingId', new ParseUUIDPipe()) listingId: string,
     @Body() dto: CreateListingPromotionDto,
   ) {
     return this.listingPromotionService.createBanner(
