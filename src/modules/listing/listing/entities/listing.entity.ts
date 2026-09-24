@@ -11,7 +11,10 @@ export enum ListingStatus {
 }
 
 @Entity('tbl_listing')
-@Index('uq_listing_estate_active', ['estateId'], { unique: true })
+@Index('uq_listing_estate_published', ['estateId'], {
+  unique: true,
+  where: `"status" = 'PUBLISHED' AND "deleted_at" IS NULL`,
+})
 @Index('idx_listing_status_published_at', ['status', 'publishedAt'])
 export class Listing extends BaseEntity {
   @Column({ name: 'fk_estate_id', type: 'uuid' })
