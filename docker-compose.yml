@@ -6,11 +6,11 @@ services:
     env_file:
       - .env
     ports:
-      - "${DB_POSTGRES_PORT:-5432}:5432"
+      - '${DB_POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
     container_name: nexus-api
     restart: unless-stopped
     ports:
-      - "${PORT:-50001}:${PORT:-50001}"
+      - '${PORT:-50001}:${PORT:-50001}'
     env_file:
       - .env
     environment:
