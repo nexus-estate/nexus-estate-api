@@ -18,26 +18,38 @@ describe('ListingPromotionRepo', () => {
     const endAt = new Date('2026-01-10T00:00:00.000Z');
 
     await expect(
-      repo.findOverlappingByListingId('listing-a', startAt, endAt),
+      repo.findOverlappingByListingAndPromotion(
+        'listing-a',
+        'promotion-a',
+        startAt,
+        endAt,
+      ),
     ).resolves.toBeNull();
 
-    expect(repository.createQueryBuilder).toHaveBeenCalledWith('promotion');
+    expect(repository.createQueryBuilder).toHaveBeenCalledWith(
+      'listingPromotion',
+    );
     expect(queryBuilder.where).toHaveBeenCalledWith(
-      'promotion.listingId = :listingId',
+      'listingPromotion.listingId = :listingId',
       { listingId: 'listing-a' },
     );
     expect(queryBuilder.andWhere).toHaveBeenNthCalledWith(
       1,
-      'promotion.deletedAt IS NULL',
+      'listingPromotion.promotionId = :promotionId',
+      { promotionId: 'promotion-a' },
     );
     expect(queryBuilder.andWhere).toHaveBeenNthCalledWith(
       2,
-      'promotion.startAt < :endAt',
-      { endAt },
+      'listingPromotion.deletedAt IS NULL',
     );
     expect(queryBuilder.andWhere).toHaveBeenNthCalledWith(
       3,
-      'promotion.endAt > :startAt',
+      'listingPromotion.startAt < :endAt',
+      { endAt },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenNthCalledWith(
+      4,
+      'listingPromotion.endAt > :startAt',
       { startAt },
     );
   });

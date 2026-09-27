@@ -9,17 +9,19 @@ export class ListingPromotionRepo {
     this.repository = dataSource.getRepository(ListingPromotion);
   }
 
-  async findOverlappingByListingId(
+  async findOverlappingByListingAndPromotion(
     listingId: string,
+    promotionId: string,
     startAt: Date,
     endAt: Date,
   ): Promise<ListingPromotion | null> {
     return this.repository
-      .createQueryBuilder('promotion')
-      .where('promotion.listingId = :listingId', { listingId })
-      .andWhere('promotion.deletedAt IS NULL')
-      .andWhere('promotion.startAt < :endAt', { endAt })
-      .andWhere('promotion.endAt > :startAt', { startAt })
+      .createQueryBuilder('listingPromotion')
+      .where('listingPromotion.listingId = :listingId', { listingId })
+      .andWhere('listingPromotion.promotionId = :promotionId', { promotionId })
+      .andWhere('listingPromotion.deletedAt IS NULL')
+      .andWhere('listingPromotion.startAt < :endAt', { endAt })
+      .andWhere('listingPromotion.endAt > :startAt', { startAt })
       .getOne();
   }
   create(data: Partial<ListingPromotion>): ListingPromotion {
