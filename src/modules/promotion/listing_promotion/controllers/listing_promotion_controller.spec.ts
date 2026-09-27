@@ -5,7 +5,9 @@ import { ListingPromotionService } from '../services/listingPromotion.service';
 describe('ListingPromotionController', () => {
   it('maps listing id and ISO date body to the service', async () => {
     const service = {
-      createBanner: jest.fn().mockResolvedValue({ id: 'promotion-id' }),
+      createListingPromotion: jest
+        .fn()
+        .mockResolvedValue({ id: 'promotion-id' }),
     } as unknown as ListingPromotionService;
     const controller = new ListingPromotionController(service);
     const dto = {
@@ -13,11 +15,14 @@ describe('ListingPromotionController', () => {
       endAt: '2026-01-07T00:00:00.000Z',
     };
 
-    await expect(controller.createBanner('listing-id', dto)).resolves.toEqual({
+    await expect(
+      controller.createBanner('listing-id', 'promotion-id', dto),
+    ).resolves.toEqual({
       id: 'promotion-id',
     });
-    expect(service.createBanner).toHaveBeenCalledWith(
+    expect(service.createListingPromotion).toHaveBeenCalledWith(
       'listing-id',
+      'promotion-id',
       new Date(dto.startAt),
       new Date(dto.endAt),
     );

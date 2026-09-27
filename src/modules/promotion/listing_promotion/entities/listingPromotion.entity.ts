@@ -2,11 +2,8 @@ import { Check, Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 
 import { BaseEntity } from '../../../../services/abstraction-services';
+import { Promotion } from '../../promotion/entities/promotion.entity';
 import { Listing } from '../../../listing/listing/entities/listing.entity';
-
-export enum PromotionEnum {
-  BANNER = 'BANNER',
-}
 
 @Entity('tbl_listing_promotion')
 @Check('chk_listing_promotion_valid_period', `"end_at" > "start_at"`)
@@ -26,12 +23,25 @@ export class ListingPromotion extends BaseEntity {
   listing: Relation<Listing>;
 
   @Column({
-    name: 'promotion_type',
-    type: 'enum',
-    enum: PromotionEnum,
+    name: 'fk_promotion_id',
+    type: 'uuid',
     nullable: false,
   })
-  promotionType: PromotionEnum;
+  promotionId: string;
+
+  @ManyToOne(() => Promotion, {
+    nullable: false,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'fk_promotion_id' })
+  promotion: Relation<Promotion>;
+
+  @Column({
+    name: 'price_snapshot',
+    type: 'numeric',
+    nullable: false,
+  })
+  priceSnapshot: number;
 
   @Column({
     name: 'start_at',

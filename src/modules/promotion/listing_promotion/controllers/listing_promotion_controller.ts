@@ -11,10 +11,12 @@ export class ListingPromotionController {
   @Post('baner')
   async createBanner(
     @Param('listingId', new ParseUUIDPipe()) listingId: string,
+    promotionId: string,
     @Body() dto: CreateListingPromotionDto,
   ) {
-    return this.listingPromotionService.createBanner(
+    return this.listingPromotionService.createListingPromotion(
       listingId,
+      promotionId,
       new Date(dto.startAt),
       new Date(dto.endAt),
     );
