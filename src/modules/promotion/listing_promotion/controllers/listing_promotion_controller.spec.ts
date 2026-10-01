@@ -22,13 +22,7 @@ describe('ListingPromotionController', () => {
     };
 
     await expect(
-      controller.create(
-        user,
-        'listing-id',
-        'promotion-id',
-        dto,
-        'provider-id',
-      ),
+      controller.create(user, 'listing-id', 'promotion-id', dto, 'provider-id'),
     ).resolves.toEqual({
       id: 'listing-promotion-id',
     });
