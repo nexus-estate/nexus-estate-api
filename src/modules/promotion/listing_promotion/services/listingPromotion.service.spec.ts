@@ -140,7 +140,7 @@ describe('ListingPromotionService', () => {
       listing: {
         ...listing,
         providerId: 'another-provider-id',
-      } as Listing,
+      },
     });
 
     await expect(createPromotion(service)).rejects.toMatchObject({
@@ -198,12 +198,7 @@ describe('ListingPromotionService', () => {
 
     expect(
       listingPromotionRepository.findOverlappingByListingAndPromotion,
-    ).toHaveBeenCalledWith(
-      listingId,
-      promotionId,
-      adjacentStart,
-      adjacentEnd,
-    );
+    ).toHaveBeenCalledWith(listingId, promotionId, adjacentStart, adjacentEnd);
   });
 
   it('rejects unknown and inactive promotions', async () => {
