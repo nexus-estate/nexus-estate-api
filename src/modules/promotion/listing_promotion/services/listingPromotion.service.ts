@@ -5,9 +5,7 @@ import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
 import { ListingRepo } from '../../../listing/listing/repositories/listing.repo';
 import { ProviderContextResolver } from '../../../provider/account/services/provider-context.resolver';
 import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/helpers/provider-supply-access.policy';
-import {
-  PromotionValueType,
-} from '../../promotion/entities/promotion.entity';
+import { PromotionValueType } from '../../promotion/entities/promotion.entity';
 import { PromotionRepo } from '../../promotion/repositories/promotion_repository';
 import { ListingPromotion } from '../entities/listingPromotion.entity';
 import { ListingPromotionRepo } from '../repositories/listingPromotion.repo';
