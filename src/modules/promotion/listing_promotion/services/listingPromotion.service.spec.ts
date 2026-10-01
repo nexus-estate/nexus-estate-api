@@ -2,6 +2,9 @@
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
 import { Listing } from '../../../listing/listing/entities/listing.entity';
 import { ListingRepo } from '../../../listing/listing/repositories/listing.repo';
+import type { ProviderContext } from '../../../provider/account/services/provider-context.resolver';
+import { ProviderContextResolver } from '../../../provider/account/services/provider-context.resolver';
+import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/helpers/provider-supply-access.policy';
 import {
   Promotion,
   PromotionValueType,
@@ -12,22 +15,29 @@ import { ListingPromotionRepo } from '../repositories/listingPromotion.repo';
 import { ListingPromotionService } from './listingPromotion.service';
 
 describe('ListingPromotionService', () => {
+  const customerId = 'customer-id';
+  const providerId = 'provider-id';
   const listingId = 'listing-id';
   const promotionId = 'promotion-id';
   const startAt = new Date('2026-01-01T00:00:00.000Z');
   const endAt = new Date('2026-01-07T00:00:00.000Z');
-  const listing = { id: listingId } as Listing;
+  const listing = { id: listingId, providerId } as Listing;
   const promotion = {
     id: promotionId,
     valueType: PromotionValueType.MONEY,
     moneyValue: 100000,
     isActive: true,
   } as Promotion;
+  const context = {
+    customerId,
+    providerId,
+  } as ProviderContext;
 
   function createService(overrides?: {
     listing?: Listing | null;
     promotion?: Promotion | null;
     overlap?: ListingPromotion | null;
+    context?: ProviderContext;
   }) {
     const listingRepository = {
       findById: jest
@@ -36,15 +46,15 @@ describe('ListingPromotionService', () => {
           overrides && 'listing' in overrides ? overrides.listing : listing,
         ),
     } as unknown as ListingRepo;
+
     const listingPromotionRepository = {
       findOverlappingByListingAndPromotion: jest
         .fn()
         .mockResolvedValue(overrides?.overlap ?? null),
       create: jest.fn((data: Partial<ListingPromotion>) => data),
-      save: jest.fn((promotion: ListingPromotion) =>
-        Promise.resolve(promotion),
-      ),
+      save: jest.fn((value: ListingPromotion) => Promise.resolve(value)),
     } as unknown as ListingPromotionRepo;
+
     const promotionRepository = {
       findById: jest
         .fn()
@@ -55,29 +65,64 @@ describe('ListingPromotionService', () => {
         ),
     } as unknown as PromotionRepo;
 
+    const providerContextResolver = {
+      resolve: jest.fn().mockResolvedValue(overrides?.context ?? context),
+    } as unknown as ProviderContextResolver;
+
+    const supplyAccessPolicy = {
+      requirePermission: jest.fn().mockResolvedValue(undefined),
+    } as unknown as ProviderSupplyAccessPolicy;
+
     return {
       service: new ListingPromotionService(
         listingRepository,
         listingPromotionRepository,
         promotionRepository,
+        providerContextResolver,
+        supplyAccessPolicy,
       ),
       listingRepository,
       listingPromotionRepository,
       promotionRepository,
+      providerContextResolver,
+      supplyAccessPolicy,
     };
   }
 
-  it('creates a Banner for a published listing and preserves relation and fields', async () => {
-    const { service, listingRepository, listingPromotionRepository } =
-      createService();
-
-    const result = await service.createListingPromotion(
-      listingId,
+  const createPromotion = (
+    service: ListingPromotionService,
+    selectedListingId = listingId,
+    selectedStartAt = startAt,
+    selectedEndAt = endAt,
+  ) =>
+    service.createListingPromotion(
+      customerId,
+      selectedListingId,
       promotionId,
-      startAt,
-      endAt,
+      selectedStartAt,
+      selectedEndAt,
+      providerId,
     );
 
+  it('creates a promotion for a published provider-owned listing', async () => {
+    const {
+      service,
+      listingRepository,
+      listingPromotionRepository,
+      providerContextResolver,
+      supplyAccessPolicy,
+    } = createService();
+
+    const result = await createPromotion(service);
+
+    expect(providerContextResolver.resolve).toHaveBeenCalledWith(
+      customerId,
+      providerId,
+    );
+    expect(supplyAccessPolicy.requirePermission).toHaveBeenCalledWith(
+      context,
+      'listing:publish',
+    );
     expect(listingRepository.findById).toHaveBeenCalledWith(listingId, true);
     expect(listingPromotionRepository.create).toHaveBeenCalledWith({
       listing,
@@ -88,40 +133,43 @@ describe('ListingPromotionService', () => {
       endAt,
     });
     expect(listingPromotionRepository.save).toHaveBeenCalledWith(result);
-    expect(result).toMatchObject({
-      listing,
-      listingId,
-      promotionId,
-      priceSnapshot: 600000,
-      startAt,
-      endAt,
-    });
   });
 
-  it.each([
-    ['listing does not exist', null],
-    ['listing is not public', null],
-  ])('rejects when %s', async (_description, listingValue) => {
+  it('rejects a listing owned by another provider', async () => {
     const { service, listingPromotionRepository } = createService({
-      listing: listingValue,
+      listing: {
+        ...listing,
+        providerId: 'another-provider-id',
+      },
     });
 
-    await expect(
-      service.createListingPromotion(listingId, promotionId, startAt, endAt),
-    ).rejects.toMatchObject({
+    await expect(createPromotion(service)).rejects.toMatchObject({
+      errorCode: CommonErrorCodes.FORBIDDEN.code,
+    });
+    expect(listingPromotionRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the listing is not public', async () => {
+    const { service, listingPromotionRepository } = createService({
+      listing: null,
+    });
+
+    await expect(createPromotion(service)).rejects.toMatchObject({
       errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
     });
     expect(listingPromotionRepository.create).not.toHaveBeenCalled();
   });
 
-  it('rejects an invalid time range', async () => {
-    const { service, listingRepository } = createService();
+  it('rejects an invalid time range before resolving provider context', async () => {
+    const { service, providerContextResolver, listingRepository } =
+      createService();
 
     await expect(
-      service.createListingPromotion(listingId, promotionId, endAt, startAt),
+      createPromotion(service, listingId, endAt, startAt),
     ).rejects.toMatchObject({
       errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
     });
+    expect(providerContextResolver.resolve).not.toHaveBeenCalled();
     expect(listingRepository.findById).not.toHaveBeenCalled();
   });
 
@@ -130,9 +178,7 @@ describe('ListingPromotionService', () => {
       overlap: { id: 'existing-promotion' } as ListingPromotion,
     });
 
-    await expect(
-      service.createListingPromotion(listingId, promotionId, startAt, endAt),
-    ).rejects.toMatchObject({
+    await expect(createPromotion(service)).rejects.toMatchObject({
       errorCode: CommonErrorCodes.RESOURCE_CONFLICT.code,
     });
     expect(listingPromotionRepository.create).not.toHaveBeenCalled();
@@ -144,57 +190,29 @@ describe('ListingPromotionService', () => {
     const adjacentEnd = new Date('2026-01-10T00:00:00.000Z');
 
     await expect(
-      service.createListingPromotion(
-        listingId,
-        promotionId,
-        adjacentStart,
-        adjacentEnd,
-      ),
-    ).resolves.toMatchObject({ startAt: adjacentStart, endAt: adjacentEnd });
+      createPromotion(service, listingId, adjacentStart, adjacentEnd),
+    ).resolves.toMatchObject({
+      startAt: adjacentStart,
+      endAt: adjacentEnd,
+    });
+
     expect(
       listingPromotionRepository.findOverlappingByListingAndPromotion,
     ).toHaveBeenCalledWith(listingId, promotionId, adjacentStart, adjacentEnd);
   });
 
-  it('allows a promotion belonging to another listing', async () => {
-    const { service, listingPromotionRepository } = createService();
-
-    await expect(
-      service.createListingPromotion(
-        'another-listing-id',
-        promotionId,
-        startAt,
-        endAt,
-      ),
-    ).resolves.toMatchObject({ listingId: 'another-listing-id' });
-    expect(
-      listingPromotionRepository.findOverlappingByListingAndPromotion,
-    ).toHaveBeenCalledWith('another-listing-id', promotionId, startAt, endAt);
-  });
-
   it('rejects unknown and inactive promotions', async () => {
     const unknown = createService({ promotion: null });
-    await expect(
-      unknown.service.createListingPromotion(
-        listingId,
-        promotionId,
-        startAt,
-        endAt,
-      ),
-    ).rejects.toMatchObject({
+
+    await expect(createPromotion(unknown.service)).rejects.toMatchObject({
       errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
     });
+
     const inactive = createService({
       promotion: { ...promotion, isActive: false },
     });
-    await expect(
-      inactive.service.createListingPromotion(
-        listingId,
-        promotionId,
-        startAt,
-        endAt,
-      ),
-    ).rejects.toMatchObject({
+
+    await expect(createPromotion(inactive.service)).rejects.toMatchObject({
       errorCode: CommonErrorCodes.RESOURCE_CONFLICT.code,
     });
   });
@@ -206,36 +224,29 @@ describe('ListingPromotionService', () => {
   ])('calculates %s hours as %s', async (hours, expectedPrice) => {
     const { service, listingPromotionRepository } = createService();
     const selectedEndAt = new Date(startAt.getTime() + hours * 60 * 60 * 1000);
-    await service.createListingPromotion(
-      listingId,
-      promotionId,
-      startAt,
-      selectedEndAt,
-    );
+
+    await createPromotion(service, listingId, startAt, selectedEndAt);
+
     expect(listingPromotionRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({ priceSnapshot: expectedPrice }),
     );
   });
 
-  it('uses the validated promotion id for a later booking', async () => {
+  it('uses the validated promotion id for the booking', async () => {
     const { service, listingPromotionRepository } = createService({
       promotion: { ...promotion, id: 'validated-id' },
     });
-    const laterStartAt = endAt;
-    const laterEndAt = new Date('2026-01-08T00:00:00.000Z');
-    await service.createListingPromotion(
-      listingId,
-      promotionId,
-      laterStartAt,
-      laterEndAt,
-    );
+
+    await createPromotion(service);
+
     expect(
       listingPromotionRepository.findOverlappingByListingAndPromotion,
-    ).toHaveBeenCalledWith(listingId, 'validated-id', laterStartAt, laterEndAt);
+    ).toHaveBeenCalledWith(listingId, 'validated-id', startAt, endAt);
     expect(listingPromotionRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({ promotionId: 'validated-id' }),
     );
   });
+
   it('rejects TEXT promotions', async () => {
     const { service, listingPromotionRepository } = createService({
       promotion: {
@@ -244,9 +255,8 @@ describe('ListingPromotionService', () => {
         textValue: 'copy',
       },
     });
-    await expect(
-      service.createListingPromotion(listingId, promotionId, startAt, endAt),
-    ).rejects.toMatchObject({
+
+    await expect(createPromotion(service)).rejects.toMatchObject({
       errorCode: CommonErrorCodes.RESOURCE_CONFLICT.code,
     });
     expect(listingPromotionRepository.create).not.toHaveBeenCalled();
@@ -256,27 +266,10 @@ describe('ListingPromotionService', () => {
     const { service, listingPromotionRepository } = createService({
       promotion: { ...promotion, moneyValue: null } as unknown as Promotion,
     });
-    await expect(
-      service.createListingPromotion(listingId, promotionId, startAt, endAt),
-    ).rejects.toMatchObject({
+
+    await expect(createPromotion(service)).rejects.toMatchObject({
       errorCode: CommonErrorCodes.RESOURCE_CONFLICT.code,
     });
     expect(listingPromotionRepository.create).not.toHaveBeenCalled();
-  });
-
-  it('calculates priceSnapshot for a valid MONEY promotion', async () => {
-    const { service, listingPromotionRepository } = createService({
-      promotion: { ...promotion, moneyValue: 100000 },
-    });
-    const selectedEndAt = new Date(startAt.getTime() + 30 * 60 * 60 * 1000);
-    await service.createListingPromotion(
-      listingId,
-      promotionId,
-      startAt,
-      selectedEndAt,
-    );
-    expect(listingPromotionRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ priceSnapshot: 125000 }),
-    );
   });
 });
