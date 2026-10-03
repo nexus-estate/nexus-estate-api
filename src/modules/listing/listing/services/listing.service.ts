@@ -14,12 +14,14 @@ import { ListingResponse } from '../dto/listing.response';
 import { Listing, ListingStatus } from '../entities';
 import { EstateStatus } from '../../../estate/property/types/estate.type';
 import { ListingRepo } from '../repositories/listing.repo';
+import { ListingProjectionRevisionRepo } from '../repositories/listing-projection-revision.repo';
 import { ListingErrorCodes } from '../errors/listing-error-codes';
 
 @Injectable()
 export class ListingService {
   constructor(
     private readonly listingRepository: ListingRepo,
+    private readonly listingProjectionRevisionRepository: ListingProjectionRevisionRepo,
     private readonly estateRepository: EstateRepo,
     private readonly providerContextResolver: ProviderContextResolver,
     private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
@@ -32,33 +34,42 @@ export class ListingService {
   ): Promise<ListingResponse> {
     const context = await this.requireProviderContext(customerId, providerId);
     await this.supplyAccessPolicy.requirePermission(context, 'listing:create');
-    const estate = await this.estateRepository.findById(dto.estateId);
-    if (!estate)
+    const created = await this.estateRepository.withLockedEstate(
+      dto.estateId,
+      async (estate, manager) => {
+        if (estate.status === EstateStatus.ARCHIVED) {
+          throw new BusinessException(
+            ListingErrorCodes.LISTING_PROPERTY_ARCHIVED,
+            estate.id,
+          );
+        }
+        this.assertEstateOwnership(estate, context.providerId);
+        if (await this.listingRepository.findByEstateId(estate.id, manager)) {
+          throw new BusinessException(
+            CommonErrorCodes.RESOURCE_CONFLICT,
+            estate.id,
+          );
+        }
+        const listing = this.listingRepository.create({
+          estateId: estate.id,
+          estate,
+          providerId: context.providerId,
+          status: ListingStatus.DRAFT,
+          projectionRevision: '1',
+          publishedAt: null,
+        });
+        return this.toResponse(
+          await this.listingRepository.save(listing, manager),
+        );
+      },
+    );
+    if (!created) {
       throw new BusinessException(
         CommonErrorCodes.RESOURCE_NOT_FOUND,
         dto.estateId,
       );
-    if (estate.status === EstateStatus.ARCHIVED) {
-      throw new BusinessException(
-        ListingErrorCodes.LISTING_PROPERTY_ARCHIVED,
-        estate.id,
-      );
     }
-    this.assertEstateOwnership(estate, context.providerId);
-    if (await this.listingRepository.findByEstateId(dto.estateId)) {
-      throw new BusinessException(
-        CommonErrorCodes.RESOURCE_CONFLICT,
-        dto.estateId,
-      );
-    }
-    const listing = this.listingRepository.create({
-      estateId: estate.id,
-      estate,
-      providerId: context.providerId,
-      status: ListingStatus.DRAFT,
-      publishedAt: null,
-    });
-    return this.toResponse(await this.listingRepository.save(listing));
+    return created;
   }
 
   async findMine(
@@ -147,9 +158,19 @@ export class ListingService {
         }
         currentListing.status = ListingStatus.PUBLISHED;
         currentListing.publishedAt = currentListing.publishedAt ?? new Date();
-        return this.toResponse(
-          await this.listingRepository.save(currentListing, manager),
+        const saved = await this.listingRepository.save(
+          currentListing,
+          manager,
         );
+        const revision =
+          await this.listingProjectionRevisionRepository.incrementProjectionRevision(
+            id,
+            manager,
+          );
+        if (revision === null) {
+          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+        }
+        return this.toResponse(saved);
       },
     );
     if (!published) {
@@ -172,9 +193,53 @@ export class ListingService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'listing:archive');
-    this.assertTransition(listing.status, ListingStatus.ARCHIVED);
-    listing.status = ListingStatus.ARCHIVED;
-    return this.toResponse(await this.listingRepository.save(listing));
+    const archived = await this.estateRepository.withLockedEstate(
+      listing.estateId,
+      async (estate, manager) => {
+        if (estate.providerId !== context.providerId) {
+          throw new BusinessException(
+            CommonErrorCodes.FORBIDDEN,
+            context.providerId,
+          );
+        }
+        const currentListing = await this.listingRepository.findById(
+          id,
+          false,
+          manager,
+        );
+        if (!currentListing) {
+          throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND, id);
+        }
+        if (currentListing.providerId !== context.providerId) {
+          throw new BusinessException(
+            CommonErrorCodes.FORBIDDEN,
+            context.providerId,
+          );
+        }
+        this.assertTransition(currentListing.status, ListingStatus.ARCHIVED);
+        currentListing.status = ListingStatus.ARCHIVED;
+        const saved = await this.listingRepository.save(
+          currentListing,
+          manager,
+        );
+        const revision =
+          await this.listingProjectionRevisionRepository.incrementProjectionRevision(
+            id,
+            manager,
+          );
+        if (revision === null) {
+          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+        }
+        return this.toResponse(saved);
+      },
+    );
+    if (!archived) {
+      throw new BusinessException(
+        CommonErrorCodes.RESOURCE_NOT_FOUND,
+        listing.estateId,
+      );
+    }
+    return archived;
   }
 
   private assertTransition(

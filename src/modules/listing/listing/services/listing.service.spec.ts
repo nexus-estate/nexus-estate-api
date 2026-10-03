@@ -11,6 +11,7 @@ import {
 import { CreateListingDto } from '../dto/create-listing.dto';
 import { Listing, ListingStatus } from '../entities';
 import { ListingRepo } from '../repositories/listing.repo';
+import { ListingProjectionRevisionRepo } from '../repositories/listing-projection-revision.repo';
 import { ListingService } from './listing.service';
 import { EstateStatus } from '../../../estate/property/types/estate.type';
 import type { EntityManager } from 'typeorm';
@@ -75,6 +76,10 @@ describe('ListingService', () => {
           ) => callback(estate as Estate, {} as EntityManager),
         ),
     } as unknown as EstateRepo;
+    const listingProjectionRevisionRepository = {
+      incrementProjectionRevision: jest.fn().mockResolvedValue('2'),
+      incrementProjectionRevisionByEstateId: jest.fn().mockResolvedValue('2'),
+    } as unknown as ListingProjectionRevisionRepo;
     const providerContextResolver = {
       resolve: jest.fn().mockResolvedValue({
         customerId,
@@ -93,6 +98,7 @@ describe('ListingService', () => {
     } as unknown as ProviderSupplyAccessPolicy;
     return new ListingService(
       listingRepository,
+      listingProjectionRevisionRepository,
       estateRepository,
       providerContextResolver,
       supplyAccessPolicy,
@@ -129,6 +135,12 @@ describe('ListingService', () => {
       status: ListingStatus.DRAFT,
       estate: { id: estateId, title: 'Estate' },
     });
+    const repository = (
+      service as unknown as { listingRepository: { create: jest.Mock } }
+    ).listingRepository;
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ projectionRevision: '1' }),
+    );
   });
 
   it('requires only listing:create for eligible property lookup', async () => {

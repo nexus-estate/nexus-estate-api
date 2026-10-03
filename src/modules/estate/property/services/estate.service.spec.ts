@@ -14,6 +14,7 @@ import { EstatePurpose, EstateType } from '../types/estate.type';
 import { EstateStatus } from '../types/estate.type';
 import { EstateErrorCodes } from '../errors/estate-error-codes';
 import { EstateService } from './estate.service';
+import { ListingProjectionRevisionRepo } from '../../../listing/listing/repositories/listing-projection-revision.repo';
 import {
   ProviderContextResolver,
   type ProviderContext,
@@ -37,6 +38,10 @@ type EstateRepoMock = {
   hasPublishedListing: jest.MockedFunction<EstateRepo['hasPublishedListing']>;
   transitionStatus: jest.MockedFunction<EstateRepo['transitionStatus']>;
   withLockedEstate: jest.MockedFunction<EstateRepo['withLockedEstate']>;
+};
+
+type ListingProjectionRevisionRepoMock = {
+  incrementProjectionRevisionByEstateId: jest.Mock;
 };
 
 type ProvinceRepoMock = {
@@ -67,6 +72,7 @@ describe('EstateService', () => {
   let wardRepository: WardRepositoryMock;
   let providerContextResolver: ProviderContextResolverMock;
   let supplyAccessPolicy: ProviderSupplyAccessPolicyMock;
+  let listingProjectionRevisionRepository: ListingProjectionRevisionRepoMock;
 
   const customerId = '10000000-0000-4000-8000-000000000001';
   const otherCustomerId = '10000000-0000-4000-8000-000000000002';
@@ -126,6 +132,9 @@ describe('EstateService', () => {
         return callback(locked, {} as EntityManager);
       },
     );
+    listingProjectionRevisionRepository = {
+      incrementProjectionRevisionByEstateId: jest.fn().mockResolvedValue('2'),
+    };
     provinceRepository = { findById: jest.fn() };
     wardRepository = { findById: jest.fn() };
     const context: ProviderContext = {
@@ -152,6 +161,7 @@ describe('EstateService', () => {
       wardRepository as unknown as WardRepository,
       providerContextResolver as unknown as ProviderContextResolver,
       supplyAccessPolicy as unknown as ProviderSupplyAccessPolicy,
+      listingProjectionRevisionRepository as unknown as ListingProjectionRevisionRepo,
     );
   });
 
@@ -345,7 +355,11 @@ describe('EstateService', () => {
       expect(estateRepository.updateEstate).toHaveBeenCalledWith(
         estateId,
         expect.anything(),
+        expect.anything(),
       );
+      expect(
+        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
+      ).toHaveBeenCalledTimes(1);
     });
 
     it('throws FORBIDDEN for another provider without updating', async () => {
@@ -379,7 +393,14 @@ describe('EstateService', () => {
 
       expect(provinceRepository.findById).toHaveBeenCalledWith(newProvinceId);
       expect(wardRepository.findById).toHaveBeenCalledWith(newWardId);
-      expect(estateRepository.updateEstate).toHaveBeenCalledWith(estateId, dto);
+      expect(estateRepository.updateEstate).toHaveBeenCalledWith(
+        estateId,
+        dto,
+        expect.anything(),
+      );
+      expect(
+        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
+      ).toHaveBeenCalledWith(estateId, expect.anything());
     });
 
     it('combines a changed ward with the existing province for validation', async () => {
@@ -466,22 +487,16 @@ describe('EstateService', () => {
             command as 'activateEstate' | 'archiveEstate' | 'restoreEstate'
           ](customerId, estateId),
         ).resolves.toMatchObject({ status: target });
-        if (command === 'archiveEstate') {
-          expect(estateRepository.transitionStatus).toHaveBeenCalledWith(
-            estateId,
-            providerId,
-            from,
-            target,
-            expect.anything(),
-          );
-        } else {
-          expect(estateRepository.transitionStatus).toHaveBeenCalledWith(
-            estateId,
-            providerId,
-            from,
-            target,
-          );
-        }
+        expect(estateRepository.transitionStatus).toHaveBeenCalledWith(
+          estateId,
+          providerId,
+          from,
+          target,
+          expect.anything(),
+        );
+        expect(
+          listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
+        ).toHaveBeenCalledWith(estateId, expect.anything());
       },
     );
 
@@ -542,20 +557,18 @@ describe('EstateService', () => {
       expect(estateRepository.transitionStatus).not.toHaveBeenCalled();
     });
 
-    it('turns a lost compare-and-set into a stable invalid-transition error', async () => {
-      estateRepository.findById
-        .mockResolvedValueOnce(lifecycleEstate)
-        .mockResolvedValueOnce({
-          ...lifecycleEstate,
-          status: EstateStatus.ACTIVE,
-        });
+    it('rolls back when a locked status write fails', async () => {
+      estateRepository.findById.mockResolvedValue(lifecycleEstate);
       estateRepository.transitionStatus.mockResolvedValue(false);
 
       await expect(
         service.activateEstate(customerId, estateId),
       ).rejects.toMatchObject({
-        errorCode: EstateErrorCodes.PROPERTY_INVALID_STATUS_TRANSITION.code,
+        errorCode: CommonErrorCodes.DATABASE_ERROR.code,
       });
+      expect(
+        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -607,6 +620,9 @@ describe('EstateService', () => {
         estateId,
         expect.anything(),
       );
+      expect(
+        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
+      ).toHaveBeenCalledWith(estateId, expect.anything());
     });
 
     it('rejects archiving a property with a published listing', async () => {

@@ -6,9 +6,15 @@ import { EstateRepo } from './property/repositories/estate.repo';
 import { EstateService } from './property/services/estate.service';
 import { ProviderModule } from '../provider/provider.module';
 import { LocationModule } from '../location/location.module';
+import { ListingModule } from '../listing/listing.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Estate]), ProviderModule, LocationModule],
+  imports: [
+    TypeOrmModule.forFeature([Estate]),
+    ProviderModule,
+    LocationModule,
+    ListingModule,
+  ],
   controllers: [EstateController],
   providers: [EstateRepo, EstateService],
 })

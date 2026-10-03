@@ -169,6 +169,19 @@ describe('Estate API (e2e)', () => {
     return (response.body as ApiSuccess<EstateResponse>).data;
   };
 
+  const getListingRevision = async (listingId: string): Promise<string> => {
+    const listing = await dataSource
+      .getRepository(Listing)
+      .findOneByOrFail({ id: listingId });
+    return listing.projectionRevision;
+  };
+
+  const expectNoProjectionRevision = (response: { body: unknown }): void => {
+    const data = (response.body as ApiSuccess<Record<string, unknown>>).data;
+    expect(data).not.toHaveProperty('projectionRevision');
+    expect(data).not.toHaveProperty('projection_revision');
+  };
+
   const revokeOwnerPermission = async (code: string): Promise<void> => {
     await dataSource.query(
       `DELETE FROM tbl_provider_role_permission mapping
@@ -529,6 +542,32 @@ describe('Estate API (e2e)', () => {
     ).toBe(false);
   });
 
+  it('bumps the listing revision once for each concurrent committed estate update', async () => {
+    const estate = await createEstate();
+    const listingResponse = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: estate.id })
+      .expect(201);
+    const listingId = (listingResponse.body as ApiSuccess<{ id: string }>).data
+      .id;
+    await expect(getListingRevision(listingId)).resolves.toBe('1');
+
+    const responses = await Promise.all([
+      request(app.getHttpServer())
+        .patch(`/api/v1/estates/${estate.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ title: 'Concurrent update A' }),
+      request(app.getHttpServer())
+        .patch(`/api/v1/estates/${estate.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ description: 'Concurrent update B' }),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    await expect(getListingRevision(listingId)).resolves.toBe('3');
+  });
+
   it('serializes concurrent property DELETE and listing publish commands', async () => {
     const estate = await createEstate();
     await request(app.getHttpServer())
@@ -821,6 +860,7 @@ describe('Estate API (e2e)', () => {
     });
     expectLocationHydrated(body.data);
     expectNoLegacyOwnershipLeakage(body.data);
+    await expect(dataSource.getRepository(Listing).count()).resolves.toBe(0);
   });
 
   it('does not make property:update depend on property:read', async () => {
@@ -854,6 +894,13 @@ describe('Estate API (e2e)', () => {
 
   it('forbids another provider from updating an estate', async () => {
     const created = await createEstate();
+    const listingResponse = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: created.id })
+      .expect(201);
+    const listingId = (listingResponse.body as ApiSuccess<{ id: string }>).data
+      .id;
 
     const response = await request(app.getHttpServer())
       .patch(`/api/v1/estates/${created.id}`)
@@ -863,6 +910,7 @@ describe('Estate API (e2e)', () => {
     const body = response.body as ApiError;
 
     expect(body.code).toBe(CommonErrorCodes.FORBIDDEN.code);
+    await expect(getListingRevision(listingId)).resolves.toBe('1');
   });
 
   it('does not allow a verified provider to update another customer estate', async () => {
@@ -1021,11 +1069,24 @@ describe('Estate API (e2e)', () => {
       estateId: estate.id,
       status: 'DRAFT',
     });
+    expectNoProjectionRevision(draftResponse);
+    await expect(getListingRevision(draft.id)).resolves.toBe('1');
+
+    const mineResponse = await request(app.getHttpServer())
+      .get('/api/v1/listings/mine')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const mineListings = (
+      mineResponse.body as ApiSuccess<Array<Record<string, unknown>>>
+    ).data;
+    expect(mineListings[0]).not.toHaveProperty('projectionRevision');
+    expect(mineListings[0]).not.toHaveProperty('projection_revision');
 
     await request(app.getHttpServer())
       .post(`/api/v1/listings/${draft.id}/archive`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(409);
+    await expect(getListingRevision(draft.id)).resolves.toBe('1');
 
     const draftPublishResponse = await request(app.getHttpServer())
       .post(`/api/v1/listings/${draft.id}/publish`)
@@ -1034,11 +1095,14 @@ describe('Estate API (e2e)', () => {
     expect((draftPublishResponse.body as ApiError).code).toBe(
       'LISTING_PROPERTY_NOT_ACTIVE',
     );
+    await expect(getListingRevision(draft.id)).resolves.toBe('1');
 
-    await request(app.getHttpServer())
+    const activatedResponse = await request(app.getHttpServer())
       .post(`/api/v1/estates/${estate.id}/activate`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(200);
+    expectNoProjectionRevision(activatedResponse);
+    await expect(getListingRevision(draft.id)).resolves.toBe('2');
 
     const publishedResponse = await request(app.getHttpServer())
       .post(`/api/v1/listings/${draft.id}/publish`)
@@ -1047,6 +1111,23 @@ describe('Estate API (e2e)', () => {
     expect(
       (publishedResponse.body as ApiSuccess<{ status: string }>).data.status,
     ).toBe('PUBLISHED');
+    expectNoProjectionRevision(publishedResponse);
+    await expect(getListingRevision(draft.id)).resolves.toBe('3');
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${estate.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ provinceId: '70000000-0000-4000-8000-000000000001' })
+      .expect(404);
+    await expect(getListingRevision(draft.id)).resolves.toBe('3');
+
+    const updatedEstateResponse = await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${estate.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ title: 'Updated after publish' })
+      .expect(200);
+    expectNoProjectionRevision(updatedEstateResponse);
+    await expect(getListingRevision(draft.id)).resolves.toBe('4');
 
     const archivePropertyResponse = await request(app.getHttpServer())
       .post(`/api/v1/estates/${estate.id}/archive`)
@@ -1055,11 +1136,13 @@ describe('Estate API (e2e)', () => {
     expect((archivePropertyResponse.body as ApiError).code).toBe(
       'PROPERTY_PUBLISHED_LISTING_CONFLICT',
     );
+    await expect(getListingRevision(draft.id)).resolves.toBe('4');
 
     await request(app.getHttpServer())
       .delete(`/api/v1/estates/${estate.id}`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(409);
+    await expect(getListingRevision(draft.id)).resolves.toBe('4');
 
     await request(app.getHttpServer())
       .post(`/api/v1/listings/${draft.id}/publish`)
@@ -1078,12 +1161,14 @@ describe('Estate API (e2e)', () => {
       expect.objectContaining({ id: draft.id, estateId: estate.id }),
     ]);
 
-    await request(app.getHttpServer())
+    const publicListingResponse = await request(app.getHttpServer())
       .get(`/api/v1/listings/${draft.id}`)
       .expect(200);
-    await request(app.getHttpServer())
+    expectNoProjectionRevision(publicListingResponse);
+    const estateDetailResponse = await request(app.getHttpServer())
       .get(`/api/v1/estates/${estate.id}`)
       .expect(200);
+    expectNoProjectionRevision(estateDetailResponse);
 
     const leadResponse = await request(app.getHttpServer())
       .post(`/api/v1/listings/${draft.id}/leads`)
@@ -1106,6 +1191,7 @@ describe('Estate API (e2e)', () => {
     expect(
       (archivedResponse.body as ApiSuccess<{ status: string }>).data.status,
     ).toBe('ARCHIVED');
+    await expect(getListingRevision(draft.id)).resolves.toBe('5');
     await request(app.getHttpServer())
       .get(`/api/v1/listings/${draft.id}`)
       .expect(404);
@@ -1122,6 +1208,7 @@ describe('Estate API (e2e)', () => {
       .post(`/api/v1/estates/${estate.id}/archive`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(200);
+    await expect(getListingRevision(draft.id)).resolves.toBe('6');
     await request(app.getHttpServer())
       .get(`/api/v1/estates/${estate.id}`)
       .expect(404);
@@ -1130,6 +1217,7 @@ describe('Estate API (e2e)', () => {
       .post(`/api/v1/estates/${estate.id}/restore`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(200);
+    await expect(getListingRevision(draft.id)).resolves.toBe('7');
     await request(app.getHttpServer())
       .get(`/api/v1/estates/${estate.id}`)
       .expect(404);
@@ -1138,6 +1226,7 @@ describe('Estate API (e2e)', () => {
       .post(`/api/v1/estates/${estate.id}/activate`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(200);
+    await expect(getListingRevision(draft.id)).resolves.toBe('8');
     await request(app.getHttpServer())
       .get(`/api/v1/estates/${estate.id}`)
       .expect(200);
@@ -1146,6 +1235,7 @@ describe('Estate API (e2e)', () => {
       .delete(`/api/v1/estates/${estate.id}`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(200);
+    await expect(getListingRevision(draft.id)).resolves.toBe('9');
     const mineAfterArchive = await request(app.getHttpServer())
       .get('/api/v1/estates/mine')
       .set('Authorization', `Bearer ${ownerToken}`)
