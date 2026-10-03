@@ -8,11 +8,11 @@ revisions from timestamps, broker offsets, local counters, random IDs, or its
 own clock.
 
 This document freezes the v1 envelope and the listing-scoped revision rules.
-This change does not publish or deliver events. There is no broker producer,
-outbox table, dispatcher, Engine consumer, snapshot endpoint, or reindex
-endpoint yet. `API-EVENT-02 Transactional Outbox` must insert each event in the
-same database transaction as the business mutation and revision increment,
-using the revision returned by the atomic increment.
+`API-EVENT-02` now persists Marketplace Listing envelopes in PostgreSQL in the
+same transaction as each supported business mutation and revision increment.
+There is still no broker publisher/dispatcher, Engine consumer, snapshot
+endpoint, or reindex endpoint, so persisted events are not delivered yet. See
+[`docs/outbox-contract.md`](outbox-contract.md) for storage and payload details.
 
 ## Envelope
 
@@ -153,10 +153,11 @@ source mutation with no Listing produces no Marketplace Listing event.
 | Media changed and affects Listing | `listing.search_projection_changed.v1` | `listing` | `listing.id` | `listing.projection_revision` |
 | Property changed without Listing | No Marketplace Listing event | n/a | n/a | n/a |
 
-This matrix freezes aggregate and revision ownership, not producer behavior or
-payload shape. Listing creation event naming remains a future contract
-decision. Listing restore is not implemented by this PR; the row documents the
-expected aggregate/revision ownership if that lifecycle command is added.
+The producer matrix for implemented Listing and Estate commands is frozen in
+[`docs/outbox-contract.md`](outbox-contract.md). Listing creation emits
+`listing.search_projection_changed.v1` at revision `1` with a tombstone because
+the new Listing starts in DRAFT. Listing restore remains unimplemented; the row
+documents the expected aggregate/revision ownership if that command is added.
 
 ## Ordering, retry, and rebuild assumptions
 
@@ -191,9 +192,11 @@ snapshot/rebuild flow; timestamps and broker offsets cannot fill that role.
 future outbox. Redelivery must retain the original event ID, aggregate
 identity, revision, and payload. `traceId` is observability metadata only.
 
-Until the outbox and producer are implemented, no event delivery or
-event-driven indexing exists. This PR establishes the source ordering contract
-only.
+The API persists the event ID, revision, payload, and occurred-at value before
+the source transaction commits. No event delivery or event-driven indexing
+exists until a publisher and Engine consumer are implemented. A future
+publisher transports persisted rows unchanged and does not regenerate these
+fields.
 
 ## Local Docker verification
 
@@ -229,9 +232,12 @@ curl -fsS http://localhost:50001/health/ready
 Inspect the persisted contract with:
 
 ```bash
-docker compose exec postgres psql -U postgres -d nexus_estate_dev \
+docker compose exec postgres psql -U postgres -d nexus_estate \
   -c "SELECT id, fk_estate_id, status, projection_revision, updated_at FROM tbl_listing ORDER BY created_at DESC"
 ```
+
+Replace `nexus_estate` with the database configured by `DB_POSTGRES_NAME` in
+the local `.env` when it differs.
 
 `projection_revision` should advance once after each committed source mutation
 for a live Listing. Rejected requests leave it unchanged. The revision-only
