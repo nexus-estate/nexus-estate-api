@@ -9,6 +9,7 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 import { Estate } from '../../src/modules/estate/property/entities';
+import { Listing } from '../../src/modules/listing/listing/entities';
 import { EstateModule } from '../../src/modules/estate/estate.module';
 import { EstateRepo } from '../../src/modules/estate/property/repositories/estate.repo';
 import {
@@ -89,6 +90,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
           database: container.getDatabase(),
           entities: [
             Estate,
+            Listing,
             CustomerAccount,
             ProviderAccount,
             Role,
@@ -110,7 +112,7 @@ describe('EstateRepo (PostgreSQL integration)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE',
+      'TRUNCATE TABLE tbl_listing, tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_ward, tbl_province CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({

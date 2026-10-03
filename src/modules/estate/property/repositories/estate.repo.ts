@@ -113,6 +113,7 @@ export class EstateRepo extends BaseRepository<Estate> {
   async updateEstate(
     id: string,
     data: UpdateEstateDto,
+    manager: EntityManager = this.repository.manager,
   ): Promise<Estate | null> {
     const {
       title,
@@ -130,7 +131,8 @@ export class EstateRepo extends BaseRepository<Estate> {
       latitude,
       longitude,
     } = data;
-    const estate = await this.repository.preload({
+    const repository = manager.getRepository(Estate);
+    const estate = await repository.preload({
       id,
       title,
       description,
@@ -150,8 +152,8 @@ export class EstateRepo extends BaseRepository<Estate> {
     if (!estate) {
       return null;
     }
-    await this.repository.save(estate);
-    return this.requireHydratedEstate(id);
+    await repository.save(estate);
+    return this.requireHydratedEstate(id, manager);
   }
 
   /**
@@ -160,8 +162,11 @@ export class EstateRepo extends BaseRepository<Estate> {
    * only mean the row was removed concurrently — fail loudly instead of
    * returning a response that silently violates the wire contract.
    */
-  private async requireHydratedEstate(id: string): Promise<Estate> {
-    const hydrated = await this.findById(id);
+  private async requireHydratedEstate(
+    id: string,
+    manager: EntityManager = this.repository.manager,
+  ): Promise<Estate> {
+    const hydrated = await this.findById(id, manager);
     if (!hydrated) {
       throw new Error(
         `Estate ${id} disappeared after persistence; cannot hydrate the response contract.`,
