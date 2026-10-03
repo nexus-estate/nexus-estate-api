@@ -33,7 +33,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U test"
+          --health-cmd="pg_isready -U test -d nexus_estate_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -77,7 +77,7 @@ jobs:
       - name: Unit tests
         run: npm test -- --no-coverage
 
-      - name: Integration tests
+      - name: PostgreSQL integration and E2E tests
         run: npm run test:e2e -- --no-coverage
 
       - name: Check migration timestamp identities
