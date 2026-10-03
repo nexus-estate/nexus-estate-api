@@ -7,6 +7,7 @@ export interface EventEnvelope<TPayload> {
   eventType: string;
   aggregateType: string;
   aggregateId: string;
+  /** Monotonic within the exact (aggregateType, aggregateId) stream. */
   revision: string;
   occurredAt: string;
   traceId: string | null;

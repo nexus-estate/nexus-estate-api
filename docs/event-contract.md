@@ -33,15 +33,14 @@ interface EventEnvelope<TPayload> {
 
 - `eventId` is a UUID. A retry or redelivery keeps the same ID; a producer
   creates and persists it with the event.
-- `eventType` names the payload schema and its compatible major version.
-- `aggregateType` is a stable lowercase logical name. Marketplace listing
-  events use `listing`.
-- `aggregateId` identifies the projection stream. Marketplace listing events
-  use the Listing UUID, not the Estate UUID.
+- `eventType` describes the event meaning and payload schema version.
+- `aggregateType` is a stable lowercase logical name.
+- `aggregateId` identifies one aggregate instance.
 - `revision` is a positive decimal string within PostgreSQL signed int64:
   `1` through `9223372036854775807`. TypeScript and wire representations stay
   strings; consumers compare their integer values without converting to
-  JavaScript `number`.
+  JavaScript `number`. It is monotonic within the exact aggregate stream
+  identified by `(aggregateType, aggregateId)`.
 - `occurredAt` is UTC ISO-8601 metadata. It is not an ordering signal.
 - `traceId` is nullable propagation metadata. It does not affect ordering,
   idempotency, or payload identity.
@@ -51,12 +50,18 @@ interface EventEnvelope<TPayload> {
 The TypeScript validator rejects invalid fields without normalizing them. The
 contract types and validators live in `src/common/events/`.
 
+`eventType` and aggregate identity are related but distinct: `eventType`
+describes event meaning/schema, while `(aggregateType, aggregateId)` selects
+the revision stream. A revision value must come from that exact aggregate's
+source revision.
+
 ## Event type versioning
 
 Use `<domain>.<action>.v<major>` with lowercase domain and action names. An
 action may use snake case. Examples:
 
 ```text
+listing.search_projection_changed.v1
 listing.published.v1
 listing.updated.v1
 listing.archived.v1
@@ -72,13 +77,24 @@ media.deleted.v1
 Do not omit the version or silently change a payload incompatibly under the
 same event type. A breaking payload change gets a new major version.
 
+The generic examples `property.updated.v1` and `media.updated.v1` only describe
+possible independent domain events. If implemented as ordered aggregate events,
+they must use the Property or Media aggregate's own revision stream (or define
+a separate ordering contract). They must not reuse
+`listing.projection_revision`. Until a corresponding source revision exists,
+these examples do not claim ordered aggregate-event semantics.
+
 ## Listing projection revision
 
 `tbl_listing.projection_revision` is the persisted PostgreSQL `bigint` source
-revision for the Marketplace projection. Each non-deleted Listing has its own
-independent monotonic stream. Existing Listings start at baseline revision `1`
-after migration, and newly created Listings start at `1`. Historical values
-are not reconstructed from timestamps or lifecycle history.
+revision for the Marketplace Listing aggregate stream. Each non-deleted Listing
+has its own independent monotonic stream. Existing Listings start at baseline
+revision `1` after migration, and newly created Listings start at `1`.
+Historical values are not reconstructed from timestamps or lifecycle history.
+
+`listing.projection_revision` may be serialized as `EventEnvelope.revision`
+only when `aggregateType = listing` and `aggregateId = listing.id`. It cannot
+order an event whose aggregate is Property, Media, or another entity.
 
 Increments use one atomic PostgreSQL update in the caller's transaction. The
 increment does not change `Listing.updatedAt`. A successful logical mutation
@@ -104,16 +120,76 @@ one Listing receive distinct consecutive revisions. Archiving or deleting an
 Estate while a published Listing blocks the command leaves both state and
 revision unchanged.
 
+## Marketplace Listing event ownership
+
+Marketplace indexing is a Listing projection. An event that tells Engine to
+rebuild or apply a Marketplace Listing document therefore belongs to the
+Listing aggregate stream, even when the source mutation was made to Estate,
+Property, Media, location-derived data, or future Provider display data.
+
+The canonical derived projection-change event is
+`listing.search_projection_changed.v1`. Its aggregate identity and revision
+source are always:
+
+```text
+aggregateType = listing
+aggregateId   = listing.id
+revision      = listing.projection_revision
+```
+
+For example, a Property update with an existing Listing may increment that
+Listing's source revision and later produce a Listing-scoped projection event.
+It is not a generic `property.updated.v1` event carrying a Listing revision. A
+source mutation with no Listing produces no Marketplace Listing event.
+
+| Source mutation | Event type | Aggregate type | Aggregate ID | Revision source |
+| --- | --- | --- | --- | --- |
+| Listing created | Future contract decision | `listing` | `listing.id` | `listing.projection_revision` |
+| Listing published | `listing.published.v1` | `listing` | `listing.id` | `listing.projection_revision` |
+| Listing archived | `listing.archived.v1` | `listing` | `listing.id` | `listing.projection_revision` |
+| Listing restored | `listing.restored.v1` | `listing` | `listing.id` | `listing.projection_revision` |
+| Property updated and Listing exists | `listing.search_projection_changed.v1` | `listing` | `listing.id` | `listing.projection_revision` |
+| Property lifecycle changed and Listing exists | `listing.search_projection_changed.v1` | `listing` | `listing.id` | `listing.projection_revision` |
+| Media changed and affects Listing | `listing.search_projection_changed.v1` | `listing` | `listing.id` | `listing.projection_revision` |
+| Property changed without Listing | No Marketplace Listing event | n/a | n/a | n/a |
+
+This matrix freezes aggregate and revision ownership, not producer behavior or
+payload shape. Listing creation event naming remains a future contract
+decision. Listing restore is not implemented by this PR; the row documents the
+expected aggregate/revision ownership if that lifecycle command is added.
+
 ## Ordering, retry, and rebuild assumptions
 
-Consumers order events only within the same aggregate stream by `revision`.
-They ignore an event whose revision is not newer than the projection's
-revision. Revision gaps can be detected and retried or repaired by a future
+Consumers compare revisions only within the same
+`(aggregateType, aggregateId)` stream. For an incoming event and the stored
+projection revision, the canonical result is:
+
+| Incoming revision | Payload identity | Result |
+| --- | --- | --- |
+| Greater than current | Any | `APPLY` |
+| Equal to current | Same logical canonical payload | `NOOP` |
+| Less than current | Any | `REJECT_STALE` |
+| Equal to current | Different logical canonical payload | `REVISION_CONFLICT` |
+
+`NOOP` is a valid duplicate delivery: the consumer must not mutate the
+projection or treat the event as a new revision. Same revision alone does not
+prove duplication. Same revision with a different logical canonical payload
+is a contract violation and must not be silently ignored. A future Engine
+consumer must detect and report this condition through logging/metrics and
+quarantine, DLQ, or other conflict handling. That operational handling is not
+implemented here.
+
+This contract defines payload identity semantically as the same or different
+logical canonical payload. A future Engine implementation may use a
+deterministic canonical payload hash, but the hash algorithm and serialization
+canonicalization are not frozen by API-EVENT-01.
+
+Revision gaps may be detected and retried or repaired by a future
 snapshot/rebuild flow; timestamps and broker offsets cannot fill that role.
 
-`eventId` supports duplicate detection when persisted by the future outbox.
-Redelivery must retain the original event ID, aggregate identity, revision, and
-payload. `traceId` is observability metadata only.
+`eventId` supports delivery-level duplicate detection when persisted by the
+future outbox. Redelivery must retain the original event ID, aggregate
+identity, revision, and payload. `traceId` is observability metadata only.
 
 Until the outbox and producer are implemented, no event delivery or
 event-driven indexing exists. This PR establishes the source ordering contract

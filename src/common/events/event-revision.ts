@@ -13,7 +13,10 @@ export function assertEventRevision(value: unknown): asserts value is string {
   }
 }
 
-/** Compares revision strings exactly without passing through JavaScript Number. */
+/**
+ * Compares integer revisions exactly without passing through JavaScript Number.
+ * Callers must compare values from the same (aggregateType, aggregateId) stream.
+ */
 export function compareEventRevision(left: string, right: string): -1 | 0 | 1 {
   assertEventRevision(left);
   assertEventRevision(right);
