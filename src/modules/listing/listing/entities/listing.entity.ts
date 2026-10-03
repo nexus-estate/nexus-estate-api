@@ -34,6 +34,15 @@ export class Listing extends BaseEntity {
   @Column({ type: 'enum', enum: ListingStatus, default: ListingStatus.DRAFT })
   status: ListingStatus;
 
+  /** PostgreSQL int64 source revision for the Marketplace listing projection. */
+  @Column({
+    name: 'projection_revision',
+    type: 'bigint',
+    nullable: false,
+    default: 1,
+  })
+  projectionRevision: string;
+
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt: Date | null;
 }

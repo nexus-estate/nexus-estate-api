@@ -34,8 +34,11 @@ export class ListingRepo {
     return query.getOne();
   }
 
-  findByEstateId(estateId: string): Promise<Listing | null> {
-    return this.baseQuery()
+  findByEstateId(
+    estateId: string,
+    manager: EntityManager = this.repository.manager,
+  ): Promise<Listing | null> {
+    return this.baseQuery(manager)
       .andWhere('listing.estateId = :estateId', { estateId })
       .andWhere('listing.deletedAt IS NULL')
       .getOne();

@@ -18,16 +18,17 @@ sequence number.
 
 The current ownership layout is:
 
-| Owner | Migration directory |
-| --- | --- |
-| Customer account | `src/modules/customer/account/migrations/` |
-| Administration authentication | `src/modules/administration/authentication/migrations/` |
-| Administration authorization | `src/modules/administration/authorization/migrations/` |
-| RBAC compatibility | `src/modules/rbac/legacy-global/migrations/` |
-| Estate property | `src/modules/estate/property/migrations/` |
-| Location | `src/modules/location/administrative-division/migrations/` |
-| Media asset | `src/modules/media/asset/migrations/` |
-| Provider account | `src/modules/provider/account/migrations/` |
+| Owner                         | Migration directory                                        |
+| ----------------------------- | ---------------------------------------------------------- |
+| Customer account              | `src/modules/customer/account/migrations/`                 |
+| Administration authentication | `src/modules/administration/authentication/migrations/`    |
+| Administration authorization  | `src/modules/administration/authorization/migrations/`     |
+| RBAC compatibility            | `src/modules/rbac/legacy-global/migrations/`               |
+| Estate property               | `src/modules/estate/property/migrations/`                  |
+| Listing                       | `src/modules/listing/listing/migrations/`                  |
+| Location                      | `src/modules/location/administrative-division/migrations/` |
+| Media asset                   | `src/modules/media/asset/migrations/`                      |
+| Provider account              | `src/modules/provider/account/migrations/`                 |
 
 The historical DataPool creation and its removal are Customer-account-owned
 because the table was part of the customer data model and has no active runtime

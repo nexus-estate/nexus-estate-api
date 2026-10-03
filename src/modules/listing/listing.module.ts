@@ -6,12 +6,18 @@ import { ProviderModule } from '../provider/provider.module';
 import { Listing } from './listing/entities';
 import { ListingController } from './listing/controllers/listing.controller';
 import { ListingRepo } from './listing/repositories/listing.repo';
+import { ListingProjectionRevisionRepo } from './listing/repositories/listing-projection-revision.repo';
 import { ListingService } from './listing/services/listing.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Listing, Estate]), ProviderModule],
   controllers: [ListingController],
-  providers: [ListingRepo, EstateRepo, ListingService],
-  exports: [ListingRepo],
+  providers: [
+    ListingRepo,
+    ListingProjectionRevisionRepo,
+    EstateRepo,
+    ListingService,
+  ],
+  exports: [ListingRepo, ListingProjectionRevisionRepo],
 })
 export class ListingModule {}

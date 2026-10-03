@@ -15,6 +15,7 @@ import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/help
 import { EstateErrorCodes } from '../errors/estate-error-codes';
 import { EstateActivationPolicy } from '../helpers/estate-activation.policy';
 import { EstateStatus } from '../types/estate.type';
+import { ListingProjectionRevisionRepo } from '../../../listing/listing/repositories/listing-projection-revision.repo';
 
 @Injectable()
 export class EstateService {
@@ -24,6 +25,7 @@ export class EstateService {
     private readonly wardRepository: WardRepository,
     private readonly providerContextResolver: ProviderContextResolver,
     private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
+    private readonly listingProjectionRevisionRepository: ListingProjectionRevisionRepo,
   ) {}
 
   private readonly activationPolicy = new EstateActivationPolicy();
@@ -174,17 +176,36 @@ export class EstateService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'property:update');
-    const estate = await this.requireOwnedEstate(estateId, context);
-    const checkedLocation = await this.validateLocation(
-      dto.wardId ?? estate.wardId,
-      dto.provinceId ?? estate.provinceId,
-    );
-    if (!checkedLocation) {
-      throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
-    }
-    const updatedEstate = await this.estateRepository.updateEstate(
+    const updatedEstate = await this.estateRepository.withLockedEstate(
       estateId,
-      dto,
+      async (estate, manager) => {
+        if (estate.providerId !== context.providerId) {
+          throw new BusinessException(
+            CommonErrorCodes.FORBIDDEN,
+            context.providerId,
+          );
+        }
+        await this.validateLocation(
+          dto.wardId ?? estate.wardId,
+          dto.provinceId ?? estate.provinceId,
+        );
+        const updated = await this.estateRepository.updateEstate(
+          estateId,
+          dto,
+          manager,
+        );
+        if (!updated) {
+          throw new BusinessException(
+            CommonErrorCodes.RESOURCE_NOT_FOUND,
+            estateId,
+          );
+        }
+        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+          estateId,
+          manager,
+        );
+        return updated;
+      },
     );
     if (!updatedEstate) {
       throw new BusinessException(
@@ -195,7 +216,7 @@ export class EstateService {
     return updatedEstate;
   }
 
-  /** Activates a complete draft property using an optimistic state transition. */
+  /** Activates a complete draft property within its locked source transaction. */
   async activateEstate(
     customerId: string,
     estateId: string,
@@ -206,17 +227,8 @@ export class EstateService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'property:update');
-    const estate = await this.requireOwnedEstate(estateId, context);
-    this.assertTransition(estate.status, EstateStatus.ACTIVE);
-    const missingFields = this.activationPolicy.missingFields(estate);
-    if (missingFields.length > 0) {
-      throw new BusinessException(
-        EstateErrorCodes.PROPERTY_ACTIVATION_INCOMPLETE,
-        missingFields.join(', '),
-      );
-    }
     return this.completeTransition(
-      estate,
+      estateId,
       context.providerId,
       EstateStatus.ACTIVE,
     );
@@ -271,6 +283,10 @@ export class EstateService {
         if (!updated) {
           throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
         }
+        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+          estate.id,
+          manager,
+        );
         return updated;
       },
     );
@@ -294,10 +310,8 @@ export class EstateService {
       providerId,
     );
     await this.supplyAccessPolicy.requirePermission(context, 'property:update');
-    const estate = await this.requireOwnedEstate(estateId, context);
-    this.assertTransition(estate.status, EstateStatus.DRAFT);
     return this.completeTransition(
-      estate,
+      estateId,
       context.providerId,
       EstateStatus.DRAFT,
     );
@@ -319,37 +333,57 @@ export class EstateService {
   }
 
   private async completeTransition(
-    estate: Estate,
+    estateId: string,
     providerId: string,
     target: EstateStatus,
   ): Promise<Estate> {
-    const changed = await this.estateRepository.transitionStatus(
-      estate.id,
-      providerId,
-      estate.status,
-      target,
+    const transitioned = await this.estateRepository.withLockedEstate(
+      estateId,
+      async (current, manager) => {
+        if (current.providerId !== providerId) {
+          throw new BusinessException(CommonErrorCodes.FORBIDDEN, providerId);
+        }
+        this.assertTransition(current.status, target);
+        if (target === EstateStatus.ACTIVE) {
+          const missingFields = this.activationPolicy.missingFields(current);
+          if (missingFields.length > 0) {
+            throw new BusinessException(
+              EstateErrorCodes.PROPERTY_ACTIVATION_INCOMPLETE,
+              missingFields.join(', '),
+            );
+          }
+        }
+        const changed = await this.estateRepository.transitionStatus(
+          current.id,
+          providerId,
+          current.status,
+          target,
+          manager,
+        );
+        if (!changed) {
+          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+        }
+        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+          current.id,
+          manager,
+        );
+        const updated = await this.estateRepository.findById(
+          current.id,
+          manager,
+        );
+        if (!updated) {
+          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+        }
+        return updated;
+      },
     );
-    if (changed) {
-      const transitioned = await this.estateRepository.findById(estate.id);
-      if (transitioned) return transitioned;
-    }
-
-    // Re-read after a lost compare-and-set to expose a stable transition error
-    // rather than allowing two commands to report success.
-    const current = await this.estateRepository.findById(estate.id);
-    if (current && current.providerId === providerId) {
-      this.assertTransition(current.status, target);
-    }
-    if (
-      target === EstateStatus.ARCHIVED &&
-      (await this.estateRepository.hasPublishedListing(estate.id))
-    ) {
+    if (!transitioned) {
       throw new BusinessException(
-        EstateErrorCodes.PROPERTY_PUBLISHED_LISTING_CONFLICT,
-        estate.id,
+        CommonErrorCodes.RESOURCE_NOT_FOUND,
+        estateId,
       );
     }
-    throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
+    return transitioned;
   }
 
   /** Legacy DELETE behavior retained separately from lifecycle archive commands. */
@@ -390,6 +424,10 @@ export class EstateService {
         if (!changed) {
           throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
         }
+        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+          estate.id,
+          manager,
+        );
         return true;
       },
     );
