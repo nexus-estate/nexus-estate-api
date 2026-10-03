@@ -24,6 +24,8 @@ import {
   ListingStatus,
 } from '../../src/modules/listing/listing/entities';
 import { ListingModule } from '../../src/modules/listing/listing.module';
+import { OutboxEvent } from '../../src/modules/eventing/outbox/entities/outbox-event.entity';
+import { Media } from '../../src/modules/media/asset/entities/media.entity';
 import {
   EstatePurpose,
   EstateStatus,
@@ -73,6 +75,15 @@ type ApiError = {
 type TokenPair = {
   accessToken: string;
   refreshToken: string;
+};
+
+type OutboxEventRow = {
+  event_id: string;
+  event_type: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  revision: string;
+  payload: { deleted: boolean; document: Record<string, unknown> | null };
 };
 
 type EstateResponse = {
@@ -180,7 +191,23 @@ describe('Estate API (e2e)', () => {
     const data = (response.body as ApiSuccess<Record<string, unknown>>).data;
     expect(data).not.toHaveProperty('projectionRevision');
     expect(data).not.toHaveProperty('projection_revision');
+    expect(data).not.toHaveProperty('eventId');
+    expect(data).not.toHaveProperty('eventType');
+    expect(data).not.toHaveProperty('aggregateType');
+    expect(data).not.toHaveProperty('outbox');
   };
+
+  const getOutboxEvents = async (
+    listingId: string,
+  ): Promise<OutboxEventRow[]> =>
+    await dataSource.query(
+      `SELECT event_id, event_type, aggregate_type, aggregate_id,
+              revision::text AS revision, payload
+       FROM tbl_outbox_event
+       WHERE aggregate_type = 'listing' AND aggregate_id = $1
+       ORDER BY revision::bigint ASC`,
+      [listingId],
+    );
 
   const revokeOwnerPermission = async (code: string): Promise<void> => {
     await dataSource.query(
@@ -222,6 +249,8 @@ describe('Estate API (e2e)', () => {
           entities: [
             Estate,
             Listing,
+            OutboxEvent,
+            Media,
             Lead,
             CustomerAccount,
             ProviderAccount,
@@ -268,7 +297,7 @@ describe('Estate API (e2e)', () => {
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_lead, tbl_listing, tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_provider_role, tbl_provider_permission, tbl_ward, tbl_province CASCADE',
+      'TRUNCATE TABLE tbl_outbox_event, tbl_media, tbl_lead, tbl_listing, tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_provider_role, tbl_provider_permission, tbl_ward, tbl_province CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({
@@ -500,6 +529,7 @@ describe('Estate API (e2e)', () => {
     expect((response.body as ApiError).code).toBe(
       'PROPERTY_PUBLISHED_LISTING_CONFLICT',
     );
+    expect(await getOutboxEvents(listingId)).toHaveLength(3);
   });
 
   it('serializes concurrent property archive and listing publish commands', async () => {
@@ -566,6 +596,177 @@ describe('Estate API (e2e)', () => {
 
     expect(responses.map((response) => response.status)).toEqual([200, 200]);
     await expect(getListingRevision(listingId)).resolves.toBe('3');
+    const events = await getOutboxEvents(listingId);
+    expect(events.map((event) => event.revision)).toEqual(['1', '2', '3']);
+    expect(events.slice(1).map((event) => event.event_type)).toEqual([
+      'listing.search_projection_changed.v1',
+      'listing.search_projection_changed.v1',
+    ]);
+  });
+
+  it('persists a complete revision-ordered Marketplace event sequence', async () => {
+    const estate = await createEstate();
+    await expect(
+      dataSource.query('SELECT event_id FROM tbl_outbox_event'),
+    ).resolves.toEqual([]);
+
+    const listingResponse = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: estate.id })
+      .expect(201);
+    const listingId = (listingResponse.body as ApiSuccess<{ id: string }>).data
+      .id;
+    expectNoProjectionRevision(listingResponse);
+
+    const createdEvents = await getOutboxEvents(listingId);
+    expect(createdEvents).toHaveLength(1);
+    expect(createdEvents[0]).toMatchObject({
+      event_type: 'listing.search_projection_changed.v1',
+      aggregate_type: 'listing',
+      aggregate_id: listingId,
+      revision: '1',
+      payload: { deleted: true, document: null },
+    });
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/estates/${estate.id}/activate`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${estate.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ title: 'Published source updated' })
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/listings/${listingId}/archive`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/estates/${estate.id}/archive`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/estates/${estate.id}/restore`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/estates/${estate.id}/activate`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/estates/${estate.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+
+    const events = await getOutboxEvents(listingId);
+    expect(events.map((event) => event.revision)).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+    ]);
+    expect(events.map((event) => event.event_type)).toEqual([
+      'listing.search_projection_changed.v1',
+      'listing.search_projection_changed.v1',
+      'listing.published.v1',
+      'listing.search_projection_changed.v1',
+      'listing.archived.v1',
+      'listing.search_projection_changed.v1',
+      'listing.search_projection_changed.v1',
+      'listing.search_projection_changed.v1',
+      'listing.search_projection_changed.v1',
+    ]);
+    expect(events[2].payload).toMatchObject({
+      deleted: false,
+      document: { title: estate.title, price: '3500000000' },
+    });
+    expect(events[3].payload).toMatchObject({
+      deleted: false,
+      document: { title: 'Published source updated' },
+    });
+    expect(events.slice(0, 2).every((event) => event.payload.deleted)).toBe(
+      true,
+    );
+    expect(events.slice(4).every((event) => event.payload.deleted)).toBe(true);
+    await expect(getListingRevision(listingId)).resolves.toBe('9');
+  });
+
+  it('rolls back an Estate update and its revision when the outbox insert conflicts', async () => {
+    const estate = await createEstate();
+    const listingResponse = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: estate.id })
+      .expect(201);
+    const listingId = (listingResponse.body as ApiSuccess<{ id: string }>).data
+      .id;
+    await dataSource.query(
+      `INSERT INTO tbl_outbox_event
+        (event_id, event_type, aggregate_type, aggregate_id, revision, occurred_at, trace_id, payload)
+       VALUES ($1, 'listing.search_projection_changed.v1', 'listing', $2, 2, NOW(), NULL,
+         '{"deleted":true,"document":null}'::jsonb)`,
+      ['90000000-0000-4000-8000-000000000001', listingId],
+    );
+    const existingRows = await getOutboxEvents(listingId);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${estate.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ title: 'Must roll back' })
+      .expect(500);
+
+    await expect(
+      dataSource.getRepository(Estate).findOneByOrFail({ id: estate.id }),
+    ).resolves.toMatchObject({ title: estate.title });
+    await expect(getListingRevision(listingId)).resolves.toBe('1');
+    await expect(getOutboxEvents(listingId)).resolves.toEqual(existingRows);
+  });
+
+  it('rolls back Listing publish state and revision when the outbox insert conflicts', async () => {
+    const estate = await createEstate();
+    await request(app.getHttpServer())
+      .post(`/api/v1/estates/${estate.id}/activate`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const listingResponse = await request(app.getHttpServer())
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ estateId: estate.id })
+      .expect(201);
+    const listingId = (listingResponse.body as ApiSuccess<{ id: string }>).data
+      .id;
+    await dataSource.query(
+      `INSERT INTO tbl_outbox_event
+        (event_id, event_type, aggregate_type, aggregate_id, revision, occurred_at, trace_id, payload)
+       VALUES ($1, 'listing.published.v1', 'listing', $2, 2, NOW(), NULL,
+         '{"deleted":false,"document":{}}'::jsonb)`,
+      ['90000000-0000-4000-8000-000000000002', listingId],
+    );
+    const existingRows = await getOutboxEvents(listingId);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/listings/${listingId}/publish`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(500);
+
+    await expect(
+      dataSource.getRepository(Listing).findOneByOrFail({ id: listingId }),
+    ).resolves.toMatchObject({
+      status: ListingStatus.DRAFT,
+      publishedAt: null,
+    });
+    await expect(getListingRevision(listingId)).resolves.toBe('1');
+    await expect(getOutboxEvents(listingId)).resolves.toEqual(existingRows);
   });
 
   it('serializes concurrent property DELETE and listing publish commands', async () => {
@@ -911,6 +1112,7 @@ describe('Estate API (e2e)', () => {
 
     expect(body.code).toBe(CommonErrorCodes.FORBIDDEN.code);
     await expect(getListingRevision(listingId)).resolves.toBe('1');
+    await expect(getOutboxEvents(listingId)).resolves.toHaveLength(1);
   });
 
   it('does not allow a verified provider to update another customer estate', async () => {
@@ -1120,6 +1322,7 @@ describe('Estate API (e2e)', () => {
       .send({ provinceId: '70000000-0000-4000-8000-000000000001' })
       .expect(404);
     await expect(getListingRevision(draft.id)).resolves.toBe('3');
+    await expect(getOutboxEvents(draft.id)).resolves.toHaveLength(3);
 
     const updatedEstateResponse = await request(app.getHttpServer())
       .patch(`/api/v1/estates/${estate.id}`)
@@ -1137,12 +1340,14 @@ describe('Estate API (e2e)', () => {
       'PROPERTY_PUBLISHED_LISTING_CONFLICT',
     );
     await expect(getListingRevision(draft.id)).resolves.toBe('4');
+    await expect(getOutboxEvents(draft.id)).resolves.toHaveLength(4);
 
     await request(app.getHttpServer())
       .delete(`/api/v1/estates/${estate.id}`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .expect(409);
     await expect(getListingRevision(draft.id)).resolves.toBe('4');
+    await expect(getOutboxEvents(draft.id)).resolves.toHaveLength(4);
 
     await request(app.getHttpServer())
       .post(`/api/v1/listings/${draft.id}/publish`)

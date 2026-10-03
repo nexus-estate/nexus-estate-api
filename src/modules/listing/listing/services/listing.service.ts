@@ -14,14 +14,18 @@ import { ListingResponse } from '../dto/listing.response';
 import { Listing, ListingStatus } from '../entities';
 import { EstateStatus } from '../../../estate/property/types/estate.type';
 import { ListingRepo } from '../repositories/listing.repo';
-import { ListingProjectionRevisionRepo } from '../repositories/listing-projection-revision.repo';
 import { ListingErrorCodes } from '../errors/listing-error-codes';
+import { MarketplaceListingOutboxService } from '../events/marketplace-listing-outbox.service';
+import {
+  MARKETPLACE_LISTING_ARCHIVED_EVENT,
+  MARKETPLACE_LISTING_PUBLISHED_EVENT,
+} from '../events/marketplace-listing-event.constants';
 
 @Injectable()
 export class ListingService {
   constructor(
     private readonly listingRepository: ListingRepo,
-    private readonly listingProjectionRevisionRepository: ListingProjectionRevisionRepo,
+    private readonly marketplaceListingOutboxService: MarketplaceListingOutboxService,
     private readonly estateRepository: EstateRepo,
     private readonly providerContextResolver: ProviderContextResolver,
     private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
@@ -58,9 +62,13 @@ export class ListingService {
           projectionRevision: '1',
           publishedAt: null,
         });
-        return this.toResponse(
-          await this.listingRepository.save(listing, manager),
+        const saved = await this.listingRepository.save(listing, manager);
+        await this.marketplaceListingOutboxService.recordInitialListing(
+          saved.id,
+          saved.projectionRevision,
+          manager,
         );
+        return this.toResponse(saved);
       },
     );
     if (!created) {
@@ -162,14 +170,11 @@ export class ListingService {
           currentListing,
           manager,
         );
-        const revision =
-          await this.listingProjectionRevisionRepository.incrementProjectionRevision(
-            id,
-            manager,
-          );
-        if (revision === null) {
-          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
-        }
+        await this.marketplaceListingOutboxService.bumpAndRecordListing(
+          id,
+          MARKETPLACE_LISTING_PUBLISHED_EVENT,
+          manager,
+        );
         return this.toResponse(saved);
       },
     );
@@ -222,14 +227,11 @@ export class ListingService {
           currentListing,
           manager,
         );
-        const revision =
-          await this.listingProjectionRevisionRepository.incrementProjectionRevision(
-            id,
-            manager,
-          );
-        if (revision === null) {
-          throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
-        }
+        await this.marketplaceListingOutboxService.bumpAndRecordListing(
+          id,
+          MARKETPLACE_LISTING_ARCHIVED_EVENT,
+          manager,
+        );
         return this.toResponse(saved);
       },
     );
