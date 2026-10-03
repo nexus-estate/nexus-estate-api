@@ -19,6 +19,9 @@ describe('Marketplace Listing snapshot (PostgreSQL integration)', () => {
   const estateId = '20000000-0000-4000-8000-000000000001';
   const provinceId = '30000000-0000-4000-8000-000000000001';
   const wardId = '40000000-0000-4000-8000-000000000001';
+  const publishedAt = '2026-10-03T08:19:00.123456Z';
+  const estateUpdatedAt = '2026-10-03T08:20:31.111111Z';
+  const listingUpdatedAt = '2026-10-03T08:20:31.654321Z';
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine')
@@ -63,7 +66,8 @@ describe('Marketplace Listing snapshot (PostgreSQL integration)', () => {
         fk_estate_id uuid NOT NULL,
         status varchar(20) NOT NULL,
         deleted_at timestamptz NULL,
-        published_at timestamptz NULL
+        published_at timestamptz NULL,
+        updated_at timestamptz NOT NULL
       );
       CREATE TABLE tbl_media (
         id uuid PRIMARY KEY,
@@ -99,13 +103,13 @@ describe('Marketplace Listing snapshot (PostgreSQL integration)', () => {
          fk_province_id, fk_ward_id, address_line, latitude, longitude, updated_at)
        VALUES ($1, 'ACTIVE', 'Original title', NULL, 'APARTMENT', 'SALE',
          '9007199254740993', '82.50', $2, $3, '1 Main Street', '10.1234567',
-         '106.1234567', '2026-10-03T08:20:31.245Z')`,
-      [estateId, provinceId, wardId],
+         '106.1234567', $4)`,
+      [estateId, provinceId, wardId, estateUpdatedAt],
     );
     await dataSource.query(
-      `INSERT INTO tbl_listing (id, fk_estate_id, status, published_at)
-       VALUES ($1, $2, 'PUBLISHED', '2026-10-03T08:19:00.000Z')`,
-      [listingId, estateId],
+      `INSERT INTO tbl_listing (id, fk_estate_id, status, published_at, updated_at)
+       VALUES ($1, $2, 'PUBLISHED', $3, $4)`,
+      [listingId, estateId, publishedAt, listingUpdatedAt],
     );
   });
 
@@ -125,18 +129,23 @@ describe('Marketplace Listing snapshot (PostgreSQL integration)', () => {
       longitude: '106.1234567',
       provinceName: 'Province',
       wardName: 'Ward',
+      publishedAt,
+      updatedAt: listingUpdatedAt,
     });
-    expect(buildMarketplaceListingProjectionPayload(source!, [])).toMatchObject(
-      {
-        deleted: false,
-        document: {
-          price: '9007199254740993',
-          area: '82.50',
-          location: { lat: '10.1234567', lon: '106.1234567' },
-          media: { images: [] },
-        },
+    expect(source?.updatedAt).not.toBe(estateUpdatedAt);
+
+    const payload = buildMarketplaceListingProjectionPayload(source!, []);
+    expect(payload).toMatchObject({
+      deleted: false,
+      document: {
+        price: '9007199254740993',
+        area: '82.50',
+        location: { lat: '10.1234567', lon: '106.1234567' },
+        media: { images: [] },
+        published_at: '2026-10-03T08:19:00.123456Z',
+        updated_at: '2026-10-03T08:20:31.654321Z',
       },
-    );
+    });
   });
 
   it('orders live images by sort_order then ID and caps at twenty', async () => {

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { MarketplaceListingSourceRow } from './marketplace-listing-event.payload';
 
-const UTC_ISO_FORMAT = 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"';
+const UTC_ISO_FORMAT = 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"';
 
 /** Reads Marketplace source rows, including soft-deleted rows needed for tombstones. */
 @Injectable()
@@ -33,7 +33,7 @@ export class MarketplaceListingSnapshotRepo {
          estate.latitude::text AS latitude,
          estate.longitude::text AS longitude,
          to_char(listing.published_at AT TIME ZONE 'UTC', '${UTC_ISO_FORMAT}') AS "publishedAt",
-         to_char(estate.updated_at AT TIME ZONE 'UTC', '${UTC_ISO_FORMAT}') AS "updatedAt"
+         to_char(listing.updated_at AT TIME ZONE 'UTC', '${UTC_ISO_FORMAT}') AS "updatedAt"
        FROM tbl_listing listing
        LEFT JOIN tbl_estate estate ON estate.id = listing.fk_estate_id
        LEFT JOIN tbl_province province ON province.id = estate.fk_province_id

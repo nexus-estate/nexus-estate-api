@@ -15,32 +15,34 @@ describe('OutboxEventRepo', () => {
   };
 
   it('validates and stores the exact envelope through the supplied manager', async () => {
-    const persisted = {
-      ...envelope,
-      occurredAt: new Date(envelope.occurredAt),
-    };
     const repository = {
-      create: jest.fn((value: unknown) => value),
-      save: jest.fn().mockResolvedValue(persisted),
+      insert: jest.fn().mockResolvedValue({
+        identifiers: [],
+        generatedMaps: [],
+        raw: [],
+      }),
     };
     const managerMock = {
       getRepository: jest.fn().mockReturnValue(repository),
     };
     const manager = managerMock as unknown as EntityManager;
 
-    const result = await new OutboxEventRepo().insert(envelope, manager);
+    await expect(new OutboxEventRepo().insert(envelope, manager)).resolves.toBe(
+      undefined,
+    );
 
     expect(managerMock.getRepository).toHaveBeenCalledWith(OutboxEvent);
-    expect(repository.create).toHaveBeenCalledWith({
-      ...envelope,
+    expect(repository.insert).toHaveBeenCalledWith({
+      eventId: envelope.eventId,
+      eventType: envelope.eventType,
+      aggregateType: envelope.aggregateType,
+      aggregateId: envelope.aggregateId,
+      revision: envelope.revision,
       occurredAt: new Date(envelope.occurredAt),
+      traceId: envelope.traceId,
+      payload: envelope.payload,
     });
-    expect(repository.save).toHaveBeenCalledWith(
-      repository.create.mock.results[0].value,
-    );
-    expect(result.revision).toBe('9007199254740993');
-    expect(typeof result.revision).toBe('string');
-    expect(result.payload).toBe(envelope.payload);
+    expect(repository.insert).toHaveBeenCalledTimes(1);
   });
 
   it('rejects invalid envelopes before asking the manager for a repository', async () => {

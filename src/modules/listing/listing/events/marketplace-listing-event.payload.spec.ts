@@ -24,8 +24,8 @@ describe('Marketplace Listing event payload v1', () => {
     address: '1 Main Street',
     latitude: '10.123456',
     longitude: '106.123456',
-    publishedAt: '2026-10-03T08:20:31.245Z',
-    updatedAt: '2026-10-03T08:20:31.245Z',
+    publishedAt: '2026-10-03T08:19:00.123456Z',
+    updatedAt: '2026-10-03T08:20:31.654321Z',
   };
 
   it('builds a full searchable document without numeric precision loss', () => {
@@ -55,6 +55,8 @@ describe('Marketplace Listing event payload v1', () => {
         updated_at: searchableSource.updatedAt,
       },
     });
+    expect(payload.document?.published_at).toBe('2026-10-03T08:19:00.123456Z');
+    expect(payload.document?.updated_at).toBe('2026-10-03T08:20:31.654321Z');
   });
 
   it.each([

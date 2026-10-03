@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { EntityManager } from 'typeorm';
+import type { EntityManager, QueryDeepPartialEntity } from 'typeorm';
 import {
   assertEventEnvelope,
   type EventEnvelope,
@@ -12,11 +12,10 @@ export class OutboxEventRepo {
   async insert<TPayload>(
     envelope: EventEnvelope<TPayload>,
     manager: EntityManager,
-  ): Promise<OutboxEvent> {
+  ): Promise<void> {
     assertEventEnvelope(envelope);
 
-    const repository = manager.getRepository(OutboxEvent);
-    const event = repository.create({
+    await manager.getRepository(OutboxEvent).insert({
       eventId: envelope.eventId,
       eventType: envelope.eventType,
       aggregateType: envelope.aggregateType,
@@ -24,8 +23,8 @@ export class OutboxEventRepo {
       revision: envelope.revision,
       occurredAt: new Date(envelope.occurredAt),
       traceId: envelope.traceId,
-      payload: envelope.payload,
+      payload:
+        envelope.payload as QueryDeepPartialEntity<OutboxEvent>['payload'],
     });
-    return repository.save(event);
   }
 }

@@ -131,7 +131,11 @@ PostgreSQL numerics are selected as text. In particular, `price` is a decimal
 integer string and remains exact above JavaScript's safe integer limit. Missing
 description and area use explicit `null`; coordinates produce a location only
 when both values exist; image URLs are always an array. Timestamps are emitted
-as UTC ISO-8601 strings.
+as UTC ISO-8601 strings with PostgreSQL microsecond precision. `published_at`
+comes from `tbl_listing.published_at`, and `updated_at` comes from
+`tbl_listing.updated_at`. The latter is Listing audit/display metadata, not the
+source revision; it may remain unchanged when Estate-derived projection data
+changes. Ordering always uses `EventEnvelope.revision`.
 
 ## Searchability and tombstones
 

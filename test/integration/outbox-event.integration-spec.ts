@@ -67,12 +67,7 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
   });
 
   it('persists lossless revision, nullable trace, and exact JSONB payload', async () => {
-    const inserted = await repository.insert(envelope, dataSource.manager);
-
-    expect(inserted.eventId).toBe(envelope.eventId);
-    expect(inserted.revision).toBe('9007199254740993');
-    expect(typeof inserted.revision).toBe('string');
-    expect(inserted.traceId).toBeNull();
+    await repository.insert(envelope, dataSource.manager);
     await expect(
       dataSource.query(
         `
@@ -91,6 +86,44 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
     ]);
   });
 
+  it('cannot overwrite a committed event when event_id is reused', async () => {
+    const originalEnvelope = {
+      ...envelope,
+      payload: { deleted: false, document: { title: 'Original' } },
+    };
+    await repository.insert(originalEnvelope, dataSource.manager);
+
+    await expect(
+      repository.insert(
+        {
+          ...originalEnvelope,
+          revision: '2',
+          payload: { deleted: false, document: { title: 'Mutated' } },
+        },
+        dataSource.manager,
+      ),
+    ).rejects.toMatchObject({
+      driverError: {
+        code: '23505',
+        constraint: 'tbl_outbox_event_pkey',
+      },
+    });
+
+    await expect(
+      dataSource.query(
+        `SELECT event_id, revision::text, payload
+         FROM tbl_outbox_event WHERE event_id = $1`,
+        [envelope.eventId],
+      ),
+    ).resolves.toEqual([
+      {
+        event_id: envelope.eventId,
+        revision: envelope.revision,
+        payload: originalEnvelope.payload,
+      },
+    ]);
+  });
+
   it('rolls back the outbox row with the caller transaction', async () => {
     await expect(
       dataSource.transaction(async (manager) => {
@@ -104,7 +137,7 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
     );
   });
 
-  it('rejects duplicate producer keys but allows another event type at that revision', async () => {
+  it('rejects duplicate producer stream keys', async () => {
     await repository.insert(envelope, dataSource.manager);
     await expect(
       repository.insert(
@@ -114,7 +147,16 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
         },
         dataSource.manager,
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      driverError: {
+        code: '23505',
+        constraint: 'uq_outbox_event_stream_revision_type',
+      },
+    });
+  });
+
+  it('allows another event type at the same producer revision', async () => {
+    await repository.insert(envelope, dataSource.manager);
     await expect(
       repository.insert(
         {
@@ -124,6 +166,6 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
         },
         dataSource.manager,
       ),
-    ).resolves.toMatchObject({ revision: envelope.revision });
+    ).resolves.toBeUndefined();
   });
 });
