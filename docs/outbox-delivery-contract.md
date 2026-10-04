@@ -85,6 +85,12 @@ The outbox entrypoint requires PostgreSQL settings plus `KAFKA_BROKERS`,
 `KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_MECHANISM`, and credentials from a
 runtime Secret. Kafka settings are validated only by the outbox process.
 
+TLS deployments using `ssl` or `sasl_ssl` must mount the Kafka CA certificate
+and set `KAFKA_SSL_CA_LOCATION` to its path in the outbox runtime. The API
+maps this setting explicitly to librdkafka's `ssl.ca.location`; it does not
+rely on `SSL_CERT_FILE` or implicit OpenSSL defaults. Plaintext protocols do
+not require a CA path.
+
 `OUTBOX_BATCH_SIZE`, `OUTBOX_POLL_INTERVAL_MS`, `OUTBOX_LEASE_MS`,
 `OUTBOX_RETRY_BASE_MS`, `OUTBOX_RETRY_MAX_MS`,
 `OUTBOX_PUBLISH_TIMEOUT_MS`, `OUTBOX_DRAIN_TIMEOUT_MS`, and

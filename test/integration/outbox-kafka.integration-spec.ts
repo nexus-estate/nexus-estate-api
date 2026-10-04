@@ -218,6 +218,7 @@ function kafkaConfig(broker: string) {
   };
   return {
     getOrThrow: (key: string) => values[key],
+    get: (key: string) => values[key],
   };
 }
 

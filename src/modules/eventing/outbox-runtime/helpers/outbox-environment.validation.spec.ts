@@ -21,6 +21,7 @@ describe('validateOutboxEnvironment', () => {
       OUTBOX_BATCH_SIZE: 25,
       OUTBOX_HEALTH_PORT: 9_091,
     });
+    expect(config.KAFKA_SSL_CA_LOCATION).toBeUndefined();
     expect(() =>
       validateOutboxEnvironment({ ...base, KAFKA_BROKERS: undefined }),
     ).toThrow('KAFKA_BROKERS is required');
@@ -40,6 +41,7 @@ describe('validateOutboxEnvironment', () => {
       KAFKA_SASL_MECHANISM: 'scram-sha-512',
       KAFKA_SASL_USERNAME: 'publisher',
       KAFKA_SASL_PASSWORD: 'provided-by-runtime-secret',
+      KAFKA_SSL_CA_LOCATION: '/var/run/kafka/ca/ca.crt',
     });
     expect(config).toMatchObject({
       KAFKA_SASL_MECHANISM: 'SCRAM-SHA-512',
@@ -56,6 +58,59 @@ describe('validateOutboxEnvironment', () => {
     expect(() =>
       validateOutboxEnvironment({ ...base, OUTBOX_LEASE_MS: '30000' }),
     ).toThrow('OUTBOX_LEASE_MS must exceed');
+  });
+
+  it('requires a CA path only for TLS protocols', () => {
+    const sasl = {
+      KAFKA_SASL_MECHANISM: 'SCRAM-SHA-512',
+      KAFKA_SASL_USERNAME: 'nexus-api-outbox',
+      KAFKA_SASL_PASSWORD: 'runtime-secret',
+    };
+
+    expect(() =>
+      validateOutboxEnvironment({ ...base, KAFKA_SECURITY_PROTOCOL: 'ssl' }),
+    ).toThrow('KAFKA_SSL_CA_LOCATION is required');
+    expect(() =>
+      validateOutboxEnvironment({
+        ...base,
+        KAFKA_SECURITY_PROTOCOL: 'sasl_ssl',
+        ...sasl,
+      }),
+    ).toThrow('KAFKA_SSL_CA_LOCATION is required');
+
+    expect(
+      validateOutboxEnvironment({
+        ...base,
+        KAFKA_SECURITY_PROTOCOL: 'ssl',
+        KAFKA_SSL_CA_LOCATION: '  /var/run/kafka/ca/ca.crt  ',
+      }),
+    ).toMatchObject({
+      KAFKA_SECURITY_PROTOCOL: 'ssl',
+      KAFKA_SSL_CA_LOCATION: '/var/run/kafka/ca/ca.crt',
+    });
+    expect(
+      validateOutboxEnvironment({
+        ...base,
+        KAFKA_SECURITY_PROTOCOL: 'sasl_ssl',
+        ...sasl,
+        KAFKA_SSL_CA_LOCATION: '/var/run/kafka/ca/ca.crt',
+      }),
+    ).toMatchObject({
+      KAFKA_SECURITY_PROTOCOL: 'sasl_ssl',
+      KAFKA_SASL_MECHANISM: 'SCRAM-SHA-512',
+      KAFKA_SSL_CA_LOCATION: '/var/run/kafka/ca/ca.crt',
+    });
+
+    expect(
+      validateOutboxEnvironment({
+        ...base,
+        KAFKA_SECURITY_PROTOCOL: 'sasl_plaintext',
+        ...sasl,
+      }),
+    ).toMatchObject({
+      KAFKA_SECURITY_PROTOCOL: 'sasl_plaintext',
+      KAFKA_SSL_CA_LOCATION: undefined,
+    });
   });
 
   it('rejects malformed broker and topic values', () => {

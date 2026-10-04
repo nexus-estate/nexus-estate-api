@@ -40,6 +40,13 @@ For SASL, set `KAFKA_SECURITY_PROTOCOL` to `sasl_ssl` or `sasl_plaintext`, set
 `KAFKA_SASL_PASSWORD` through a runtime Secret. The HTTP API does not require
 these Kafka values.
 
+For `ssl` and `sasl_ssl`, mount the Kafka CA certificate into the outbox
+runtime and set `KAFKA_SSL_CA_LOCATION` to the mounted file path. The API
+requires this setting in TLS mode and maps it directly to librdkafka's
+`ssl.ca.location`. `SSL_CERT_FILE` can remain an infrastructure fallback, but
+it does not replace this explicit API configuration. Plaintext protocols do
+not require the CA setting.
+
 Defaults are `OUTBOX_BATCH_SIZE=25`, `OUTBOX_POLL_INTERVAL_MS=1000`,
 `OUTBOX_LEASE_MS=60000`, `OUTBOX_RETRY_BASE_MS=1000`,
 `OUTBOX_RETRY_MAX_MS=300000`, `OUTBOX_PUBLISH_TIMEOUT_MS=30000`,

@@ -14,13 +14,13 @@ function createMockProducer() {
 }
 
 const mockProducer = createMockProducer();
-const mockProducerFactory = jest.fn<unknown, []>();
+const mockProducerFactory = jest.fn<unknown, [unknown]>();
 
 jest.mock('@confluentinc/kafka-javascript', () => ({
   KafkaJS: {
     Kafka: class {
-      producer() {
-        return mockProducerFactory() as never;
+      producer(config?: unknown) {
+        return mockProducerFactory(config) as never;
       }
     },
   },
@@ -29,15 +29,21 @@ jest.mock('@confluentinc/kafka-javascript', () => ({
 import { KafkaEventPublisher } from './kafka-event-publisher.service';
 
 describe('KafkaEventPublisher', () => {
-  const values: Record<string, string | number | string[]> = {
+  const defaults: Record<string, string | number | string[] | undefined> = {
     KAFKA_TOPIC_MARKETPLACE_LISTING: 'nexus.marketplace.listing.v1',
     OUTBOX_PUBLISH_TIMEOUT_MS: 30_000,
     KAFKA_SECURITY_PROTOCOL: 'plaintext',
     KAFKA_BROKERS: ['kafka-1:9092'],
     KAFKA_CLIENT_ID: 'nexus-outbox',
+    KAFKA_SASL_MECHANISM: undefined,
+    KAFKA_SASL_USERNAME: undefined,
+    KAFKA_SASL_PASSWORD: undefined,
+    KAFKA_SSL_CA_LOCATION: undefined,
   };
+  const values = { ...defaults };
   const config = {
     getOrThrow: (key: string) => values[key],
+    get: (key: string) => values[key],
   } as ConfigService;
   const envelope: EventEnvelope<unknown> = {
     eventId: '10000000-0000-4000-8000-000000000001',
@@ -52,6 +58,7 @@ describe('KafkaEventPublisher', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    Object.assign(values, defaults);
     mockProducerFactory.mockReset().mockReturnValue(mockProducer);
     mockProducer.connect.mockResolvedValue(undefined);
     mockProducer.disconnect.mockResolvedValue(undefined);
@@ -77,6 +84,31 @@ describe('KafkaEventPublisher', () => {
         { key: envelope.aggregateId, value: JSON.stringify(envelope) },
       ],
     });
+    expect(lastProducerConfig()).not.toHaveProperty('ssl.ca.location');
+  });
+
+  it('maps SASL_SSL credentials and CA path to librdkafka producer options', async () => {
+    Object.assign(values, {
+      KAFKA_SECURITY_PROTOCOL: 'sasl_ssl',
+      KAFKA_SASL_MECHANISM: 'SCRAM-SHA-512',
+      KAFKA_SASL_USERNAME: 'nexus-api-outbox',
+      KAFKA_SASL_PASSWORD: 'runtime-secret',
+      KAFKA_SSL_CA_LOCATION: '/var/run/kafka/ca/ca.crt',
+    });
+    const publisher = new KafkaEventPublisher(config);
+
+    await publisher.connect();
+    const producerConfig = lastProducerConfig();
+    expect(producerConfig).toMatchObject({
+      'security.protocol': 'sasl_ssl',
+      'sasl.mechanism': 'SCRAM-SHA-512',
+      'sasl.username': 'nexus-api-outbox',
+      'sasl.password': 'runtime-secret',
+      'ssl.ca.location': '/var/run/kafka/ca/ca.crt',
+      'enable.idempotence': true,
+      'request.required.acks': -1,
+    });
+    await publisher.disconnect();
   });
 
   it('recreates the one-shot producer after a failed broker connection', async () => {
@@ -122,3 +154,14 @@ describe('KafkaEventPublisher', () => {
     expect(publisher.isConnected()).toBe(true);
   });
 });
+
+function lastProducerConfig(): Record<string, unknown> {
+  const config =
+    mockProducerFactory.mock.calls[
+      mockProducerFactory.mock.calls.length - 1
+    ]?.[0];
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+    throw new Error('Kafka producer config was not captured');
+  }
+  return config as Record<string, unknown>;
+}

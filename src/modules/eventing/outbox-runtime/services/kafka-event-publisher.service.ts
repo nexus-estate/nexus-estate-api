@@ -22,6 +22,14 @@ export class KafkaEventPublisher implements EventPublisher {
     const securityProtocol = config.getOrThrow<string>(
       'KAFKA_SECURITY_PROTOCOL',
     );
+    const usesTls =
+      securityProtocol === 'ssl' || securityProtocol === 'sasl_ssl';
+    const sslCaLocation = config.get<string>('KAFKA_SSL_CA_LOCATION')?.trim();
+    if (usesTls && !sslCaLocation) {
+      throw new Error(
+        'KAFKA_SSL_CA_LOCATION is required for ssl and sasl_ssl Kafka protocols',
+      );
+    }
     this.kafka = new KafkaJS.Kafka();
     this.producerConfig = {
       'bootstrap.servers': config
@@ -30,6 +38,7 @@ export class KafkaEventPublisher implements EventPublisher {
       'client.id': config.getOrThrow<string>('KAFKA_CLIENT_ID'),
       'security.protocol': securityProtocol as
         'plaintext' | 'ssl' | 'sasl_plaintext' | 'sasl_ssl',
+      ...(usesTls && sslCaLocation ? { 'ssl.ca.location': sslCaLocation } : {}),
       ...(securityProtocol.startsWith('sasl_')
         ? {
             'sasl.mechanism': config.getOrThrow<string>('KAFKA_SASL_MECHANISM'),

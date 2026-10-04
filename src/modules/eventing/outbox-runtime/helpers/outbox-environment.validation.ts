@@ -64,6 +64,8 @@ export function validateOutboxEnvironment(
       'KAFKA_SECURITY_PROTOCOL must be plaintext, ssl, sasl_plaintext, or sasl_ssl',
     );
   }
+  const tlsRequired =
+    securityProtocol === 'ssl' || securityProtocol === 'sasl_ssl';
   const saslRequired = securityProtocol.startsWith('sasl_');
   const saslMechanism = text(raw.KAFKA_SASL_MECHANISM || '').toUpperCase();
   const saslUsername = text(raw.KAFKA_SASL_USERNAME || '');
@@ -79,6 +81,12 @@ export function validateOutboxEnvironment(
     }
   } else if (saslMechanism || saslUsername || saslPassword) {
     throw new Error('KAFKA_SASL_* settings require a SASL security protocol');
+  }
+  const sslCaLocation = text(raw.KAFKA_SSL_CA_LOCATION).trim();
+  if (tlsRequired && !sslCaLocation) {
+    throw new Error(
+      'KAFKA_SSL_CA_LOCATION is required for ssl and sasl_ssl Kafka protocols',
+    );
   }
 
   const config = {
@@ -96,6 +104,7 @@ export function validateOutboxEnvironment(
     KAFKA_SASL_MECHANISM: saslMechanism || undefined,
     KAFKA_SASL_USERNAME: saslUsername || undefined,
     KAFKA_SASL_PASSWORD: saslPassword || undefined,
+    KAFKA_SSL_CA_LOCATION: sslCaLocation || undefined,
     OUTBOX_BATCH_SIZE: parseInteger(raw, 'OUTBOX_BATCH_SIZE', 1, 64),
     OUTBOX_POLL_INTERVAL_MS: parseInteger(
       raw,
