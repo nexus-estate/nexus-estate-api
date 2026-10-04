@@ -25,6 +25,7 @@ import {
 } from '../../src/modules/listing/listing/entities';
 import { ListingModule } from '../../src/modules/listing/listing.module';
 import { OutboxEvent } from '../../src/modules/eventing/outbox/entities/outbox-event.entity';
+import { OutboxDelivery } from '../../src/modules/eventing/outbox/entities/outbox-delivery.entity';
 import { Media } from '../../src/modules/media/asset/entities/media.entity';
 import {
   EstatePurpose,
@@ -209,6 +210,20 @@ describe('Estate API (e2e)', () => {
       [listingId],
     );
 
+  const getOutboxDeliveryRows = async (
+    listingId: string,
+  ): Promise<
+    { event_id: string; attempt_count: number; delivered_at: Date | null }[]
+  > =>
+    await dataSource.query(
+      `SELECT d.event_id, d.attempt_count, d.delivered_at
+       FROM tbl_outbox_delivery d
+       JOIN tbl_outbox_event e ON e.event_id = d.event_id
+       WHERE e.aggregate_type = 'listing' AND e.aggregate_id = $1
+       ORDER BY e.revision::bigint ASC`,
+      [listingId],
+    );
+
   const revokeOwnerPermission = async (code: string): Promise<void> => {
     await dataSource.query(
       `DELETE FROM tbl_provider_role_permission mapping
@@ -250,6 +265,7 @@ describe('Estate API (e2e)', () => {
             Estate,
             Listing,
             OutboxEvent,
+            OutboxDelivery,
             Media,
             Lead,
             CustomerAccount,
@@ -293,11 +309,25 @@ describe('Estate API (e2e)', () => {
     );
     await app.init();
     dataSource = module.get(DataSource);
+    await dataSource.query(`
+      CREATE FUNCTION public.create_outbox_delivery_state()
+      RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        INSERT INTO public.tbl_outbox_delivery (event_id) VALUES (NEW.event_id);
+        RETURN NEW;
+      END;
+      $$
+    `);
+    await dataSource.query(`
+      CREATE TRIGGER trg_outbox_event_delivery_created
+      AFTER INSERT ON tbl_outbox_event
+      FOR EACH ROW EXECUTE FUNCTION public.create_outbox_delivery_state()
+    `);
   });
 
   beforeEach(async () => {
     await dataSource.query(
-      'TRUNCATE TABLE tbl_outbox_event, tbl_media, tbl_lead, tbl_listing, tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_provider_role, tbl_provider_permission, tbl_ward, tbl_province CASCADE',
+      'TRUNCATE TABLE tbl_outbox_delivery, tbl_outbox_event, tbl_media, tbl_lead, tbl_listing, tbl_estate, tbl_provider_account, tbl_customer_account, tbl_role, tbl_provider_role, tbl_provider_permission, tbl_ward, tbl_province CASCADE',
     );
 
     const role = await dataSource.getRepository(Role).save({
@@ -628,6 +658,13 @@ describe('Estate API (e2e)', () => {
       revision: '1',
       payload: { deleted: true, document: null },
     });
+    await expect(getOutboxDeliveryRows(listingId)).resolves.toEqual([
+      {
+        event_id: createdEvents[0].event_id,
+        attempt_count: 0,
+        delivered_at: null,
+      },
+    ]);
 
     await request(app.getHttpServer())
       .post(`/api/v1/estates/${estate.id}/activate`)

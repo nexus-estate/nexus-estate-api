@@ -6,7 +6,9 @@ import { DataSource } from 'typeorm';
 import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 
 import { typeOrmConfig } from '../../src/database/type.config';
+import { OutboxDelivery } from '../../src/modules/eventing/outbox/entities/outbox-delivery.entity';
 import { CreateOutboxEventTable1791023416144 } from '../../src/modules/eventing/outbox/migrations/1791023416144-CreateOutboxEventTable';
+import { CreateOutboxDeliveryTable1791094051668 } from '../../src/modules/eventing/outbox/migrations/1791094051668-CreateOutboxDeliveryTable';
 import { OutboxEvent } from '../../src/modules/eventing/outbox/entities/outbox-event.entity';
 import { OutboxEventRepo } from '../../src/modules/eventing/outbox/repositories/outbox-event.repo';
 
@@ -44,7 +46,7 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
       username: container.getUsername(),
       password: container.getPassword(),
       database: container.getDatabase(),
-      entities: [OutboxEvent],
+      entities: [OutboxEvent, OutboxDelivery],
       migrations: [],
     });
     await dataSource.initialize();
@@ -52,6 +54,7 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
     await runner.connect();
     try {
       await new CreateOutboxEventTable1791023416144().up(runner);
+      await new CreateOutboxDeliveryTable1791094051668().up(runner);
     } finally {
       await runner.release();
     }
@@ -63,7 +66,9 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
   });
 
   beforeEach(async () => {
-    await dataSource.query('TRUNCATE TABLE tbl_outbox_event');
+    await dataSource.query(
+      'TRUNCATE TABLE tbl_outbox_delivery, tbl_outbox_event',
+    );
   });
 
   it('persists lossless revision, nullable trace, and exact JSONB payload', async () => {
@@ -84,6 +89,12 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
         payload: envelope.payload,
       },
     ]);
+    await expect(
+      dataSource.query(
+        'SELECT event_id, attempt_count FROM tbl_outbox_delivery WHERE event_id = $1',
+        [envelope.eventId],
+      ),
+    ).resolves.toEqual([{ event_id: envelope.eventId, attempt_count: 0 }]);
   });
 
   it('cannot overwrite a committed event when event_id is reused', async () => {
@@ -135,6 +146,47 @@ describe('OutboxEventRepo (PostgreSQL integration)', () => {
     await expect(dataSource.getRepository(OutboxEvent).count()).resolves.toBe(
       0,
     );
+    await expect(
+      dataSource.getRepository(OutboxDelivery).count(),
+    ).resolves.toBe(0);
+  });
+
+  it('rolls an event insert back when delivery-state creation fails', async () => {
+    await dataSource.query(`
+      CREATE FUNCTION public.reject_test_outbox_delivery()
+      RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        RAISE EXCEPTION 'forced delivery insert failure';
+      END;
+      $$
+    `);
+    await dataSource.query(`
+      CREATE TRIGGER trg_test_reject_outbox_delivery
+      BEFORE INSERT ON tbl_outbox_delivery
+      FOR EACH ROW EXECUTE FUNCTION public.reject_test_outbox_delivery()
+    `);
+
+    try {
+      await expect(
+        dataSource.transaction((manager) =>
+          repository.insert(envelope, manager),
+        ),
+      ).rejects.toThrow('forced delivery insert failure');
+    } finally {
+      await dataSource.query(
+        'DROP TRIGGER trg_test_reject_outbox_delivery ON tbl_outbox_delivery',
+      );
+      await dataSource.query(
+        'DROP FUNCTION public.reject_test_outbox_delivery()',
+      );
+    }
+
+    await expect(dataSource.getRepository(OutboxEvent).count()).resolves.toBe(
+      0,
+    );
+    await expect(
+      dataSource.getRepository(OutboxDelivery).count(),
+    ).resolves.toBe(0);
   });
 
   it('rejects duplicate producer stream keys', async () => {
