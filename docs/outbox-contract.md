@@ -8,10 +8,10 @@ commands. Engine consumes those events in a later integration step. This
 contract freezes the source event at commit time so a future publisher only
 needs to transport the persisted row.
 
-`tbl_outbox_event` is implemented. No broker connection, publisher,
-dispatcher, delivery marker, retry worker, Engine consumer, Elasticsearch
-write, snapshot endpoint, or reindex endpoint is implemented. Rows currently
-remain in PostgreSQL.
+`tbl_outbox_event` stores immutable event facts. API-EVENT-03 adds separate
+mutable delivery state and the independent `nexus-api-outbox` runtime. The
+delivery guarantee is at-least-once. The Engine consumer, Elasticsearch write,
+snapshot endpoint, and reindex endpoint remain future work.
 
 ## Transactional guarantee
 
@@ -22,6 +22,7 @@ inside one PostgreSQL transaction:
 canonical business mutation
 + listing.projection_revision
 + tbl_outbox_event insert
++ tbl_outbox_delivery insert
 = one atomic commit
 ```
 
@@ -30,6 +31,12 @@ and outbox persistence. Snapshot reads use that same manager, so an event
 captures the post-mutation state visible to the transaction. If snapshot
 construction, envelope validation, or outbox insertion fails, the business
 mutation and revision roll back with the event insert.
+
+The delivery table is created by an `AFTER INSERT` trigger on
+`tbl_outbox_event`. The trigger runs in the inserting transaction and also
+covers older API-EVENT-02 instances during a rolling deployment. Migration
+backfill runs after trigger installation, so an existing event is either
+included in the backfill or created with delivery state by the trigger.
 
 The outbox insert uses the exact revision returned by the atomic Listing
 revision update. It never reads a revision after commit or derives one from a
@@ -55,13 +62,18 @@ The table contains:
 
 The database enforces `revision >= 1` and producer-key uniqueness over
 `(aggregate_type, aggregate_id, revision, event_type)`. Indexes cover creation
-order for a future dispatcher and aggregate revision lookup. No delivery state
-is stored yet.
+order and aggregate revision lookup.
 
-Outbox rows are append-only through the application boundary. `OutboxEventRepo`
-only exposes `insert(envelope, manager)`; it has no update, delete, soft-delete,
-or retry operation. `OutboxEvent` does not inherit the mutable business
-`BaseEntity`.
+`tbl_outbox_delivery` stores one mutable state row per event. It contains
+`attempt_count`, `next_attempt_at`, lease owner/expiry, `delivered_at`, the last
+sanitized error, and database-managed creation/update timestamps. The pending
+partial index supports dispatcher scans. Its event foreign key uses
+`ON DELETE RESTRICT`.
+
+Event rows are append-only through the application boundary. `OutboxEventRepo`
+only exposes `insert(envelope, manager)`; it has no update, delete,
+soft-delete, or retry operation. `OutboxEvent` does not inherit the mutable
+business `BaseEntity`. Delivery changes never update the event row.
 
 ## Producer ownership and envelope
 
@@ -197,17 +209,28 @@ Media changes that affect Listing images. Future Province/Ward name changes
 need a deliberate fan-out/invalidation strategy for affected Listings; this
 PR does not implement that behavior or Media CRUD.
 
-## Publisher handoff
+## Publisher behavior
 
-A future publisher may assume rows contain valid immutable EventEnvelope data,
-the committed source revision, stable event ID, durable payload, and
-materialization time. It must transport persisted rows without regenerating
-`eventId`, `revision`, `payload`, or `occurredAt`. It must not rebuild a payload
-from the current business tables because those rows may have advanced since
-the event was committed.
+`nexus-api-outbox` transports the stored envelope without reading Estate or
+Listing and without generating `eventId`, `revision`, `payload`, or
+`occurredAt`. Listing events are sent to
+`nexus.marketplace.listing.v1`, keyed by `aggregateId`, with the JSON envelope
+as the Kafka value and no extra wrapper.
 
-This PR does not implement publisher polling, `SKIP LOCKED`, delivery markers,
-attempt counters, retries, backoff, a dead-letter queue, or broker transport.
+The dispatcher claims a batch with `FOR UPDATE SKIP LOCKED`, writes a lease,
+and commits before broker I/O. An earlier undelivered event in the same
+aggregate blocks later revisions. Kafka acknowledgement precedes the guarded
+`delivered_at` update. Retry time and sanitized error details are persisted in
+delivery state; there is no dead-letter skip path.
+
+The guarantee is at-least-once. A process can receive Kafka acknowledgement
+and stop before it commits `delivered_at`; after lease expiry the same logical
+envelope may be sent again. No duplicate changes its event ID, aggregate,
+revision, occurrence time, trace ID, or payload.
+
+The HTTP API does not load the Kafka runtime or require Kafka configuration.
+When Kafka is down, its PostgreSQL transaction still commits event and
+delivery rows; the independent publisher catches up after Kafka recovers.
 
 ## Local Docker verification
 

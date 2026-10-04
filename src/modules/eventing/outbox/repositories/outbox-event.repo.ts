@@ -6,7 +6,7 @@ import {
 } from '../../../../common/events/contracts/event-envelope.contract';
 import { OutboxEvent } from '../entities/outbox-event.entity';
 
-/** Persists validated event envelopes through the caller's source transaction. */
+/** Persists validated envelopes; the database trigger creates delivery state in the same transaction. */
 @Injectable()
 export class OutboxEventRepo {
   async insert<TPayload>(

@@ -8,11 +8,13 @@ revisions from timestamps, broker offsets, local counters, random IDs, or its
 own clock.
 
 This document freezes the v1 envelope and the listing-scoped revision rules.
-`API-EVENT-02` now persists Marketplace Listing envelopes in PostgreSQL in the
+`API-EVENT-02` persists Marketplace Listing envelopes in PostgreSQL in the
 same transaction as each supported business mutation and revision increment.
-There is still no broker publisher/dispatcher, Engine consumer, snapshot
-endpoint, or reindex endpoint, so persisted events are not delivered yet. See
-[`docs/outbox-contract.md`](outbox-contract.md) for storage and payload details.
+`API-EVENT-03` adds independent at-least-once delivery to Kafka; the Engine
+consumer, snapshot endpoint, and reindex endpoint remain future work. See
+[`docs/outbox-contract.md`](outbox-contract.md) for storage and payload details
+and [`docs/outbox-delivery-contract.md`](outbox-delivery-contract.md) for
+delivery semantics.
 
 ## Envelope
 
@@ -188,15 +190,16 @@ canonicalization are not frozen by API-EVENT-01.
 Revision gaps may be detected and retried or repaired by a future
 snapshot/rebuild flow; timestamps and broker offsets cannot fill that role.
 
-`eventId` supports delivery-level duplicate detection when persisted by the
-future outbox. Redelivery must retain the original event ID, aggregate
-identity, revision, and payload. `traceId` is observability metadata only.
+`eventId` supports delivery-level duplicate detection. The publisher sends the
+persisted envelope and may redeliver it after a crash between broker
+acknowledgement and the database delivery mark. Redelivery retains the
+original event ID, aggregate identity, revision, occurrence time, trace ID,
+and payload. `traceId` is observability metadata only.
 
 The API persists the event ID, revision, payload, and occurred-at value before
-the source transaction commits. No event delivery or event-driven indexing
-exists until a publisher and Engine consumer are implemented. A future
-publisher transports persisted rows unchanged and does not regenerate these
-fields.
+the source transaction commits. The independent publisher transports
+persisted rows unchanged. Delivery is at-least-once, so a future Engine
+consumer must handle duplicate event IDs and revision-equivalent records.
 
 ## Local Docker verification
 
