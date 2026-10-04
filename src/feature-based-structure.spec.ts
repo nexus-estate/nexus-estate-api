@@ -18,6 +18,7 @@ const technicalLayerNames = new Set([
   'errors',
   'decorators',
   'constants',
+  'events',
   'permissions',
   'management',
   'marketplace',

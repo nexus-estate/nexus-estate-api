@@ -26,6 +26,7 @@ The current ownership layout is:
 | RBAC compatibility            | `src/modules/rbac/legacy-global/migrations/`               |
 | Estate property               | `src/modules/estate/property/migrations/`                  |
 | Listing                       | `src/modules/listing/listing/migrations/`                  |
+| Eventing outbox                | `src/modules/eventing/outbox/migrations/`                   |
 | Location                      | `src/modules/location/administrative-division/migrations/` |
 | Media asset                   | `src/modules/media/asset/migrations/`                      |
 | Provider account              | `src/modules/provider/account/migrations/`                 |

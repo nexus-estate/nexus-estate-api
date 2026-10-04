@@ -15,7 +15,8 @@ import { ProviderSupplyAccessPolicy } from '../../../provider/authorization/help
 import { EstateErrorCodes } from '../errors/estate-error-codes';
 import { EstateActivationPolicy } from '../helpers/estate-activation.policy';
 import { EstateStatus } from '../types/estate.type';
-import { ListingProjectionRevisionRepo } from '../../../listing/listing/repositories/listing-projection-revision.repo';
+import { MarketplaceListingOutboxService } from '../../../listing/listing/events/marketplace-listing-outbox.service';
+import { MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT } from '../../../listing/listing/events/marketplace-listing-event.constants';
 
 @Injectable()
 export class EstateService {
@@ -25,7 +26,7 @@ export class EstateService {
     private readonly wardRepository: WardRepository,
     private readonly providerContextResolver: ProviderContextResolver,
     private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
-    private readonly listingProjectionRevisionRepository: ListingProjectionRevisionRepo,
+    private readonly marketplaceListingOutboxService: MarketplaceListingOutboxService,
   ) {}
 
   private readonly activationPolicy = new EstateActivationPolicy();
@@ -200,8 +201,9 @@ export class EstateService {
             estateId,
           );
         }
-        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+        await this.marketplaceListingOutboxService.bumpAndRecordByEstateId(
           estateId,
+          MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT,
           manager,
         );
         return updated;
@@ -283,8 +285,9 @@ export class EstateService {
         if (!updated) {
           throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
         }
-        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+        await this.marketplaceListingOutboxService.bumpAndRecordByEstateId(
           estate.id,
+          MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT,
           manager,
         );
         return updated;
@@ -363,8 +366,9 @@ export class EstateService {
         if (!changed) {
           throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
         }
-        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+        await this.marketplaceListingOutboxService.bumpAndRecordByEstateId(
           current.id,
+          MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT,
           manager,
         );
         const updated = await this.estateRepository.findById(
@@ -424,8 +428,9 @@ export class EstateService {
         if (!changed) {
           throw new BusinessException(CommonErrorCodes.DATABASE_ERROR);
         }
-        await this.listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId(
+        await this.marketplaceListingOutboxService.bumpAndRecordByEstateId(
           estate.id,
+          MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT,
           manager,
         );
         return true;

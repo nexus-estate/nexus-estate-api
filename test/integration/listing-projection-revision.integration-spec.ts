@@ -80,7 +80,7 @@ describe('Listing projection revision repository (PostgreSQL integration)', () =
         estateId,
         dataSource.manager,
       ),
-    ).resolves.toBe('2');
+    ).resolves.toEqual({ listingId, revision: '2' });
   });
 
   it('returns null for missing or soft-deleted listings', async () => {

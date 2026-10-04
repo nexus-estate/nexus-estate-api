@@ -11,7 +11,11 @@ import {
 import { CreateListingDto } from '../dto/create-listing.dto';
 import { Listing, ListingStatus } from '../entities';
 import { ListingRepo } from '../repositories/listing.repo';
-import { ListingProjectionRevisionRepo } from '../repositories/listing-projection-revision.repo';
+import { MarketplaceListingOutboxService } from '../events/marketplace-listing-outbox.service';
+import {
+  MARKETPLACE_LISTING_ARCHIVED_EVENT,
+  MARKETPLACE_LISTING_PUBLISHED_EVENT,
+} from '../events/marketplace-listing-event.constants';
 import { ListingService } from './listing.service';
 import { EstateStatus } from '../../../estate/property/types/estate.type';
 import type { EntityManager } from 'typeorm';
@@ -76,10 +80,14 @@ describe('ListingService', () => {
           ) => callback(estate as Estate, {} as EntityManager),
         ),
     } as unknown as EstateRepo;
-    const listingProjectionRevisionRepository = {
-      incrementProjectionRevision: jest.fn().mockResolvedValue('2'),
-      incrementProjectionRevisionByEstateId: jest.fn().mockResolvedValue('2'),
-    } as unknown as ListingProjectionRevisionRepo;
+    const marketplaceListingOutboxService = {
+      recordInitialListing: jest.fn().mockResolvedValue(undefined),
+      bumpAndRecordListing: jest.fn().mockResolvedValue('2'),
+      bumpAndRecordByEstateId: jest.fn().mockResolvedValue({
+        listingId,
+        revision: '2',
+      }),
+    };
     const providerContextResolver = {
       resolve: jest.fn().mockResolvedValue({
         customerId,
@@ -98,7 +106,7 @@ describe('ListingService', () => {
     } as unknown as ProviderSupplyAccessPolicy;
     return new ListingService(
       listingRepository,
-      listingProjectionRevisionRepository,
+      marketplaceListingOutboxService as unknown as MarketplaceListingOutboxService,
       estateRepository,
       providerContextResolver,
       supplyAccessPolicy,
@@ -140,6 +148,18 @@ describe('ListingService', () => {
     ).listingRepository;
     expect(repository.create).toHaveBeenCalledWith(
       expect.objectContaining({ projectionRevision: '1' }),
+    );
+    const outboxService = (
+      service as unknown as {
+        marketplaceListingOutboxService: MarketplaceListingOutboxService;
+      }
+    ).marketplaceListingOutboxService as unknown as {
+      recordInitialListing: jest.Mock;
+    };
+    expect(outboxService.recordInitialListing).toHaveBeenCalledWith(
+      listingId,
+      '1',
+      expect.anything(),
     );
   });
 
@@ -266,5 +286,34 @@ describe('ListingService', () => {
     const result = await service.archive(customerId, listingId);
     expect(result.status).toBe(ListingStatus.ARCHIVED);
     expect(result.publishedAt).toEqual(expect.any(Date));
+    const outboxService = (
+      service as unknown as {
+        marketplaceListingOutboxService: MarketplaceListingOutboxService;
+      }
+    ).marketplaceListingOutboxService as unknown as {
+      bumpAndRecordListing: jest.Mock;
+    };
+    expect(outboxService.bumpAndRecordListing).toHaveBeenCalledWith(
+      listingId,
+      MARKETPLACE_LISTING_ARCHIVED_EVENT,
+      expect.anything(),
+    );
+  });
+
+  it('records a published listing snapshot after the status transition', async () => {
+    const { service } = buildLifecycleService(ListingStatus.DRAFT);
+    await service.publish(customerId, listingId);
+    const outboxService = (
+      service as unknown as {
+        marketplaceListingOutboxService: MarketplaceListingOutboxService;
+      }
+    ).marketplaceListingOutboxService as unknown as {
+      bumpAndRecordListing: jest.Mock;
+    };
+    expect(outboxService.bumpAndRecordListing).toHaveBeenCalledWith(
+      listingId,
+      MARKETPLACE_LISTING_PUBLISHED_EVENT,
+      expect.anything(),
+    );
   });
 });

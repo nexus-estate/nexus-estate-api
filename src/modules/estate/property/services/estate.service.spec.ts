@@ -14,7 +14,8 @@ import { EstatePurpose, EstateType } from '../types/estate.type';
 import { EstateStatus } from '../types/estate.type';
 import { EstateErrorCodes } from '../errors/estate-error-codes';
 import { EstateService } from './estate.service';
-import { ListingProjectionRevisionRepo } from '../../../listing/listing/repositories/listing-projection-revision.repo';
+import { MarketplaceListingOutboxService } from '../../../listing/listing/events/marketplace-listing-outbox.service';
+import { MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT } from '../../../listing/listing/events/marketplace-listing-event.constants';
 import {
   ProviderContextResolver,
   type ProviderContext,
@@ -40,8 +41,8 @@ type EstateRepoMock = {
   withLockedEstate: jest.MockedFunction<EstateRepo['withLockedEstate']>;
 };
 
-type ListingProjectionRevisionRepoMock = {
-  incrementProjectionRevisionByEstateId: jest.Mock;
+type MarketplaceListingOutboxServiceMock = {
+  bumpAndRecordByEstateId: jest.Mock;
 };
 
 type ProvinceRepoMock = {
@@ -72,7 +73,7 @@ describe('EstateService', () => {
   let wardRepository: WardRepositoryMock;
   let providerContextResolver: ProviderContextResolverMock;
   let supplyAccessPolicy: ProviderSupplyAccessPolicyMock;
-  let listingProjectionRevisionRepository: ListingProjectionRevisionRepoMock;
+  let marketplaceListingOutboxService: MarketplaceListingOutboxServiceMock;
 
   const customerId = '10000000-0000-4000-8000-000000000001';
   const otherCustomerId = '10000000-0000-4000-8000-000000000002';
@@ -132,8 +133,11 @@ describe('EstateService', () => {
         return callback(locked, {} as EntityManager);
       },
     );
-    listingProjectionRevisionRepository = {
-      incrementProjectionRevisionByEstateId: jest.fn().mockResolvedValue('2'),
+    marketplaceListingOutboxService = {
+      bumpAndRecordByEstateId: jest.fn().mockResolvedValue({
+        listingId: '50000000-0000-4000-8000-000000000001',
+        revision: '2',
+      }),
     };
     provinceRepository = { findById: jest.fn() };
     wardRepository = { findById: jest.fn() };
@@ -161,7 +165,7 @@ describe('EstateService', () => {
       wardRepository as unknown as WardRepository,
       providerContextResolver as unknown as ProviderContextResolver,
       supplyAccessPolicy as unknown as ProviderSupplyAccessPolicy,
-      listingProjectionRevisionRepository as unknown as ListingProjectionRevisionRepo,
+      marketplaceListingOutboxService as unknown as MarketplaceListingOutboxService,
     );
   });
 
@@ -358,7 +362,7 @@ describe('EstateService', () => {
         expect.anything(),
       );
       expect(
-        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
+        marketplaceListingOutboxService.bumpAndRecordByEstateId,
       ).toHaveBeenCalledTimes(1);
     });
 
@@ -399,8 +403,12 @@ describe('EstateService', () => {
         expect.anything(),
       );
       expect(
-        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
-      ).toHaveBeenCalledWith(estateId, expect.anything());
+        marketplaceListingOutboxService.bumpAndRecordByEstateId,
+      ).toHaveBeenCalledWith(
+        estateId,
+        MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT,
+        expect.anything(),
+      );
     });
 
     it('combines a changed ward with the existing province for validation', async () => {
@@ -495,8 +503,12 @@ describe('EstateService', () => {
           expect.anything(),
         );
         expect(
-          listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
-        ).toHaveBeenCalledWith(estateId, expect.anything());
+          marketplaceListingOutboxService.bumpAndRecordByEstateId,
+        ).toHaveBeenCalledWith(
+          estateId,
+          MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT,
+          expect.anything(),
+        );
       },
     );
 
@@ -567,7 +579,7 @@ describe('EstateService', () => {
         errorCode: CommonErrorCodes.DATABASE_ERROR.code,
       });
       expect(
-        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
+        marketplaceListingOutboxService.bumpAndRecordByEstateId,
       ).not.toHaveBeenCalled();
     });
   });
@@ -621,8 +633,12 @@ describe('EstateService', () => {
         expect.anything(),
       );
       expect(
-        listingProjectionRevisionRepository.incrementProjectionRevisionByEstateId,
-      ).toHaveBeenCalledWith(estateId, expect.anything());
+        marketplaceListingOutboxService.bumpAndRecordByEstateId,
+      ).toHaveBeenCalledWith(
+        estateId,
+        MARKETPLACE_LISTING_SEARCH_PROJECTION_CHANGED_EVENT,
+        expect.anything(),
+      );
     });
 
     it('rejects archiving a property with a published listing', async () => {
