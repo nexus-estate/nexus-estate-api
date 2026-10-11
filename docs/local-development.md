@@ -55,8 +55,13 @@ PORT=50001
 DB_POSTGRES_HOST=localhost
 DB_POSTGRES_PORT=5432
 DB_POSTGRES_USER=postgres
-DB_POSTGRES_PASS=nexus
-DB_POSTGRES_NAME=nexus_estate
+DB_POSTGRES_PASS=postgres
+DB_POSTGRES_NAME=nexus_estate_dev
+S3_ENDPOINT=http://localhost:8333
+S3_REGION=us-east-1
+S3_ACCESS_KEY=local-access-key
+S3_SECRET_KEY=local-secret-key
+S3_BUCKET=estate-images
 ```
 
 ### Step 5: Start PostgreSQL
@@ -67,7 +72,27 @@ DB_POSTGRES_NAME=nexus_estate
 LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose up --build
 ```
 
-This starts PostgreSQL and the API development container together.
+This starts PostgreSQL, SeaweedFS (S3-compatible media storage), and the API
+development container together. Inside the API container, PostgreSQL is reached
+as `postgres` and SeaweedFS as `seaweedfs`; Docker Compose overrides those
+internal hostnames automatically.
+
+The `seaweedfs-init` one-shot container checks and creates the configured
+`S3_BUCKET` before the API starts using the official AWS CLI image, pinned to
+version `2.27.49`. All storage commands target SeaweedFS inside the Compose
+network. Existing buckets are preserved; a failed create or final bucket check
+stops startup. This keeps Media uploads reproducible on a fresh Docker volume.
+Check its result with:
+
+```bash
+docker compose ps
+docker compose logs seaweedfs-init
+```
+
+Open the SeaweedFS Filer UI at `http://localhost:8888/buckets/` to browse the
+configured `S3_BUCKET`. Estate images are under `<bucket>/estates/<estateId>/`;
+click an image filename to view it. Port `8888` is bound to the host loopback
+interface for local access. Port `8333` serves the S3 API.
 
 If your host user already has UID/GID 1000:1000, the defaults are sufficient and
 you can run `docker compose up --build` directly. Override only when your identity
@@ -75,19 +100,23 @@ differs from 1000:1000.
 
 ### Step 5a: Recovering from an old node_modules volume
 
-If you previously ran the API in Docker with the old configuration and now see
-permission errors after rebuilding, the stale anonymous `node_modules` volume may
-still be owned by the old container UID. Recreate only that volume, not the
-PostgreSQL data:
+The API container runs `npm ci` on startup so the named `node_modules` volume is
+always synchronized with `package-lock.json`. This is required because the
+volume hides the `node_modules` directory installed while building the image.
+
+If you previously ran the API and still see a missing dependency or a permission
+error, recreate only that volume, not the PostgreSQL data, then rebuild the API
+image so dependencies are installed with the configured application UID/GID:
 
 ```bash
 docker compose down
-docker volume rm api_nexus_api_node_modules
+docker volume rm nexus-estate-api-gateway_nexus_api_node_modules
 LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose up --build -d
 ```
 
-If `api_nexus_api_node_modules` does not match the volume shown by `docker volume ls`,
-replace it with the exact volume name reported for your project.
+If the volume name differs, replace it with the exact name reported by
+`docker volume ls`. The API startup command no longer runs `npm ci`; dependency
+installation is performed by the Docker image build instead.
 
 #### Option B: Using Local PostgreSQL
 
@@ -97,6 +126,15 @@ sudo systemctl start postgresql
 sudo -u postgres createdb nexus_estate
 sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'nexus';"
 ```
+
+When running the API outside Docker, keep the host values in `.env`:
+
+```env
+DB_POSTGRES_HOST=localhost
+S3_ENDPOINT=http://localhost:8333
+```
+
+SeaweedFS must still be running locally on port `8333` for Media upload tests.
 
 ### Step 6: Start the Development Server
 

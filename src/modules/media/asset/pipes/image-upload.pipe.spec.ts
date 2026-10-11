@@ -1,0 +1,114 @@
+import { Readable } from 'node:stream';
+import { ImageUploadPipe, MAX_IMAGE_BYTES } from './image-upload.pipe';
+import { MediaErrorCodes } from '../errors/media-error-codes';
+
+describe('ImageUploadPipe', () => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP2sAAAAASUVORK5CYII=',
+    'base64',
+  );
+  const pipe = new ImageUploadPipe();
+  const file = (
+    changes: Partial<Express.Multer.File> = {},
+  ): Express.Multer.File => ({
+    fieldname: 'file',
+    originalname: 'untrusted.txt',
+    encoding: '7bit',
+    mimetype: 'image/png',
+    size: png.length,
+    buffer: png,
+    destination: '',
+    filename: '',
+    path: '',
+    stream: Readable.from(png),
+    ...changes,
+  });
+
+  it.each(['untrusted.txt', 'untrusted.exe', 'no-extension'])(
+    'accepts PNG content independently of the filename: %s',
+    async (originalname) => {
+      await expect(pipe.transform(file({ originalname }))).resolves.toEqual({
+        buffer: png,
+        mimetype: 'image/png',
+      });
+    },
+  );
+
+  it.each(['untrusted.txt', 'untrusted.exe', 'no-extension'])(
+    'accepts JPEG signature with matching MIME independently of the filename: %s',
+    async (originalname) => {
+      const buffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0xff, 0xd9]);
+      await expect(
+        pipe.transform(
+          file({
+            originalname,
+            buffer,
+            size: buffer.length,
+            mimetype: 'image/jpeg',
+          }),
+        ),
+      ).resolves.toEqual({ buffer, mimetype: 'image/jpeg' });
+    },
+  );
+
+  it('requires a file', async () => {
+    await expect(pipe.transform(undefined)).rejects.toMatchObject({
+      errorCode: MediaErrorCodes.MEDIA_IMAGE_REQUIRED.code,
+    });
+  });
+
+  it.each(['image/webp', 'image/png'])(
+    'rejects WebP content even when declared as %s',
+    async (mimetype) => {
+      const buffer = Buffer.from(
+        'UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA',
+        'base64',
+      );
+      await expect(
+        pipe.transform(file({ buffer, size: buffer.length, mimetype })),
+      ).rejects.toMatchObject({
+        errorCode: MediaErrorCodes.MEDIA_INVALID_IMAGE_UPLOAD.code,
+      });
+    },
+  );
+
+  it.each([
+    { buffer: Buffer.alloc(0), size: 0 },
+    { buffer: undefined },
+    { mimetype: 'image/jpeg' },
+    { mimetype: 'image/[' },
+    { mimetype: 'image/png; charset=utf-8' },
+    { buffer: png.subarray(0, 7), size: 7 },
+    { buffer: Buffer.from([0xff, 0xd8]), size: 2, mimetype: 'image/jpeg' },
+    { buffer: Buffer.from([0xff, 0xd8, 0xff]), size: 3 },
+  ])('rejects invalid content or MIME: %s', async (changes) => {
+    await expect(pipe.transform(file(changes))).rejects.toMatchObject({
+      errorCode: MediaErrorCodes.MEDIA_INVALID_IMAGE_UPLOAD.code,
+    });
+  });
+
+  it.each(['image/gif', 'image/svg+xml', 'application/pdf'])(
+    'rejects unsupported MIME even with PNG content: %s',
+    async (mimetype) => {
+      await expect(pipe.transform(file({ mimetype }))).rejects.toMatchObject({
+        errorCode: MediaErrorCodes.MEDIA_INVALID_IMAGE_UPLOAD.code,
+      });
+    },
+  );
+
+  it('accepts the inclusive 5 MB boundary', async () => {
+    const buffer = Buffer.alloc(MAX_IMAGE_BYTES);
+    png.copy(buffer);
+    await expect(
+      pipe.transform(file({ buffer, size: buffer.length })),
+    ).resolves.toMatchObject({ mimetype: 'image/png' });
+  });
+
+  it('returns the localized business error for an oversize file before content validation', async () => {
+    await expect(
+      pipe.transform(file({ size: MAX_IMAGE_BYTES + 1 })),
+    ).rejects.toMatchObject({
+      errorCode: MediaErrorCodes.MEDIA_IMAGE_TOO_LARGE.code,
+    });
+  });
+});

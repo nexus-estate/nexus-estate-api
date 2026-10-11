@@ -5,15 +5,75 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      POSTGRES_USER: ${DB_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_POSTGRES_PASS:-postgres}
+      POSTGRES_DB: ${DB_POSTGRES_NAME:-nexus_estate_dev}
     ports:
       - '${DB_POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${DB_POSTGRES_USER:-postgres} -d ${DB_POSTGRES_NAME:-nexus_estate_dev}',
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - nexus-network
+  seaweedfs:
+    image: chrislusf/seaweedfs
+    container_name: nexus-estate-seaweedfs
+    restart: unless-stopped
+    command: ['server', '-s3']
+    env_file:
+    - .env
+    environment:
+    - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY}
+    - AWS_SECRET_ACCESS_KEY=${S3_SECRET_KEY}
+    - S3_BUCKET=${S3_BUCKET}
+    ports:
+    - '8333:8333'
+    - '127.0.0.1:8888:8888'
+    volumes:
+    - seaweed_data:/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "wget -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -Eq 'HTTP/1.1 (2[0-9][0-9]|403)'",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+    - nexus-network
+
+  seaweedfs-init:
+    image: public.ecr.aws/aws-cli/aws-cli:2.27.49
+    container_name: nexus-estate-seaweedfs-init
+    restart: "no"
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+      AWS_EC2_METADATA_DISABLED: 'true'
+      AWS_PAGER: ''
+      S3_BUCKET: ${S3_BUCKET:-estate-images}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >-
+        set -eu;
+        if ! aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket "$${S3_BUCKET}"; then
+          aws --endpoint-url http://seaweedfs:8333 s3api create-bucket --bucket "$${S3_BUCKET}";
+        fi;
+        aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket "$${S3_BUCKET}";
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
     networks:
       - nexus-network
 
@@ -27,18 +87,25 @@ services:
     container_name: nexus-api
     restart: unless-stopped
     ports:
-      - '${PORT:-50001}:${PORT:-50001}'
+      - '${PORT:-3001}:${PORT:-3001}'
     env_file:
       - .env
     environment:
       - DB_POSTGRES_HOST=postgres
       - DB_POSTGRES_PORT=5432
+      - S3_ENDPOINT=http://seaweedfs:8333
+    # Dependencies are installed and ownership-fixed during the image build.
+    # Re-running npm ci here breaks when an existing named volume was created
+    # by root while the development container runs as the host UID/GID.
+    command: ['npm', 'run', 'start:dev']
     volumes:
       - .:/app
       - nexus_api_node_modules:/app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
+      seaweedfs-init:
+        condition: service_completed_successfully
     networks:
       - nexus-network
 
@@ -46,7 +113,7 @@ volumes:
   postgres_data:
     driver: local
   nexus_api_node_modules:
-
+  seaweed_data:
 networks:
   nexus-network:
     driver: bridge

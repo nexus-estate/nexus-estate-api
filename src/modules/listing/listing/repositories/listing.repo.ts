@@ -79,6 +79,26 @@ export class ListingRepo {
     return rows;
   }
 
+  /** A sponsored slot requires a current promotion and a public listing. */
+  findPromoted(): Promise<Listing[]> {
+    return this.baseQuery()
+      .andWhere('listing.status = :status', { status: ListingStatus.PUBLISHED })
+      .andWhere('listing.deletedAt IS NULL')
+      .andWhere('estate.status = :estateStatus', { estateStatus: 'ACTIVE' })
+      .andWhere(
+        `EXISTS (
+          SELECT 1 FROM tbl_listing_promotion listing_promotion
+          WHERE listing_promotion.fk_listing_id = listing.id
+            AND listing_promotion.deleted_at IS NULL
+            AND listing_promotion.start_at <= NOW()
+            AND listing_promotion.end_at > NOW()
+        )`,
+      )
+      .orderBy('listing.publishedAt', 'DESC')
+      .take(8)
+      .getMany();
+  }
+
   async findPublic(queryDto: ListingQueryDto) {
     const query = this.baseQuery()
       .andWhere('listing.status = :status', { status: ListingStatus.PUBLISHED })

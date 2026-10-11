@@ -253,4 +253,20 @@ describe('Administration authorization management (HTTP + PostgreSQL)', () => {
         );
       });
   });
+
+  it('lists Marketplace subjects with pagination', async () => {
+    await management()
+      .get(
+        '/api/v1/administration/authorization/MARKETPLACE/subjects?page=1&limit=1',
+      )
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toEqual(
+          expect.objectContaining({
+            items: expect.any(Array),
+            meta: expect.objectContaining({ page: 1, limit: 1 }),
+          }),
+        );
+      });
+  });
 });

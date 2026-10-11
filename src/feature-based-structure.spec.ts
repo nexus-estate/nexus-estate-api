@@ -10,6 +10,8 @@ const technicalLayerNames = new Set([
   'entities',
   'dto',
   'guards',
+  'pipes',
+  'providers',
   'strategies',
   'helpers',
   'enums',

@@ -17,7 +17,12 @@ describe('ListingController', () => {
   let service: jest.Mocked<
     Pick<
       ListingService,
-      'create' | 'findEligibleProperties' | 'findPublic' | 'publish' | 'archive'
+      | 'create'
+      | 'findEligibleProperties'
+      | 'findPublic'
+      | 'findPromoted'
+      | 'publish'
+      | 'archive'
     >
   >;
   let controller: ListingController;
@@ -27,6 +32,7 @@ describe('ListingController', () => {
       create: jest.fn(),
       findEligibleProperties: jest.fn(),
       findPublic: jest.fn(),
+      findPromoted: jest.fn(),
       publish: jest.fn(),
       archive: jest.fn(),
     };
@@ -41,6 +47,13 @@ describe('ListingController', () => {
       listing,
     );
     expect(service.create).toHaveBeenCalledWith(user.id, dto, 'provider-id');
+  });
+
+  it('returns only the service-selected promoted listings', async () => {
+    service.findPromoted.mockResolvedValue([listing]);
+
+    await expect(controller.promoted()).resolves.toEqual([listing]);
+    expect(service.findPromoted).toHaveBeenCalledWith();
   });
 
   it('delegates public marketplace filtering', async () => {

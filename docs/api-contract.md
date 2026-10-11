@@ -4,7 +4,7 @@ This document is the backend-owned integration reference. Paths below are
 relative to `/api/v1`. Successful responses are wrapped by the common response
 envelope: `{ status: true, data, timestamp, path }`.
 
-The backend does not currently expose `properties`, `media`, standalone
+The backend does not currently expose `properties`, standalone
 `search`, `recommendations`, or `payments` routes. Marketplace search is part
 of the public Listing collection contract. Frontend clients for absent
 capabilities must remain removed or explicitly blocked until implemented.
@@ -34,6 +34,7 @@ capabilities must remain removed or explicitly blocked until implemented.
 | POST   | `/estates/:id/archive`                                                    | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
 | POST   | `/estates/:id/restore`                                                    | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | Estate response                |
 | DELETE | `/estates/:id`                                                            | Customer JWT                    | Optional `X-Provider-Id` | UUID route parameter                                               | `boolean`                      |
+| POST   | `/estates/:estateId/media`                                                | Customer JWT                    | Optional `X-Provider-Id` | `multipart/form-data` field `file`                                 | Media response                 |
 | POST   | `/listings`                                                               | Customer JWT                    | Optional `X-Provider-Id` | `CreateListingDto` (`estateId`)                                    | Listing response               |
 | GET    | `/listings/mine`                                                          | Customer JWT                    | Optional `X-Provider-Id` | —                                                                  | Listing response[]             |
 | GET    | `/listings`                                                               | Public                          | None                     | `ListingQueryDto`                                                  | Paginated published listings   |
@@ -137,6 +138,12 @@ their backend domain, DTOs, auth rules, persistence behavior, Swagger contract,
 and tests exist:
 
 - Provider lead access and lead-management workflow
-- Media upload/finalization
+- Media deletion and signed download URL generation
 - Recommendations
 - Payment orders, callbacks, idempotency, and package activation
+
+## Public estate images
+
+- `GET /estates/:estateId/media` returns ordered image metadata for an estate accessible through the public estate policy.
+- `GET /estates/:estateId/media/:mediaId/content` returns the stored JPEG or PNG bytes. Both IDs must be UUIDs, the image must belong to this estate, and the estate must remain publicly accessible. Draft, archived, deleted, or unavailable provider estates are excluded by the estate public policy.
+- Content is served through the API from private object storage, with `Cache-Control: no-store`; no bucket access or render image fallback is required by the marketplace.

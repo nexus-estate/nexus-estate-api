@@ -6,6 +6,7 @@ import { CustomerAccountErrorCodes } from '../../modules/customer/account/errors
 import { CustomerAuthErrorCodes } from '../../modules/customer/authentication/errors/customer-auth-error-codes';
 import { ProviderAccountErrorCodes } from '../../modules/provider/account/errors/provider-account-error-codes';
 import { RbacErrorCodes } from '../../modules/rbac/legacy-global/errors/rbac-error-codes';
+import { MediaErrorCodes } from '../../modules/media/asset/errors/media-error-codes';
 
 describe('business error code', () => {
   it('loads as an independent module boundary', () => {
@@ -34,6 +35,7 @@ describe('business error code', () => {
       CustomerAuthErrorCodes,
       ProviderAccountErrorCodes,
       RbacErrorCodes,
+      MediaErrorCodes,
     ];
 
     for (const catalogue of catalogues) {
@@ -55,6 +57,7 @@ describe('business error code', () => {
       CustomerAuthErrorCodes,
       ProviderAccountErrorCodes,
       RbacErrorCodes,
+      MediaErrorCodes,
     ];
     const englishAction =
       /please|check|verify|try|use|choose|contact|wait|sign in|provide|select|refresh|remove|keep|update|enter|assign|review|reset/i;

@@ -22,6 +22,7 @@ import { AdministrationModule } from './modules/administration/administration.mo
 import { validateEnvironment } from './config/environment.validation';
 import { DataSource } from 'typeorm';
 import { PromotionModule } from './modules/promotion/promotion.module';
+import { MediaModule } from './modules/media/media.module';
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
 @Public()
 /** Exposes dependency-free liveness and database-backed readiness probes. */
@@ -85,6 +86,7 @@ export class LegacyHealthController {
     ProviderModule,
     AdministrationModule,
     PromotionModule,
+    MediaModule,
   ],
   controllers: [HealthController, LegacyHealthController],
 })

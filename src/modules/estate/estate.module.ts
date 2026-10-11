@@ -17,5 +17,6 @@ import { ListingModule } from '../listing/listing.module';
   ],
   controllers: [EstateController],
   providers: [EstateRepo, EstateService],
+  exports: [EstateService],
 })
 export class EstateModule {}

@@ -31,6 +31,18 @@ export class EstateRepo extends BaseRepository<Estate> {
     return query.getOne();
   }
 
+  /** Lists only active, non-deleted estates with hydrated location data. */
+  findPublicActive(): Promise<Estate[]> {
+    return this.repository
+      .createQueryBuilder('estate')
+      .innerJoinAndSelect('estate.province', 'province')
+      .innerJoinAndSelect('estate.ward', 'ward')
+      .where('estate.status = :status', { status: EstateStatus.ACTIVE })
+      .andWhere('estate.deletedAt IS NULL')
+      .orderBy('estate.createdAt', 'DESC')
+      .getMany();
+  }
+
   /** Loads only an active, non-deleted estate for public marketplace access. */
   async findPublicActiveById(id: string): Promise<Estate | null> {
     return this.repository

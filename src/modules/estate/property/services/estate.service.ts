@@ -86,6 +86,11 @@ export class EstateService {
     return true;
   }
 
+  /** Public Marketplace inventory contains active estates only. */
+  listPublic(): Promise<Estate[]> {
+    return this.estateRepository.findPublicActive();
+  }
+
   /** Loads one estate by exact identifier or raises the feature's not-found error. */
   async findPublicById(id: string): Promise<Estate> {
     const estate = await this.estateRepository.findPublicActiveById(id);

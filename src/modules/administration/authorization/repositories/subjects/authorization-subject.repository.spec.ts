@@ -50,6 +50,12 @@ describe('AuthorizationSubjectRepository', () => {
       ],
       meta: { page: 1, limit: 20, total: 1 },
     });
+    expect(query.mock.calls[1][0]).toContain(
+      'GROUP BY subject.id, subject.email, subject.email',
+    );
+    expect(query.mock.calls[1][0]).not.toContain(
+      "GROUP BY subject.id, subject.email, subject.email, 'ACTIVE'",
+    );
 
     const adminQuery = jest
       .fn()
@@ -155,6 +161,33 @@ describe('AuthorizationSubjectRepository', () => {
       customer_id: 'customer-1',
       customer_email: 'customer@example.com',
     });
+  });
+
+  it('does not group Marketplace subject detail by a status literal', async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          id: 'customer-1',
+          display_name: 'customer@example.com',
+          secondary_text: 'customer@example.com',
+          status: 'ACTIVE',
+          role_count: 0,
+          role_ids: [],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const repository = new AuthorizationSubjectRepository({ query } as never);
+
+    await expect(
+      repository.findById(marketplaceContext, 'customer-1'),
+    ).resolves.toMatchObject({ id: 'customer-1', status: 'ACTIVE' });
+    expect(query.mock.calls[0][0]).toContain(
+      'GROUP BY subject.id, subject.email, subject.email',
+    );
+    expect(query.mock.calls[0][0]).not.toContain(
+      "GROUP BY subject.id, subject.email, subject.email, 'ACTIVE'",
+    );
   });
 
   it('throws SUBJECT_NOT_FOUND when the subject does not exist', async () => {

@@ -22,7 +22,7 @@ COPY --chown=${APP_UID}:${APP_GID} . .
 
 USER ${APP_UID}:${APP_GID}
 
-EXPOSE 50001
+EXPOSE 3001
 
 CMD ["npm", "run", "start:dev"]
 
@@ -50,6 +50,6 @@ COPY --from=builder --chown=app:app /app/dist ./dist
 
 USER app
 
-EXPOSE 50001
+EXPOSE 3001
 
 CMD ["node", "dist/main"]

@@ -35,6 +35,30 @@ export const CommonErrorCodes = {
     { en: commonMessages.en.INVALID_UUID, vi: commonMessages.vi.INVALID_UUID },
     HttpCodes.BAD_REQUEST,
   ),
+  IMAGE_UPLOAD_REQUIRED: defineBusinessErrorCode(
+    'IMAGE_UPLOAD_REQUIRED',
+    {
+      en: commonMessages.en.IMAGE_UPLOAD_REQUIRED,
+      vi: commonMessages.vi.IMAGE_UPLOAD_REQUIRED,
+    },
+    HttpCodes.BAD_REQUEST,
+  ),
+  IMAGE_UPLOAD_INVALID_TYPE: defineBusinessErrorCode(
+    'IMAGE_UPLOAD_INVALID_TYPE',
+    {
+      en: commonMessages.en.IMAGE_UPLOAD_INVALID_TYPE,
+      vi: commonMessages.vi.IMAGE_UPLOAD_INVALID_TYPE,
+    },
+    HttpCodes.BAD_REQUEST,
+  ),
+  IMAGE_UPLOAD_TOO_LARGE: defineBusinessErrorCode(
+    'IMAGE_UPLOAD_TOO_LARGE',
+    {
+      en: commonMessages.en.IMAGE_UPLOAD_TOO_LARGE,
+      vi: commonMessages.vi.IMAGE_UPLOAD_TOO_LARGE,
+    },
+    HttpCodes.PAYLOAD_TOO_LARGE,
+  ),
   INVALID_PAGINATION: defineBusinessErrorCode(
     'INVALID_PAGINATION',
     {
