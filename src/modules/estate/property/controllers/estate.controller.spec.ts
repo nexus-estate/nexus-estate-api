@@ -12,6 +12,7 @@ const API_RESPONSE_METADATA = 'swagger/apiResponse';
 type EstateServiceMock = {
   createEstate: jest.MockedFunction<EstateService['createEstate']>;
   listMine: jest.MockedFunction<EstateService['listMine']>;
+  listPublic: jest.MockedFunction<EstateService['listPublic']>;
   findPublicById: jest.MockedFunction<EstateService['findPublicById']>;
   findOwnedByIdForUpdate: jest.MockedFunction<
     EstateService['findOwnedByIdForUpdate']
@@ -82,6 +83,7 @@ describe('EstateController', () => {
     estateService = {
       createEstate: jest.fn(),
       listMine: jest.fn(),
+      listPublic: jest.fn(),
       findPublicById: jest.fn(),
       findOwnedByIdForUpdate: jest.fn(),
       updateEstate: jest.fn(),
@@ -115,6 +117,21 @@ describe('EstateController', () => {
     );
     expect(result).not.toHaveProperty('customerId');
     expect(result).not.toHaveProperty('deletedAt');
+  });
+
+  it('returns public estates through the explicit response contract', async () => {
+    estateService.listPublic.mockResolvedValue([
+      { ...estate, status: EstateStatus.ACTIVE },
+    ]);
+
+    const result = await controller.listPublic();
+
+    expect(estateService.listPublic).toHaveBeenCalledWith();
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(
+      expect.objectContaining({ id: estateId, status: EstateStatus.ACTIVE }),
+    );
+    expect(result[0]).not.toHaveProperty('customerId');
   });
 
   it('lists estates through the provider-scoped listMine', async () => {

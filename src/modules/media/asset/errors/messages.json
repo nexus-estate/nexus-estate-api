@@ -1,0 +1,12 @@
+{
+  "en": {
+    "MEDIA_IMAGE_REQUIRED": "Please upload an image using the file field.",
+    "MEDIA_IMAGE_TOO_LARGE": "The image must not exceed 5 MB.",
+    "MEDIA_INVALID_IMAGE_UPLOAD": "Only non-empty JPEG and PNG images with matching content and MIME type are allowed."
+  },
+  "vi": {
+    "MEDIA_IMAGE_REQUIRED": "Vui lòng tải lên một ảnh qua trường file.",
+    "MEDIA_IMAGE_TOO_LARGE": "Dung lượng ảnh không được vượt quá 5 MB.",
+    "MEDIA_INVALID_IMAGE_UPLOAD": "Chỉ chấp nhận ảnh JPEG và PNG có dữ liệu và nội dung khớp MIME type."
+  }
+}

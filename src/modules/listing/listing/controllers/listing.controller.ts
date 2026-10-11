@@ -82,6 +82,14 @@ export class ListingController {
     return this.listingService.findMine(user.id, providerId);
   }
 
+  @Get('promoted')
+  @Public()
+  @ApiOperation({ summary: 'List currently promoted marketplace listings' })
+  @ApiOkResponse({ type: [ListingResponse] })
+  promoted(): Promise<ListingResponse[]> {
+    return this.listingService.findPromoted();
+  }
+
   @Get()
   @Public()
   @ApiOperation({ summary: 'List published marketplace listings' })

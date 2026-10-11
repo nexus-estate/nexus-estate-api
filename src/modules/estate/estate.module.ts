@@ -11,5 +11,6 @@ import { LocationModule } from '../location/location.module';
   imports: [TypeOrmModule.forFeature([Estate]), ProviderModule, LocationModule],
   controllers: [EstateController],
   providers: [EstateRepo, EstateService],
+  exports: [EstateService],
 })
 export class EstateModule {}

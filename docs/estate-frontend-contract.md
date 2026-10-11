@@ -6,7 +6,7 @@ Tài liệu này là contract để FE dựng type, mock data và adapter render
 
 - Contract Backend đã kiểm chứng từ `src/modules/estate/controller/estate.controller.ts`, entity và DTO.
 - Các endpoint Estate hiện yêu cầu JWT.
-- Hiện chưa có endpoint danh sách Estate công khai, pagination, filter, search hoặc media.
+- Hiện chưa có endpoint danh sách Estate công khai, pagination, filter, search hoặc danh sách media.
 - `user`, `province`, `ward` được load trong response của `GET /estates/mine` và `GET /estates/:id`.
 - FE không được giả định `approvalStatus`, `isFeatured`, `features`, `media` tồn tại trong response hiện tại.
 
@@ -138,6 +138,7 @@ GET    /api/v1/estates/mine                                        -> ApiSuccess
 GET    /api/v1/estates/:id                                         -> ApiSuccess<Estate>
 PATCH  /api/v1/estates/:id          body: UpdateEstateRequest      -> ApiSuccess<Estate>
 DELETE /api/v1/estates/:id                                         -> ApiSuccess<boolean>
+POST   /api/v1/estates/:estateId/media  multipart field `file`     -> ApiSuccess<Media>
 ```
 
 ## Mock Estate cho FE

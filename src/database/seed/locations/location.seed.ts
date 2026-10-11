@@ -17,11 +17,20 @@ const isLocationFixture = (value: unknown): value is LocationFixture => {
     return false;
   }
 
-  if (typeof value.version !== 'number') {
+  if (
+    typeof value.version !== 'number' ||
+    !Number.isInteger(value.version) ||
+    value.version < 1
+  ) {
     return false;
   }
 
-  if (!Array.isArray(value.provinces) || !Array.isArray(value.wards)) {
+  if (
+    !Array.isArray(value.provinces) ||
+    !Array.isArray(value.wards) ||
+    value.provinces.length === 0 ||
+    value.wards.length === 0
+  ) {
     return false;
   }
 
@@ -32,7 +41,9 @@ const isLocationFixture = (value: unknown): value is LocationFixture => {
 
     return (
       typeof province.code === 'string' &&
+      /^\d{2}$/.test(province.code) &&
       typeof province.name === 'string' &&
+      province.name.trim().length > 0 &&
       (province.type === 'province' || province.type === 'municipality')
     );
   });
@@ -44,7 +55,9 @@ const isLocationFixture = (value: unknown): value is LocationFixture => {
 
     return (
       typeof ward.code === 'string' &&
+      /^\d{5}$/.test(ward.code) &&
       typeof ward.name === 'string' &&
+      ward.name.trim().length > 0 &&
       typeof ward.provinceCode === 'string' &&
       (ward.type === 'ward' ||
         ward.type === 'commune' ||
@@ -52,7 +65,21 @@ const isLocationFixture = (value: unknown): value is LocationFixture => {
     );
   });
 
-  return provincesValid && wardsValid;
+  if (!provincesValid || !wardsValid) {
+    return false;
+  }
+
+  const provinces = value.provinces as LocationFixture['provinces'];
+  const wards = value.wards as LocationFixture['wards'];
+  const provinceCodes = provinces.map((province) => province.code);
+  const wardCodes = wards.map((ward) => ward.code);
+  const knownProvinceCodes = new Set(provinceCodes);
+
+  return (
+    knownProvinceCodes.size === provinceCodes.length &&
+    new Set(wardCodes).size === wardCodes.length &&
+    wards.every((ward) => knownProvinceCodes.has(ward.provinceCode))
+  );
 };
 
 const loadLocationFixture = async (): Promise<LocationFixture> => {
@@ -108,7 +135,6 @@ export const seedLocation = async (dataSource: DataSource): Promise<void> => {
         conflictPaths: ['code'],
       });
 
-      console.log(`Seeded ${fixture.provinces.length} provinces`);
       console.log(
         `Seeded ${fixture.provinces.length} provinces and ${wards.length} wards`,
       );

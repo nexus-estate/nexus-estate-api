@@ -59,6 +59,12 @@ export class AuthorizationSubjectRepository {
     const where: string[] = ['subject.deleted_at IS NULL'];
     const { statusExpression, displayName, secondaryText } =
       this.subjectExpressions(platform);
+    const groupBy = this.subjectGroupBy(
+      platform,
+      displayName,
+      secondaryText,
+      statusExpression,
+    );
 
     if (query.q) {
       parameters.push(`%${query.q.trim()}%`);
@@ -91,7 +97,7 @@ export class AuthorizationSubjectRepository {
        FROM ${config.subjectTable} subject ${joinSql}
        LEFT JOIN ${config.assignmentTable} assignment ON assignment.${config.assignmentSubjectColumn} = subject.id
        WHERE ${whereSql}
-       GROUP BY subject.id, ${displayName}, ${secondaryText}, ${statusExpression}
+       GROUP BY ${groupBy}
        ORDER BY display_name, subject.id
        LIMIT ${pagination.limit} OFFSET ${offset}`,
       parameters,
@@ -112,6 +118,12 @@ export class AuthorizationSubjectRepository {
     const { platform, config } = context;
     const { statusExpression, displayName, secondaryText } =
       this.subjectExpressions(platform);
+    const groupBy = this.subjectGroupBy(
+      platform,
+      displayName,
+      secondaryText,
+      statusExpression,
+    );
     const joinSql = this.providerJoin(platform);
     const rows = await this.dataSource.query<SubjectRow[]>(
       `SELECT subject.id, ${displayName} AS display_name, ${secondaryText} AS secondary_text,
@@ -120,7 +132,7 @@ export class AuthorizationSubjectRepository {
        FROM ${config.subjectTable} subject ${joinSql}
        LEFT JOIN ${config.assignmentTable} assignment ON assignment.${config.assignmentSubjectColumn} = subject.id
        WHERE subject.id = $1 AND subject.deleted_at IS NULL
-       GROUP BY subject.id, ${displayName}, ${secondaryText}, ${statusExpression}`,
+       GROUP BY ${groupBy}`,
       [subjectId],
     );
     const row = rows[0];
@@ -215,6 +227,19 @@ export class AuthorizationSubjectRepository {
       ? `INNER JOIN tbl_provider_account provider ON provider.id = subject.provider_id
          INNER JOIN tbl_customer_account customer ON customer.id = subject.customer_id`
       : '';
+  }
+
+  private subjectGroupBy(
+    platform: AuthorizationPlatform,
+    displayName: string,
+    secondaryText: string,
+    statusExpression: string,
+  ): string {
+    const columns = ['subject.id', displayName, secondaryText];
+    if (platform !== AuthorizationPlatform.MARKETPLACE) {
+      columns.push(statusExpression);
+    }
+    return columns.join(', ');
   }
 
   private toSummary(row: SubjectRow, config: PlatformAuthorizationSqlConfig) {

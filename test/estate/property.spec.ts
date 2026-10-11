@@ -11,6 +11,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
+import { seedLocation } from '../../src/database/seed/locations/location.seed';
 import { CommonModule } from '../../src/common/common.module';
 import { AuthSession } from '../../src/common/security/entities/auth-session.entity';
 import { LocationModule } from '../../src/modules/location/location.module';
@@ -1259,5 +1260,34 @@ describe('Estate API (e2e)', () => {
     expect((response.body as ApiError).code).toBe(
       ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
     );
+  });
+
+  it('serves the complete seeded location catalogue through the public API', async () => {
+    await dataSource.getRepository(Ward).delete(ward.id);
+    await seedLocation(dataSource);
+    await seedLocation(dataSource);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/locations/provinces')
+      .expect(200);
+    const provinces = (response.body as ApiSuccess<Province[]>).data;
+    const hoChiMinhCity = provinces.find(({ code }) => code === '79');
+
+    expect(provinces).toHaveLength(34);
+    expect(hoChiMinhCity?.name).toBe('Thành phố Hồ Chí Minh');
+    expect(await dataSource.getRepository(Ward).count()).toBe(3321);
+
+    const wardsResponse = await request(app.getHttpServer())
+      .get(`/api/v1/locations/provinces/${hoChiMinhCity?.id}/wards`)
+      .expect(200);
+    const wards = (wardsResponse.body as ApiSuccess<Ward[]>).data;
+    expect(wards).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: '26740', name: 'Phường Sài Gòn' }),
+      ]),
+    );
+    expect(
+      wards.every(({ provinceId }) => provinceId === hoChiMinhCity?.id),
+    ).toBe(true);
   });
 });

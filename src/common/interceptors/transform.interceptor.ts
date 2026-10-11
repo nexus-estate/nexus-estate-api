@@ -1,5 +1,6 @@
 import {
   Injectable,
+  StreamableFile,
   NestInterceptor,
   ExecutionContext,
   CallHandler,
@@ -54,12 +55,16 @@ export class TransformInterceptor<T> implements NestInterceptor<
     }
 
     return next.handle().pipe(
-      map((data: T) => ({
-        status: true,
-        data,
-        timestamp: new Date().toISOString(),
-        path: request.url,
-      })),
+      map((data: T) =>
+        data instanceof StreamableFile
+          ? data
+          : {
+              status: true,
+              data,
+              timestamp: new Date().toISOString(),
+              path: request.url,
+            },
+      ),
     );
   }
 }

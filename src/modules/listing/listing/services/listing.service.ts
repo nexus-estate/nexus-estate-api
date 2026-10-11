@@ -88,6 +88,13 @@ export class ListingService {
     return this.toResponse(listing);
   }
 
+  /** Returns only published listings with an active promotion window. */
+  async findPromoted(): Promise<ListingResponse[]> {
+    return (await this.listingRepository.findPromoted()).map((listing) =>
+      this.toResponse(listing),
+    );
+  }
+
   async findPublic(query: ListingQueryDto) {
     const result = await this.listingRepository.findPublic(query);
     const totalPages = Math.ceil(result.total / query.limit);

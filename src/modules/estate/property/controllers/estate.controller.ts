@@ -72,6 +72,16 @@ export class EstateController {
     return EstateResponse.toResponse(estate);
   }
 
+  /** Lists all active estates available on the public Marketplace. */
+  @Get()
+  @Public()
+  @ApiOperation({ summary: 'List active marketplace estates' })
+  @ApiOkResponse({ type: [EstateResponse] })
+  async listPublic(): Promise<EstateResponse[]> {
+    const estates = await this.estateService.listPublic();
+    return estates.map((estate) => EstateResponse.toResponse(estate));
+  }
+
   /** Lists the provider-scoped estates of the authenticated customer. */
   @Get('mine')
   @ApiBearerAuth()

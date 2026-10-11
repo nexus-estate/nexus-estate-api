@@ -5,6 +5,7 @@ export const HttpCodes = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  PAYLOAD_TOO_LARGE: 413,
   INTERNAL_SERVER_ERROR: 500,
   TOO_MANY_REQUESTS: 429,
 } as const;
