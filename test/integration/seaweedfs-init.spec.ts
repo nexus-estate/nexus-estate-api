@@ -1,27 +1,47 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 describe('SeaweedFS bucket bootstrap command', () => {
   let directory: string;
+  let composeDirectory: string;
   let command: string;
 
   beforeAll(() => {
     // Exercise the actual Compose command without needing a running daemon.
+    const repositoryRoot = resolve(__dirname, '../..');
+    composeDirectory = mkdtempSync(join(tmpdir(), 'nexus-seaweedfs-compose-'));
+    copyFileSync(
+      join(repositoryRoot, 'docker-compose.yml'),
+      join(composeDirectory, 'docker-compose.yml'),
+    );
+    // Compose's service env_file entries point to .env. The test only needs
+    // the file to exist; interpolation comes from the explicit example file.
+    writeFileSync(join(composeDirectory, '.env'), '');
     const config = JSON.parse(
       execFileSync(
         'docker',
         [
           'compose',
+          '--project-directory',
+          composeDirectory,
           '--env-file',
-          '.env.example',
+          join(repositoryRoot, '.env.example'),
+          '-f',
+          join(composeDirectory, 'docker-compose.yml'),
           'config',
           '--format',
           'json',
           '--no-env-resolution',
         ],
-        { cwd: resolve(__dirname, '../..'), encoding: 'utf8' },
+        { cwd: composeDirectory, encoding: 'utf8' },
       ),
     ) as { services: { 'seaweedfs-init': { command: string[] } } };
     command = config.services['seaweedfs-init'].command[0].replaceAll(
@@ -56,7 +76,13 @@ esac
   });
 
   afterEach(() => {
-    rmSync(directory, { recursive: true, force: true });
+    if (directory) {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  afterAll(() => {
+    rmSync(composeDirectory, { recursive: true, force: true });
   });
 
   function run(environment: Record<string, string> = {}) {

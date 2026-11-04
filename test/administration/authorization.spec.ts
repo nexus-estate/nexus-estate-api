@@ -40,6 +40,11 @@ describe('Administration authorization management (HTTP + PostgreSQL)', () => {
       'authorization-e2e-administration-access-secret-32';
     process.env.ADMIN_JWT_REFRESH_SECRET =
       'authorization-e2e-administration-refresh-secret-32';
+    process.env.S3_ENDPOINT ??= 'http://localhost:8333';
+    process.env.S3_REGION ??= 'us-east-1';
+    process.env.S3_ACCESS_KEY ??= 'authorization-e2e-access-key';
+    process.env.S3_SECRET_KEY ??= 'authorization-e2e-secret-key';
+    process.env.S3_BUCKET ??= 'authorization-e2e-bucket';
 
     // Import after test-container configuration because the production
     // TypeORM config reads database settings at module load time.
