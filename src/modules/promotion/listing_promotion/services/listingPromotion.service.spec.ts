@@ -28,6 +28,12 @@ describe('ListingPromotionService', () => {
     moneyValue: 100000,
     isActive: true,
   } as Promotion;
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(startAt);
+  });
+  afterEach(() => jest.useRealTimers());
+
   const context = {
     customerId,
     providerId,
@@ -92,15 +98,13 @@ describe('ListingPromotionService', () => {
   const createPromotion = (
     service: ListingPromotionService,
     selectedListingId = listingId,
-    selectedStartAt = startAt,
-    selectedEndAt = endAt,
+    durationDays = 6,
   ) =>
     service.createListingPromotion(
       customerId,
       selectedListingId,
       promotionId,
-      selectedStartAt,
-      selectedEndAt,
+      durationDays,
       providerId,
     );
 
@@ -160,18 +164,21 @@ describe('ListingPromotionService', () => {
     expect(listingPromotionRepository.create).not.toHaveBeenCalled();
   });
 
-  it('rejects an invalid time range before resolving provider context', async () => {
-    const { service, providerContextResolver, listingRepository } =
-      createService();
+  it.each([0, -1, 1.5, 366, NaN, Infinity])(
+    'rejects invalid duration %s before resolving provider context',
+    async (duration) => {
+      const { service, providerContextResolver, listingRepository } =
+        createService();
 
-    await expect(
-      createPromotion(service, listingId, endAt, startAt),
-    ).rejects.toMatchObject({
-      errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
-    });
-    expect(providerContextResolver.resolve).not.toHaveBeenCalled();
-    expect(listingRepository.findById).not.toHaveBeenCalled();
-  });
+      await expect(
+        createPromotion(service, listingId, duration),
+      ).rejects.toMatchObject({
+        errorCode: CommonErrorCodes.VALIDATION_ERROR.code,
+      });
+      expect(providerContextResolver.resolve).not.toHaveBeenCalled();
+      expect(listingRepository.findById).not.toHaveBeenCalled();
+    },
+  );
 
   it('rejects an overlapping promotion', async () => {
     const { service, listingPromotionRepository } = createService({
@@ -187,14 +194,15 @@ describe('ListingPromotionService', () => {
   it('allows an adjacent promotion at the existing end timestamp', async () => {
     const { service, listingPromotionRepository } = createService();
     const adjacentStart = endAt;
+    jest.setSystemTime(adjacentStart);
     const adjacentEnd = new Date('2026-01-10T00:00:00.000Z');
 
-    await expect(
-      createPromotion(service, listingId, adjacentStart, adjacentEnd),
-    ).resolves.toMatchObject({
-      startAt: adjacentStart,
-      endAt: adjacentEnd,
-    });
+    await expect(createPromotion(service, listingId, 3)).resolves.toMatchObject(
+      {
+        startAt: adjacentStart,
+        endAt: adjacentEnd,
+      },
+    );
 
     expect(
       listingPromotionRepository.findOverlappingByListingAndPromotion,
@@ -218,14 +226,13 @@ describe('ListingPromotionService', () => {
   });
 
   it.each([
-    [24, 100000],
-    [48, 200000],
-    [30, 125000],
-  ])('calculates %s hours as %s', async (hours, expectedPrice) => {
+    [1, 100000],
+    [2, 200000],
+    [365, 36500000],
+  ])('calculates %s days as %s', async (days, expectedPrice) => {
     const { service, listingPromotionRepository } = createService();
-    const selectedEndAt = new Date(startAt.getTime() + hours * 60 * 60 * 1000);
 
-    await createPromotion(service, listingId, startAt, selectedEndAt);
+    await createPromotion(service, listingId, days);
 
     expect(listingPromotionRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({ priceSnapshot: expectedPrice }),

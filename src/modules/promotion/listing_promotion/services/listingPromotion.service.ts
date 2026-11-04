@@ -10,6 +10,7 @@ import { PromotionRepo } from '../../promotion/repositories/promotion_repository
 import { ListingPromotion } from '../entities/listingPromotion.entity';
 import { ListingPromotionRepo } from '../repositories/listingPromotion.repo';
 
+/** Applies timed promotions within the resolved Provider ownership and permission boundary. */
 @Injectable()
 export class ListingPromotionService {
   constructor(
@@ -20,19 +21,20 @@ export class ListingPromotionService {
     private readonly supplyAccessPolicy: ProviderSupplyAccessPolicy,
   ) {}
 
+  /** Starts immediately using server time; duration is measured in whole 24-hour days. */
   async createListingPromotion(
     customerId: string,
     listingId: string,
     promotionId: string,
-    startAt: Date,
-    endAt: Date,
+    durationDays: number,
     providerId?: string,
   ): Promise<ListingPromotion> {
-    if (endAt <= startAt) {
-      throw new BusinessException(
-        CommonErrorCodes.VALIDATION_ERROR,
-        'endAt must be greater than startAt',
-      );
+    if (
+      !Number.isInteger(durationDays) ||
+      durationDays < 1 ||
+      durationDays > 365
+    ) {
+      throw new BusinessException(CommonErrorCodes.VALIDATION_ERROR);
     }
 
     const context = await this.providerContextResolver.resolve(
@@ -77,6 +79,11 @@ export class ListingPromotionService {
         promotionId,
       );
     }
+
+    const startAt = new Date();
+    const endAt = new Date(
+      startAt.getTime() + durationDays * 24 * 60 * 60 * 1000,
+    );
 
     const listingOverlap =
       await this.listingPromotionRepository.findOverlappingByListingAndPromotion(

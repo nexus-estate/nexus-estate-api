@@ -4,7 +4,7 @@ import { ListingPromotionController } from './listing_promotion_controller';
 import { ListingPromotionService } from '../services/listingPromotion.service';
 
 describe('ListingPromotionController', () => {
-  it('maps provider context, listing id, promotion id, and ISO dates to the service', async () => {
+  it('maps provider context, listing id, promotion id, and duration to the service', async () => {
     const service = {
       createListingPromotion: jest
         .fn()
@@ -17,8 +17,7 @@ describe('ListingPromotionController', () => {
       realm: 'customer',
     } as CustomerPrincipal;
     const dto = {
-      startAt: '2026-01-01T00:00:00.000Z',
-      endAt: '2026-01-07T00:00:00.000Z',
+      durationDays: 6,
     };
 
     await expect(
@@ -31,8 +30,7 @@ describe('ListingPromotionController', () => {
       'customer-id',
       'listing-id',
       'promotion-id',
-      new Date(dto.startAt),
-      new Date(dto.endAt),
+      dto.durationDays,
       'provider-id',
     );
   });
