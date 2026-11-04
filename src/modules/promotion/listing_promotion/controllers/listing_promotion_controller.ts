@@ -51,8 +51,7 @@ export class ListingPromotionController {
       user.id,
       listingId,
       promotionId,
-      new Date(dto.startAt),
-      new Date(dto.endAt),
+      dto.durationDays,
       providerId,
     );
   }
