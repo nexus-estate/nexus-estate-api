@@ -27,6 +27,10 @@ describe('MediaController image upload (HTTP)', () => {
   const providerId = '30000000-0000-4000-8000-000000000001';
   const url = `/estates/${estateId}/media`;
   const maximumSize = 5 * 1024 * 1024;
+  const listMine = jest.fn<
+    ReturnType<MediaService['listMine']>,
+    Parameters<MediaService['listMine']>
+  >();
   const createMedia = jest
     .fn<
       ReturnType<MediaService['createMedia']>,
@@ -46,7 +50,9 @@ describe('MediaController image upload (HTTP)', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [MediaController],
-      providers: [{ provide: MediaService, useValue: { createMedia } }],
+      providers: [
+        { provide: MediaService, useValue: { createMedia, listMine } },
+      ],
     })
       .overrideGuard(CustomerJwtAuthGuard)
       .useValue({
@@ -67,10 +73,51 @@ describe('MediaController image upload (HTTP)', () => {
 
   beforeEach(() => {
     createMedia.mockClear();
+    listMine.mockReset().mockResolvedValue([]);
   });
 
   afterAll(async () => {
     await app?.close();
+  });
+
+  it.each([undefined, providerId])(
+    'lists owned images using the authenticated user ID and provider %s',
+    async (selectedProviderId) => {
+      const image = Object.assign(new Media(), {
+        id: 'saved-media-id',
+        estateId,
+        mediaUrl: 'estates/estate-id/image.png',
+        type: MediaType.IMAGE,
+        sortOrder: 0,
+        createdBy: customerId,
+      });
+      listMine.mockResolvedValue([image]);
+      const call = request(app.getHttpServer()).get(`${url}/mine`);
+      if (selectedProviderId) {
+        call.set('X-Provider-Id', selectedProviderId);
+      }
+      await call.expect(200).expect([
+        {
+          id: image.id,
+          estateId,
+          mediaUrl: image.mediaUrl,
+          type: 'image',
+          sortOrder: 0,
+        },
+      ]);
+      expect(listMine).toHaveBeenCalledWith(
+        customerId,
+        estateId,
+        selectedProviderId,
+      );
+    },
+  );
+
+  it('rejects an invalid estate ID before listing owned images', async () => {
+    await request(app.getHttpServer())
+      .get('/estates/invalid/media/mine')
+      .expect(400);
+    expect(listMine).not.toHaveBeenCalled();
   });
 
   it.each([

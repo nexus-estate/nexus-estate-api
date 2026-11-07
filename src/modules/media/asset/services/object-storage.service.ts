@@ -49,7 +49,7 @@ export class ObjectStorageService {
   }
 
   /** Read stored bytes through the configured S3 endpoint, keeping the bucket private. */
-  async readEstateImage(objectKey: string) {
+  async readEstateImage(objectKey: string): Promise<ValidatedImage> {
     try {
       const object = await this.s3Client.send(
         new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }),
@@ -61,8 +61,8 @@ export class ObjectStorageService {
         throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
       }
       return {
-        body: Buffer.from(await object.Body.transformToByteArray()),
-        contentType: object.ContentType!,
+        buffer: Buffer.from(await object.Body.transformToByteArray()),
+        mimetype: object.ContentType! as unknown as 'image/jpeg' | 'image/png',
       };
     } catch (error) {
       if (error instanceof Error && error.name === 'NoSuchKey') {

@@ -92,4 +92,38 @@ export class MediaService {
       throw persistenceError;
     }
   }
+
+  /** Resolves current Provider read access before listing images, including draft estates. */
+  async listMine(
+    customerId: string,
+    estateId: string,
+    providerId?: string,
+  ): Promise<Media[]> {
+    await this.estateService.findOwnedById(customerId, estateId, providerId);
+
+    const media = await this.mediaRepository.findByEstateId(estateId);
+
+    return media.filter((item) => item.type === MediaType.IMAGE);
+  }
+
+  /** Authorizes the Provider and scopes the image to the estate before reading storage. */
+  async readOwnedImage(
+    customerId: string,
+    providerId: string | undefined,
+    estateId: string,
+    mediaId: string,
+  ): Promise<ValidatedImage> {
+    await this.estateService.findOwnedById(customerId, estateId, providerId);
+
+    const media = await this.mediaRepository.findByIdAndEstateId(
+      mediaId,
+      estateId,
+    );
+
+    if (!media || media.type !== MediaType.IMAGE) {
+      throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND, mediaId);
+    }
+
+    return this.objectStorageService.readEstateImage(media.mediaUrl);
+  }
 }

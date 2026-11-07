@@ -28,7 +28,7 @@ import type { Response } from 'express';
 import { Public } from '../../../../common/decorators/public.decorator';
 import { memoryStorage } from 'multer';
 import { ProviderId } from '../../../../common/decorators/provider-id.decorator';
-import type { CustomerPrincipal } from '../../../../common/security/auth.types';
+import type { AuthenticationRequest } from '../../../customer/authentication/types/authentication-request';
 import { CustomerJwtAuthGuard } from '../../../customer/authentication/guards/customer-jwt-auth.guard';
 import { MediaResponse } from '../dto/media.response';
 import { ImageUploadPipe, MAX_IMAGE_BYTES } from '../pipes/image-upload.pipe';
@@ -68,10 +68,10 @@ export class MediaController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
     const image = await this.mediaService.readPublicImage(estateId, mediaId);
-    response.setHeader('Content-Type', image.contentType);
+    response.setHeader('Content-Type', image.mimetype);
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'no-store');
-    return new StreamableFile(image.body, { type: image.contentType });
+    return new StreamableFile(image.buffer, { type: image.mimetype });
   }
 
   /** Parse multipart và validate trước khi gọi use case tạo Media. */
@@ -99,7 +99,7 @@ export class MediaController {
   )
   async createMedia(
     @Param('estateId', new ParseUUIDPipe()) estateId: string,
-    @Req() request: { user: CustomerPrincipal },
+    @Req() request: AuthenticationRequest,
     @UploadedFile(new ImageUploadPipe()) file: ValidatedImage,
     @ProviderId() providerId?: string,
   ): Promise<MediaResponse> {
@@ -110,5 +110,53 @@ export class MediaController {
       providerId,
     );
     return MediaResponse.toResponse(media);
+  }
+
+  @Get('mine')
+  @ApiOperation({ summary: 'List images of an owned estate' })
+  @ApiParam({ name: 'estateId', format: 'uuid' })
+  @ApiHeader({ name: 'X-Provider-Id', required: false })
+  @ApiOkResponse({ type: [MediaResponse] })
+  async getImageCraft(
+    @Param('estateId', new ParseUUIDPipe()) estateId: string,
+    @Req() req: AuthenticationRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<MediaResponse[]> {
+    const media = await this.mediaService.listMine(
+      req.user.id,
+      estateId,
+      providerId,
+    );
+    return media.map((item) => MediaResponse.toResponse(item));
+  }
+
+  /** Streams private image bytes after current Provider read authorization. */
+  @Get(':mediaId/content/mine')
+  @ApiOperation({ summary: 'Read an image belonging to an owned estate' })
+  @ApiParam({ name: 'estateId', format: 'uuid' })
+  @ApiParam({ name: 'mediaId', format: 'uuid' })
+  @ApiHeader({ name: 'X-Provider-Id', required: false })
+  @ApiProduces('image/jpeg', 'image/png')
+  @ApiOkResponse({ schema: { type: 'string', format: 'binary' } })
+  async readOwnedImage(
+    @Param('estateId', new ParseUUIDPipe()) estateId: string,
+    @Param('mediaId', new ParseUUIDPipe()) mediaId: string,
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: AuthenticationRequest,
+    @ProviderId() providerId?: string,
+  ): Promise<StreamableFile> {
+    const image = await this.mediaService.readOwnedImage(
+      req.user.id,
+      providerId,
+      estateId,
+      mediaId,
+    );
+
+    response.setHeader('Content-Type', image.mimetype);
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Cache-Control', 'no-store');
+    return new StreamableFile(image.buffer, {
+      type: image.mimetype,
+    });
   }
 }

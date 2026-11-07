@@ -28,23 +28,35 @@ describe('MediaService', () => {
     type: MediaType.IMAGE,
     sortOrder: 0,
   });
-  let estateService: jest.Mocked<Pick<EstateService, 'findOwnedByIdForUpdate'>>;
+  let estateService: jest.Mocked<
+    Pick<EstateService, 'findOwnedByIdForUpdate' | 'findOwnedById'>
+  >;
   let repository: jest.Mocked<
     Pick<
       MediaRepository,
-      'withEstateLock' | 'getNextSortOrder' | 'createEstateImage'
+      | 'withEstateLock'
+      | 'getNextSortOrder'
+      | 'createEstateImage'
+      | 'findByEstateId'
+      | 'findByIdAndEstateId'
     >
   >;
   let storage: jest.Mocked<
-    Pick<ObjectStorageService, 'uploadEstateImage' | 'deleteObject'>
+    Pick<
+      ObjectStorageService,
+      'uploadEstateImage' | 'deleteObject' | 'readEstateImage'
+    >
   >;
   let service: MediaService;
 
   beforeEach(() => {
     estateService = {
       findOwnedByIdForUpdate: jest.fn().mockResolvedValue(estate),
+      findOwnedById: jest.fn().mockResolvedValue(estate),
     };
     repository = {
+      findByEstateId: jest.fn().mockResolvedValue([]),
+      findByIdAndEstateId: jest.fn().mockResolvedValue(saved),
       withEstateLock: jest
         .fn()
         .mockImplementation(
@@ -57,11 +69,136 @@ describe('MediaService', () => {
     storage = {
       uploadEstateImage: jest.fn().mockResolvedValue(objectKey),
       deleteObject: jest.fn().mockResolvedValue(undefined),
+      readEstateImage: jest.fn().mockResolvedValue(file),
     };
     service = new MediaService(
       repository as unknown as MediaRepository,
       estateService as unknown as EstateService,
       storage as unknown as ObjectStorageService,
+    );
+  });
+
+  describe('readOwnedImage', () => {
+    it.each([undefined, providerId])(
+      'authorizes read access with provider %s before reading the scoped image',
+      async (selectedProvider) => {
+        await expect(
+          service.readOwnedImage(
+            customerId,
+            selectedProvider,
+            estateId,
+            saved.id,
+          ),
+        ).resolves.toBe(file);
+        expect(estateService.findOwnedById).toHaveBeenCalledWith(
+          customerId,
+          estateId,
+          selectedProvider,
+        );
+        expect(repository.findByIdAndEstateId).toHaveBeenCalledWith(
+          saved.id,
+          estateId,
+        );
+        expect(storage.readEstateImage).toHaveBeenCalledTimes(1);
+        expect(storage.readEstateImage).toHaveBeenCalledWith(objectKey);
+        expect(
+          estateService.findOwnedById.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          repository.findByIdAndEstateId.mock.invocationCallOrder[0],
+        );
+        expect(
+          repository.findByIdAndEstateId.mock.invocationCallOrder[0],
+        ).toBeLessThan(storage.readEstateImage.mock.invocationCallOrder[0]);
+        expect(estateService.findOwnedByIdForUpdate).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      CommonErrorCodes.AUTHENTICATION_REQUIRED,
+      CommonErrorCodes.FORBIDDEN,
+      CommonErrorCodes.RESOURCE_NOT_FOUND,
+    ])('does not query media or storage after $code', async (code) => {
+      const error = new BusinessException(code);
+      estateService.findOwnedById.mockRejectedValueOnce(error);
+      await expect(
+        service.readOwnedImage(customerId, providerId, estateId, saved.id),
+      ).rejects.toBe(error);
+      expect(repository.findByIdAndEstateId).not.toHaveBeenCalled();
+      expect(storage.readEstateImage).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      null,
+      Object.assign(new Media(), saved, { type: MediaType.VIDEO }),
+    ])(
+      'returns not found without reading storage for unavailable image %s',
+      async (media) => {
+        repository.findByIdAndEstateId.mockResolvedValueOnce(media);
+        await expect(
+          service.readOwnedImage(customerId, providerId, estateId, saved.id),
+        ).rejects.toMatchObject({
+          errorCode: CommonErrorCodes.RESOURCE_NOT_FOUND.code,
+        });
+        expect(storage.readEstateImage).not.toHaveBeenCalled();
+      },
+    );
+
+    it('preserves not found when the stored object is missing', async () => {
+      const error = new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
+      storage.readEstateImage.mockRejectedValueOnce(error);
+      await expect(
+        service.readOwnedImage(customerId, providerId, estateId, saved.id),
+      ).rejects.toBe(error);
+    });
+  });
+
+  describe('listMine', () => {
+    it.each([undefined, providerId])(
+      'checks read access with provider %s before querying',
+      async (selectedProvider) => {
+        await expect(
+          service.listMine(customerId, estateId, selectedProvider),
+        ).resolves.toEqual([]);
+        expect(estateService.findOwnedById).toHaveBeenCalledWith(
+          customerId,
+          estateId,
+          selectedProvider,
+        );
+        expect(repository.findByEstateId).toHaveBeenCalledWith(estateId);
+        expect(
+          estateService.findOwnedById.mock.invocationCallOrder[0],
+        ).toBeLessThan(repository.findByEstateId.mock.invocationCallOrder[0]);
+        expect(estateService.findOwnedByIdForUpdate).not.toHaveBeenCalled();
+      },
+    );
+
+    it('filters non-images while preserving repository display order', async () => {
+      const second = Object.assign(new Media(), {
+        ...saved,
+        id: 'second',
+        sortOrder: 7,
+      });
+      const video = Object.assign(new Media(), {
+        ...saved,
+        type: MediaType.VIDEO,
+      });
+      repository.findByEstateId.mockResolvedValue([second, video, saved]);
+      await expect(service.listMine(customerId, estateId)).resolves.toEqual([
+        second,
+        saved,
+      ]);
+    });
+
+    it.each([CommonErrorCodes.FORBIDDEN, CommonErrorCodes.RESOURCE_NOT_FOUND])(
+      'does not query media after $code',
+      async (code) => {
+        const error = new BusinessException(code);
+        estateService.findOwnedById.mockRejectedValueOnce(error);
+        await expect(
+          service.listMine(customerId, estateId, providerId),
+        ).rejects.toBe(error);
+        expect(repository.findByEstateId).not.toHaveBeenCalled();
+      },
     );
   });
 

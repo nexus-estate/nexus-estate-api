@@ -27,7 +27,9 @@ describe('Public estate media HTTP', () => {
     findByEstateId: jest.fn(),
     findByIdAndEstateId: jest.fn(),
   };
-  const storage = { readEstateImage: jest.fn() };
+  const storage: jest.Mocked<Pick<ObjectStorageService, 'readEstateImage'>> = {
+    readEstateImage: jest.fn(),
+  };
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -56,8 +58,8 @@ describe('Public estate media HTTP', () => {
     repository.findByEstateId.mockResolvedValue([image]);
     repository.findByIdAndEstateId.mockResolvedValue(image);
     storage.readEstateImage.mockResolvedValue({
-      body: Buffer.from([137, 80, 78, 71]),
-      contentType: 'image/png',
+      buffer: Buffer.from([137, 80, 78, 71]),
+      mimetype: 'image/png',
     });
   });
 
