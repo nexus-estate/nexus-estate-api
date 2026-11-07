@@ -1,10 +1,9 @@
-import { Global, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { BusinessExceptionFilter } from './filters/business-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
-import { RequestContextMiddleware } from './middleware/request-context.middleware';
 import { BcryptService } from './security/bcrypt.service';
 import { AuthSessionService } from './security/auth-session.service';
 
@@ -41,10 +40,5 @@ import { AuthSessionService } from './security/auth-session.service';
   ],
   exports: [BcryptService, AuthSessionService],
 })
-/** Shared infrastructure module for request context, errors, throttling, and cross-cutting HTTP behavior. */
-export class CommonModule implements NestModule {
-  /** Installs request correlation before controllers and cross-cutting handlers run. */
-  configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestContextMiddleware).forRoutes('*');
-  }
-}
+/** Shared infrastructure module for errors, throttling, and cross-cutting HTTP behavior. */
+export class CommonModule {}
