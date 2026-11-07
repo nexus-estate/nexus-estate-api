@@ -7,6 +7,14 @@ import messages from './estate-messages.json';
 
 /** Stable lifecycle and ownership errors owned by the property feature. */
 export const EstateErrorCodes = {
+  PROPERTY_INVALID_LOCATION_SELECTION: defineBusinessErrorCode(
+    'PROPERTY_INVALID_LOCATION_SELECTION',
+    {
+      en: messages.en.PROPERTY_INVALID_LOCATION_SELECTION,
+      vi: messages.vi.PROPERTY_INVALID_LOCATION_SELECTION,
+    },
+    HttpCodes.BAD_REQUEST,
+  ),
   PROPERTY_INVALID_STATUS_TRANSITION: defineBusinessErrorCode(
     'PROPERTY_INVALID_STATUS_TRANSITION',
     {

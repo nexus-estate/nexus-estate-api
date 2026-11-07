@@ -18,7 +18,10 @@ export class ListingEstateResponse {
   @ApiPropertyOptional({ nullable: true }) floors: number | null;
   @ApiProperty() addressLine: string;
   @ApiProperty({ format: 'uuid' }) provinceId: string;
-  @ApiProperty({ format: 'uuid' }) wardId: string;
+  @ApiProperty({ format: 'uuid', deprecated: true }) wardId: string;
+  @ApiProperty({ format: 'uuid', nullable: true }) urbanWardId: string | null;
+  @ApiProperty({ format: 'uuid', nullable: true }) communeId: string | null;
+  @ApiProperty({ format: 'uuid', nullable: true }) specialZoneId: string | null;
   @ApiPropertyOptional({ nullable: true }) latitude: number | null;
   @ApiPropertyOptional({ nullable: true }) longitude: number | null;
   @ApiProperty() province: { id: string; code: string; name: string };

@@ -34,4 +34,32 @@ describe('LocationService', () => {
     ).resolves.toBe(wards);
     expect(findByProvinceId).toHaveBeenCalledWith(provinceId);
   });
+  it('projects only reference picker fields and scopes both province and unit type', async () => {
+    const findByProvinceId = jest.fn().mockResolvedValue([
+      {
+        id: 'unit',
+        code: '00001',
+        name: 'Xã Test',
+        type: 'commune',
+        provinceId: 'province',
+        createdAt: new Date(),
+      },
+    ]);
+    const service = new LocationService(
+      {} as ProvinceRepo,
+      { findByProvinceId } as unknown as WardRepository,
+    );
+    await expect(
+      service.getUnitsByType('province', 'commune'),
+    ).resolves.toEqual([
+      {
+        id: 'unit',
+        code: '00001',
+        name: 'Xã Test',
+        type: 'commune',
+        provinceId: 'province',
+      },
+    ]);
+    expect(findByProvinceId).toHaveBeenCalledWith('province', 'commune');
+  });
 });

@@ -1,4 +1,4 @@
-import { CreateEstateDto } from '../dto/create-estate-dto';
+import type { CreateEstateDto } from '../dto/create-estate-dto';
 
 export enum EstateType {
   APARTMENT = 'APARTMENT',
@@ -31,6 +31,7 @@ export enum EstateStatus {
 
 /** Provider is the canonical Estate owner; customer id is provenance only. */
 export type CreateEstateData = CreateEstateDto & {
+  wardId: string;
   customerId: string;
   providerId: string;
 };

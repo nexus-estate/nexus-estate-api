@@ -95,6 +95,9 @@ type EstateResponse = {
   title: string;
   provinceId: string;
   wardId: string;
+  urbanWardId: string | null;
+  communeId: string | null;
+  specialZoneId: string | null;
   province: { id: string; code: string; name: string };
   ward: { id: string; code: string; name: string };
   deletedAt: string | null;
@@ -1592,6 +1595,168 @@ describe('Estate API (e2e)', () => {
     expect((response.body as ApiError).code).toBe(
       ProviderAccountErrorCodes.PROVIDER_ACCOUNT_FORBIDDEN.code,
     );
+  });
+
+  it.each([
+    ['urbanWardId', 'ward', 'urban-wards'],
+    ['communeId', 'commune', 'communes'],
+    ['specialZoneId', 'special_zone', 'special-zones'],
+  ] as const)(
+    'creates and reads an address using %s and exposes only that picker type',
+    async (field, type, route) => {
+      const unit = await dataSource.getRepository(Ward).save({
+        code: '99990',
+        name: `Selection ${type}`,
+        type,
+        provinceId: province.id,
+      });
+      const picker = await request(app.getHttpServer())
+        .get(`/api/v1/locations/provinces/${province.id}/${route}`)
+        .expect(200);
+      const units = (picker.body as ApiSuccess<Ward[]>).data;
+      expect(units.some(({ id }) => id === unit.id)).toBe(true);
+      expect(
+        units.every(
+          (row) => row.type === type && row.provinceId === province.id,
+        ),
+      ).toBe(true);
+      expect(units[0]).not.toHaveProperty('createdAt');
+      await request(app.getHttpServer())
+        .get(`/api/v1/locations/provinces/invalid/${route}`)
+        .expect(400);
+      const base = { ...estateBody(), wardId: undefined };
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/estates')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ ...base, [field]: unit.id })
+        .expect(201);
+      const created = (response.body as ApiSuccess<EstateResponse>).data;
+      expect(created).toMatchObject({
+        wardId: unit.id,
+        urbanWardId: null,
+        communeId: null,
+        specialZoneId: null,
+        [field]: unit.id,
+      });
+      await request(app.getHttpServer())
+        .post(`/api/v1/estates/${created.id}/activate`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      const listing = await request(app.getHttpServer())
+        .post('/api/v1/listings')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ estateId: created.id })
+        .expect(201);
+      expect(
+        (listing.body as ApiSuccess<{ estate: EstateResponse }>).data.estate,
+      ).toMatchObject({
+        urbanWardId: null,
+        communeId: null,
+        specialZoneId: null,
+        [field]: unit.id,
+      });
+      const stored = await dataSource
+        .getRepository(Estate)
+        .findOneByOrFail({ id: created.id });
+      expect(stored[field]).toBe(unit.id);
+      const detail = await request(app.getHttpServer())
+        .get(`/api/v1/estates/${created.id}/mine`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      expect((detail.body as ApiSuccess<EstateResponse>).data[field]).toBe(
+        unit.id,
+      );
+      await request(app.getHttpServer())
+        .post('/api/v1/estates')
+        .send({ ...base, [field]: unit.id })
+        .expect(401);
+      await request(app.getHttpServer())
+        .patch(`/api/v1/estates/${created.id}`)
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({ [field]: unit.id })
+        .expect(403);
+    },
+  );
+
+  it('switches from phường to xã and preserves the selection on unrelated updates', async () => {
+    const created = await createEstate();
+    const commune = await dataSource.getRepository(Ward).save({
+      code: '99991',
+      name: 'Xã Test',
+      type: WARD_TYPES.COMMUNE,
+      provinceId: province.id,
+    });
+    const changed = await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${created.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ communeId: commune.id, urbanWardId: null })
+      .expect(200);
+    expect((changed.body as ApiSuccess<EstateResponse>).data).toMatchObject({
+      urbanWardId: null,
+      communeId: commune.id,
+      specialZoneId: null,
+      wardId: commune.id,
+    });
+    const unrelated = await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${created.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ title: 'Changed title' })
+      .expect(200);
+    expect((unrelated.body as ApiSuccess<EstateResponse>).data.communeId).toBe(
+      commune.id,
+    );
+    // Legacy clients can still select the same commune through wardId.
+    const legacy = await request(app.getHttpServer())
+      .post('/api/v1/estates')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ ...estateBody(), wardId: commune.id })
+      .expect(201);
+    expect((legacy.body as ApiSuccess<EstateResponse>).data.communeId).toBe(
+      commune.id,
+    );
+  });
+
+  it('rejects missing, mixed, wrong-type, malformed and cross-province typed selections atomically', async () => {
+    const base = { ...estateBody(), wardId: undefined };
+    const otherProvince = await dataSource.getRepository(Province).save({
+      code: '98',
+      name: 'Other province',
+      type: PROVINCE_TYPES.PROVINCE,
+    });
+    const foreignCommune = await dataSource.getRepository(Ward).save({
+      code: '99992',
+      name: 'Foreign commune',
+      type: WARD_TYPES.COMMUNE,
+      provinceId: otherProvince.id,
+    });
+    for (const fields of [
+      {},
+      { urbanWardId: ward.id, communeId: foreignCommune.id },
+      { communeId: ward.id },
+      { urbanWardId: 'invalid' },
+      { communeId: foreignCommune.id },
+      { communeId: '40000000-0000-4000-8000-000000000099' },
+    ]) {
+      const result = await request(app.getHttpServer())
+        .post('/api/v1/estates')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ ...base, ...fields });
+      expect([400, 404]).toContain(result.status);
+    }
+    expect(await dataSource.getRepository(Estate).count()).toBe(0);
+    const created = await createEstate();
+    await request(app.getHttpServer())
+      .patch(`/api/v1/estates/${created.id}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ communeId: ward.id })
+      .expect(400);
+    expect(
+      (
+        await dataSource
+          .getRepository(Estate)
+          .findOneByOrFail({ id: created.id })
+      ).wardId,
+    ).toBe(ward.id);
   });
 
   it('serves the complete seeded location catalogue through the public API', async () => {

@@ -140,6 +140,9 @@ export class EstateRepo extends BaseRepository<Estate> {
       addressLine,
       provinceId,
       wardId,
+      urbanWardId,
+      communeId,
+      specialZoneId,
       latitude,
       longitude,
     } = data;
@@ -158,6 +161,9 @@ export class EstateRepo extends BaseRepository<Estate> {
       addressLine,
       provinceId,
       wardId,
+      urbanWardId,
+      communeId,
+      specialZoneId,
       latitude,
       longitude,
     });

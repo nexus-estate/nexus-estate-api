@@ -1,85 +1,3 @@
-/*
-PHASE: CreateEstateDto
-
-Target fields client được phép gửi:
-
-title
-- string
-- required
-
-description
-- string
-- optional
-
-type
-- EstateType enum
-- required
-
-purpose
-- EstatePurpose enum
-- required
-
-price
-- number
-- required
-- >= 0
-
-area
-- number
-- optional
-- > 0
-
-bedrooms
-- integer
-- optional
-- >= 0
-
-bathrooms
-- integer
-- optional
-- >= 0
-
-floors
-- integer
-- optional
-- >= 0
-
-addressLine
-- string
-- required
-
-provinceId
-- UUID
-- required
-
-wardId
-- UUID
-- required
-
-latitude
-- number
-- optional
-- min -90
-- max 90
-
-longitude
-- number
-- optional
-- min -180
-- max 180
-
-KHÔNG được có:
-- id
-- customerId
-- createdAt
-- updatedAt
-- deletedAt
-- createdBy
-- updatedBy
-
-customerId được lấy từ JWT/current user.
-*/
-
 import {
   IsEnum,
   IsInt,
@@ -91,6 +9,7 @@ import {
   IsUUID,
   Max,
   Min,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -150,15 +69,49 @@ export class CreateEstateDto {
   @ApiProperty({ example: '1 Nguyen Hue' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
   addressLine: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   provinceId: string;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    deprecated: true,
+    description:
+      'Legacy identifier accepting any administrative unit type. Use one typed field instead.',
+  })
+  @IsOptional()
   @IsUUID()
-  wardId: string;
+  wardId?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: 'Phường; choose exactly one typed unit.',
+  })
+  @IsOptional()
+  @IsUUID()
+  urbanWardId?: string | null;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: 'Xã; choose exactly one typed unit.',
+  })
+  @IsOptional()
+  @IsUUID()
+  communeId?: string | null;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: 'Đặc khu; choose exactly one typed unit.',
+  })
+  @IsOptional()
+  @IsUUID()
+  specialZoneId?: string | null;
 
   @ApiPropertyOptional({ minimum: -90, maximum: 90, example: 10.7769 })
   @IsOptional()

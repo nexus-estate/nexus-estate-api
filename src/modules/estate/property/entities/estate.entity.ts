@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { BaseEntity } from '../../../../services/abstraction-services';
 import {
@@ -80,6 +80,40 @@ export class Estate extends BaseEntity {
   @ManyToOne(() => Ward, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'fk_ward_id' })
   ward: Relation<Ward>;
+
+  /** Typed address selections; wardId remains the legacy all-types identifier. */
+  @Index('idx_estate_urban_ward')
+  @Column({ name: 'fk_urban_ward_id', type: 'uuid', nullable: true })
+  urbanWardId: string | null;
+
+  @ManyToOne(() => Ward, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({
+    name: 'fk_urban_ward_id',
+    foreignKeyConstraintName: 'tbl_estate_fk_urban_ward_id_fkey',
+  })
+  urbanWard: Relation<Ward> | null;
+
+  @Index('idx_estate_commune')
+  @Column({ name: 'fk_commune_id', type: 'uuid', nullable: true })
+  communeId: string | null;
+
+  @ManyToOne(() => Ward, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({
+    name: 'fk_commune_id',
+    foreignKeyConstraintName: 'tbl_estate_fk_commune_id_fkey',
+  })
+  commune: Relation<Ward> | null;
+
+  @Index('idx_estate_special_zone')
+  @Column({ name: 'fk_special_zone_id', type: 'uuid', nullable: true })
+  specialZoneId: string | null;
+
+  @ManyToOne(() => Ward, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({
+    name: 'fk_special_zone_id',
+    foreignKeyConstraintName: 'tbl_estate_fk_special_zone_id_fkey',
+  })
+  specialZone: Relation<Ward> | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   latitude: number | null;

@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { ProvinceRepo } from '../repositories/province.repo';
 import { WardRepository } from '../repositories/ward.repo';
-import { Province, Ward } from '../entities/location.entity';
+import { Province, Ward, type WardType } from '../entities/location.entity';
+
+import type { AdministrativeUnitResponse } from '../dto/location.dto';
 
 /** Application service for administrative-division reference data. */
 @Injectable()
@@ -20,5 +22,19 @@ export class LocationService {
   /** Returns wards belonging to one exact province identifier. */
   async getWardsByProvinceId(provinceId: string): Promise<Ward[]> {
     return this.wardRepository.findByProvinceId(provinceId);
+  }
+  /** Supplies a province-scoped, type-specific picker without exposing audit columns. */
+  async getUnitsByType(
+    provinceId: string,
+    type: WardType,
+  ): Promise<AdministrativeUnitResponse[]> {
+    const units = await this.wardRepository.findByProvinceId(provinceId, type);
+    return units.map(({ id, code, name, type, provinceId }) => ({
+      id,
+      code,
+      name,
+      type,
+      provinceId,
+    }));
   }
 }

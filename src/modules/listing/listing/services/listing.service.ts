@@ -329,6 +329,10 @@ export class ListingService {
         addressLine: estate.addressLine,
         provinceId: estate.provinceId,
         wardId: estate.wardId,
+        urbanWardId: estate.ward.type === 'ward' ? estate.wardId : null,
+        communeId: estate.ward.type === 'commune' ? estate.wardId : null,
+        specialZoneId:
+          estate.ward.type === 'special_zone' ? estate.wardId : null,
         latitude: estate.latitude === null ? null : Number(estate.latitude),
         longitude: estate.longitude === null ? null : Number(estate.longitude),
         province: {

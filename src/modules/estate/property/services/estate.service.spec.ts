@@ -86,9 +86,13 @@ describe('EstateService', () => {
   const newWardId = '40000000-0000-4000-8000-000000000002';
 
   const province = { id: provinceId } as Province;
-  const ward = { id: wardId, provinceId } as Ward;
+  const ward = { id: wardId, provinceId, type: 'ward' } as Ward;
   const newProvince = { id: newProvinceId } as Province;
-  const newWard = { id: newWardId, provinceId: newProvinceId } as Ward;
+  const newWard = {
+    id: newWardId,
+    provinceId: newProvinceId,
+    type: 'ward',
+  } as Ward;
 
   const createDto: CreateEstateDto = {
     title: 'Riverside apartment',
@@ -190,8 +194,68 @@ describe('EstateService', () => {
       );
       expect(estateRepository.createEstate).toHaveBeenCalledWith({
         ...createDto,
+        urbanWardId: wardId,
+        communeId: null,
+        specialZoneId: null,
         customerId,
         providerId,
+      });
+    });
+
+    it.each([
+      ['urbanWardId', 'ward'],
+      ['communeId', 'commune'],
+      ['specialZoneId', 'special_zone'],
+    ] as const)(
+      'normalizes %s and preserves the canonical identifier',
+      async (field, type) => {
+        provinceRepository.findById.mockResolvedValue(province);
+        wardRepository.findById.mockResolvedValue({ ...ward, type });
+        const base = { ...createDto, wardId: undefined };
+        await service.createEstate(customerId, { ...base, [field]: wardId });
+        expect(estateRepository.createEstate).toHaveBeenCalledWith({
+          ...base,
+          wardId,
+          customerId,
+          providerId,
+          urbanWardId: null,
+          communeId: null,
+          specialZoneId: null,
+          [field]: wardId,
+        });
+      },
+    );
+
+    it('rejects multiple selections and inconsistent legacy input before persistence', async () => {
+      for (const fields of [
+        { urbanWardId: wardId, communeId: newWardId },
+        { communeId: newWardId },
+      ]) {
+        await expect(
+          service.createEstate(customerId, { ...createDto, ...fields }),
+        ).rejects.toMatchObject({
+          errorCode: EstateErrorCodes.PROPERTY_INVALID_LOCATION_SELECTION.code,
+        });
+      }
+      expect(estateRepository.createEstate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a commune passed through the urban ward field', async () => {
+      provinceRepository.findById.mockResolvedValue(province);
+      wardRepository.findById.mockResolvedValue({ ...ward, type: 'commune' });
+      await expect(
+        service.createEstate(customerId, { ...createDto, urbanWardId: wardId }),
+      ).rejects.toMatchObject({
+        errorCode: EstateErrorCodes.PROPERTY_INVALID_LOCATION_SELECTION.code,
+      });
+    });
+
+    it('requires a location even though legacy and typed fields are individually optional', async () => {
+      const base = { ...createDto, wardId: undefined };
+      await expect(
+        service.createEstate(customerId, base),
+      ).rejects.toMatchObject({
+        errorCode: EstateErrorCodes.PROPERTY_INVALID_LOCATION_SELECTION.code,
       });
     });
 
@@ -399,7 +463,12 @@ describe('EstateService', () => {
       expect(wardRepository.findById).toHaveBeenCalledWith(newWardId);
       expect(estateRepository.updateEstate).toHaveBeenCalledWith(
         estateId,
-        dto,
+        {
+          ...dto,
+          urbanWardId: newWardId,
+          communeId: null,
+          specialZoneId: null,
+        },
         expect.anything(),
       );
       expect(

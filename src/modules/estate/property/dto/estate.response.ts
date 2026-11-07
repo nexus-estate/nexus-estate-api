@@ -30,7 +30,15 @@ export class EstateResponse {
   @ApiPropertyOptional({ nullable: true }) floors: number | null;
   @ApiProperty() addressLine: string;
   @ApiProperty({ format: 'uuid' }) provinceId: string;
-  @ApiProperty({ format: 'uuid' }) wardId: string;
+  @ApiProperty({
+    format: 'uuid',
+    deprecated: true,
+    description: 'Legacy all-types identifier.',
+  })
+  wardId: string;
+  @ApiProperty({ format: 'uuid', nullable: true }) urbanWardId: string | null;
+  @ApiProperty({ format: 'uuid', nullable: true }) communeId: string | null;
+  @ApiProperty({ format: 'uuid', nullable: true }) specialZoneId: string | null;
   @ApiPropertyOptional({ nullable: true }) latitude: number | null;
   @ApiPropertyOptional({ nullable: true }) longitude: number | null;
   @ApiProperty({ type: () => EstateLocationResponse, nullable: false })
@@ -58,6 +66,9 @@ export class EstateResponse {
       addressLine: estate.addressLine,
       provinceId: estate.provinceId,
       wardId: estate.wardId,
+      urbanWardId: estate.ward.type === 'ward' ? estate.wardId : null,
+      communeId: estate.ward.type === 'commune' ? estate.wardId : null,
+      specialZoneId: estate.ward.type === 'special_zone' ? estate.wardId : null,
       latitude: estate.latitude === null ? null : Number(estate.latitude),
       longitude: estate.longitude === null ? null : Number(estate.longitude),
       // Province/Ward are NOT NULL schema relations and every response passes

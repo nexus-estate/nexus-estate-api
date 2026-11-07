@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EstateRepo } from '../repositories/estate.repo';
 import { Estate } from '../entities';
+import type { Ward } from '../../../location/administrative-division/entities/location.entity';
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import { CommonErrorCodes } from '../../../../common/errors/common-error-codes';
 import { CreateEstateDto } from '../dto/create-estate-dto';
@@ -60,7 +61,7 @@ export class EstateService {
   private async validateLocation(
     wardId: string,
     provinceId: string,
-  ): Promise<boolean> {
+  ): Promise<Ward> {
     const province = await this.provinceRepository.findById(provinceId);
     if (!province) {
       throw new BusinessException(
@@ -83,7 +84,54 @@ export class EstateService {
       );
     }
 
-    return true;
+    return ward;
+  }
+
+  /** Normalizes old and typed inputs into one canonical location without changing supply authority. */
+  private async resolveLocationSelection(
+    dto: UpdateEstateDto,
+    current?: Estate,
+  ): Promise<{
+    wardId: string;
+    urbanWardId: string | null;
+    communeId: string | null;
+    specialZoneId: string | null;
+  }> {
+    const typed = [
+      ['urbanWardId', 'ward'],
+      ['communeId', 'commune'],
+      ['specialZoneId', 'special_zone'],
+    ] as const;
+    const selected = typed.filter(([field]) => dto[field] != null);
+    const hasSelectionInput =
+      dto.wardId !== undefined ||
+      typed.some(([field]) => dto[field] !== undefined);
+    const invalid = (): never => {
+      throw new BusinessException(
+        EstateErrorCodes.PROPERTY_INVALID_LOCATION_SELECTION,
+      );
+    };
+    if (selected.length > 1) invalid();
+    const selectedId = selected.length === 1 ? dto[selected[0][0]] : undefined;
+    if (selectedId && dto.wardId != null && dto.wardId !== selectedId)
+      invalid();
+    const wardId =
+      selectedId ??
+      dto.wardId ??
+      (!hasSelectionInput ? current?.wardId : undefined);
+    if (!wardId) return invalid();
+    const unit = await this.validateLocation(
+      wardId,
+      dto.provinceId ?? current?.provinceId ?? '',
+    );
+    if (!['ward', 'commune', 'special_zone'].includes(unit.type)) invalid();
+    if (selected.length === 1 && unit.type !== selected[0][1]) invalid();
+    return {
+      wardId,
+      urbanWardId: unit.type === 'ward' ? wardId : null,
+      communeId: unit.type === 'commune' ? wardId : null,
+      specialZoneId: unit.type === 'special_zone' ? wardId : null,
+    };
   }
 
   /** Public Marketplace inventory contains active estates only. */
@@ -155,16 +203,10 @@ export class EstateService {
     );
     await this.supplyAccessPolicy.requirePermission(context, 'property:create');
 
-    // 1. find province
-    const checkedLocation = await this.validateLocation(
-      dto.wardId,
-      dto.provinceId,
-    );
-    if (!checkedLocation) {
-      throw new BusinessException(CommonErrorCodes.RESOURCE_NOT_FOUND);
-    }
+    const location = await this.resolveLocationSelection(dto);
     return await this.estateRepository.createEstate({
       ...dto,
+      ...location,
       customerId,
       providerId: context.providerId,
     });
@@ -191,13 +233,10 @@ export class EstateService {
             context.providerId,
           );
         }
-        await this.validateLocation(
-          dto.wardId ?? estate.wardId,
-          dto.provinceId ?? estate.provinceId,
-        );
+        const location = await this.resolveLocationSelection(dto, estate);
         const updated = await this.estateRepository.updateEstate(
           estateId,
-          dto,
+          { ...dto, ...location },
           manager,
         );
         if (!updated) {

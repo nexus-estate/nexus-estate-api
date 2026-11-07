@@ -44,7 +44,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:all": "npm run build && npm run lint:check && npm run test && npm run test:e2e",
-    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') require('child_process').execFileSync('husky', { stdio: 'inherit' })\""
+    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') require('child_process').execFileSync('husky', { stdio: 'inherit' })\"",
+    "backfill:estate-location": "ts-node src/modules/estate/property/data-migrations/run-backfill-typed-estate-locations.ts",
+    "backfill:estate-location:prod": "node dist/modules/estate/property/data-migrations/run-backfill-typed-estate-locations.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1149.0",

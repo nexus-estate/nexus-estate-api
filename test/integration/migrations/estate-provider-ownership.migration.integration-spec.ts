@@ -101,11 +101,11 @@ describe('Estate provider ownership contract migration (PostgreSQL integration)'
     );
     await dataSource.query(
       `INSERT INTO tbl_province (id, code, name, type)
-       VALUES ('30000000-0000-4000-8000-000000000001', '79', 'Ho Chi Minh City', 'MUNICIPALITY')`,
+       VALUES ('30000000-0000-4000-8000-000000000001', '79', 'Ho Chi Minh City', 'municipality')`,
     );
     await dataSource.query(
       `INSERT INTO tbl_ward (id, code, name, type, fk_province_id)
-       VALUES ('40000000-0000-4000-8000-000000000001', '26734', 'Ben Nghe', 'WARD', '30000000-0000-4000-8000-000000000001')`,
+       VALUES ('40000000-0000-4000-8000-000000000001', '26734', 'Ben Nghe', 'ward', '30000000-0000-4000-8000-000000000001')`,
     );
     return customerId;
   };
