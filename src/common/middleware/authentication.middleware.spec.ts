@@ -12,6 +12,13 @@ describe('AuthenticationMiddleware', () => {
     ['Bearer', undefined],
     ['Bearer ', undefined],
     ['Bearer token extra', undefined],
+    ['Bearer  token', undefined],
+    ['Bearer\ttoken', undefined],
+    [' Bearer token', undefined],
+    ['Bearer token ', undefined],
+    ['bearer token', undefined],
+    ['Bearer token\nextra', undefined],
+    ['Bearer expired.or.invalid-signature', 'expired.or.invalid-signature'],
   ])(
     'extracts only a complete bearer token from %s',
     (authorization, expected) => {
@@ -21,6 +28,9 @@ describe('AuthenticationMiddleware', () => {
       new AuthenticationMiddleware().use(request, {} as Response, next);
 
       expect(request.accessToken).toBe(expected);
+      expect(Object.hasOwn(request, 'accessToken')).toBe(
+        expected !== undefined,
+      );
       expect(request.user).toBeUndefined();
       expect(next).toHaveBeenCalledTimes(1);
     },

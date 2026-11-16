@@ -112,7 +112,7 @@ class RequestContextTestModule implements NestModule {
   }
 }
 
-describe('Request context route exclusions (HTTP)', () => {
+describe('Request context on all routes (HTTP)', () => {
   let app: INestApplication;
   const use = jest.spyOn(RequestContextMiddleware.prototype, 'use');
   const authenticate = jest.spyOn(AuthenticationMiddleware.prototype, 'use');
@@ -141,22 +141,16 @@ describe('Request context route exclusions (HTTP)', () => {
     use.mockClear();
     authenticate.mockClear();
     const response = await request(app.getHttpServer() as Server)
-      [route.method](`${route.path}/?check=public-exclusion`)
+      [route.method](`${route.path}/?check=all-routes`)
       .set('X-Request-Id', 'route-context-regression')
       .set('X-Lang', 'vi')
       .set('Authorization', 'Bearer route-token');
 
     expect(response.status).toBeLessThan(400);
-    expect(authenticate).toHaveBeenCalledTimes(route.isPublic ? 0 : 1);
-    if (!route.isPublic) {
-      expect(authenticate.mock.calls[0][0].accessToken).toBe('route-token');
-    }
-    expect(use).toHaveBeenCalledTimes(route.isPublic ? 0 : 1);
-    expect(response.headers['x-request-id']).toBe(
-      route.isPublic ? undefined : 'route-context-regression',
-    );
-    expect(response.headers['content-language']).toBe(
-      route.isPublic ? undefined : 'vi',
-    );
+    expect(authenticate).toHaveBeenCalledTimes(1);
+    expect(authenticate.mock.calls[0][0].accessToken).toBe('route-token');
+    expect(use).toHaveBeenCalledTimes(1);
+    expect(response.headers['x-request-id']).toBe('route-context-regression');
+    expect(response.headers['content-language']).toBe('vi');
   });
 });

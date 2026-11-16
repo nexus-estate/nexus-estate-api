@@ -39,6 +39,7 @@ import {
   PROVINCE_TYPES,
   WARD_TYPES,
 } from '../../src/modules/location/administrative-division/entities/location.entity';
+import { ApplicationMiddlewareTestModule } from '../helpers/application-middleware.module';
 
 // S3 được giả lập ở SDK boundary; guard, quyền, service và PostgreSQL chạy thật.
 describe('Media upload workflow (PostgreSQL)', () => {
@@ -67,6 +68,7 @@ describe('Media upload workflow (PostgreSQL)', () => {
       .start();
     const module = await Test.createTestingModule({
       imports: [
+        ApplicationMiddlewareTestModule,
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,

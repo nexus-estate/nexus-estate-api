@@ -36,6 +36,7 @@ import { CustomerAccountErrorCodes } from '../../src/modules/customer/account/er
 import { BcryptService } from '../../src/common/security/bcrypt.service';
 import { PERMISSIONS } from '../../src/utils/constants/permission.constant';
 import { ROLES } from '../../src/utils/constants/role.constant';
+import { ApplicationMiddlewareTestModule } from '../helpers/application-middleware.module';
 
 type ApiSuccess<T> = { status: true; data: T };
 type TokenPair = { accessToken: string; refreshToken: string };
@@ -79,6 +80,7 @@ describe('Customer and Provider APIs (e2e)', () => {
 
     module = await Test.createTestingModule({
       imports: [
+        ApplicationMiddlewareTestModule,
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,

@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Strategy } from 'passport-jwt';
 
+import type { RequestWithToken } from '../../../../common/middleware/authentication.middleware';
 import { BusinessException } from '../../../../common/exceptions/business.exception';
 import type {
   CustomerPrincipal,
@@ -22,7 +23,8 @@ export class CustomerJwtStrategy extends PassportStrategy(
     configService: ConfigService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: (request: RequestWithToken) =>
+        request.accessToken ?? null,
       ignoreExpiration: false,
       secretOrKey:
         configService.get<string>('CUSTOMER_JWT_ACCESS_SECRET') ??
