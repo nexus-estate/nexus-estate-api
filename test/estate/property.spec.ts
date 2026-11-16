@@ -58,6 +58,7 @@ import {
   ProviderVerificationStatus,
 } from '../../src/modules/provider/account/enums/account.enums';
 import { ProviderAccountErrorCodes } from '../../src/modules/provider/account/errors/provider-account-error-codes';
+import { ApplicationMiddlewareTestModule } from '../helpers/application-middleware.module';
 
 type ApiSuccess<T> = {
   status: true;
@@ -250,6 +251,7 @@ describe('Estate API (e2e)', () => {
 
     module = await Test.createTestingModule({
       imports: [
+        ApplicationMiddlewareTestModule,
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,

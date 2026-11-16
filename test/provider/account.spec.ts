@@ -27,6 +27,7 @@ import { ProviderModule } from '../../src/modules/provider/provider.module';
 import { CustomerAccount } from '../../src/modules/customer/account/entities/customer-account.entity';
 import { ProviderAccountErrorCodes } from '../../src/modules/provider/account/errors/provider-account-error-codes';
 import { PERMISSIONS } from '../../src/utils/constants/permission.constant';
+import { ApplicationMiddlewareTestModule } from '../helpers/application-middleware.module';
 
 type ApiSuccess<T> = { status: true; data: T };
 type ApiError = { status: false; code?: string; message: string };
@@ -59,6 +60,7 @@ describe('ProviderAccount API (e2e)', () => {
 
     module = await Test.createTestingModule({
       imports: [
+        ApplicationMiddlewareTestModule,
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,

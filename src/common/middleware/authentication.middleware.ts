@@ -9,6 +9,7 @@ export type RequestWithToken = Request & {
 /** Extracts a bearer token; realm guards still validate identity and authority. */
 @Injectable()
 export class AuthenticationMiddleware implements NestMiddleware {
+  /** Attaches only a well-formed Bearer token and always continues without validating it. */
   use(
     request: RequestWithToken,
     _response: Response,
